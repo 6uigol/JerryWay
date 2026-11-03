@@ -1,9 +1,10 @@
 'use strict';
 // Jerry Way — casca Electron (Windows e Linux). O jogo é o mesmo HTML/CSS/JS, servido por app://jogo/
 // (módulos ES não funcionam em file://).
-const { app, BrowserWindow, Menu, protocol, net, shell, session } = require('electron');
+const { app, BrowserWindow, Menu, protocol, net, shell, session, ipcMain } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const googleFlow = require('./googleflow.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const DEV = !app.isPackaged && process.argv.includes('--dev');
@@ -16,12 +17,18 @@ function serveGame(req) {
   if (!SERVE.has(path.relative(ROOT, full).split(path.sep)[0])) return new Response('Não encontrado', { status: 404 });
   return net.fetch(pathToFileURL(full).toString());
 }
+// entrar com o Google: abre uma página local no navegador do sistema, que faz o login pelo Firebase e devolve os tokens
+ipcMain.handle('auth:google', async (_e, config) => {
+  const tokens = await googleFlow({ config, open: (u) => shell.openExternal(u), bundlePath: path.join(ROOT, 'vendor', 'cloud.bundle.js') });
+  if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+  return tokens;
+});
 let win = null;
 function createWindow() {
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 480, minHeight: 480, backgroundColor: '#1a1226', show: false, title: 'Jerry Way',
     icon: path.join(ROOT, 'icons', process.platform === 'win32' ? 'app.ico' : 'icon-512.png'), autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: DEV, spellcheck: false, backgroundThrottling: false },
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: DEV, spellcheck: false, backgroundThrottling: false },
   });
   win.removeMenu();
   win.once('ready-to-show', () => win.show());

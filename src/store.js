@@ -1,7 +1,8 @@
 // Progresso do jogador: moedas, skins, recorde, última partida e o fantasma do recorde.
 // Fica no aparelho (localStorage) e, com conta, também na nuvem (mesma conta do Song of Moonlight).
 import { DEFAULT_SKIN, SKIN_BY_ID } from './skins.js';
-import { FIREBASE_CONFIG } from './config.js';
+import { FIREBASE_CONFIG, API_URL } from './config.js';
+import { nativeGoogleLogin, pendingGoogleLogin, acknowledgeGoogleLogin } from './google-login.js';
 
 const KEY = (uid) => 'jerryway.save.' + (uid || 'local');
 const fresh = () => ({ v: 1, coins: 0, best: 0, last: 0, runs: 0, pulls: 0, owned: [DEFAULT_SKIN], skin: DEFAULT_SKIN, name: '', ghost: null, updatedAt: 0 });
@@ -29,7 +30,15 @@ export function commit() {
   writeLocal(); emit();
   if (uid && account && account.verified) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 }
-async function pushCloud() { try { await cloud.putSave(JSON.parse(JSON.stringify(save))); } catch (e) { console.warn('nuvem', e && e.code); } }
+// conversa com o servidor do site (/api/jerry); as chamadas da conta levam o token do Firebase
+async function api(op, payload) {
+  const headers = { 'content-type': 'application/json' };
+  if (op !== 'top') headers.authorization = 'Bearer ' + (await cloud.idToken());
+  const r = payload ? await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ op, ...payload }) }) : await fetch(API_URL + '?op=' + op, { headers, cache: 'no-store' });
+  if (!r.ok) throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : 'network' });
+  return r.json();
+}
+async function pushCloud() { try { await api('save', { data: JSON.parse(JSON.stringify(save)) }); } catch (e) { console.warn('nuvem', e && e.code); } }
 
 // ---------------------------------------------------------------- conta
 export const cloudReady = () => !!cloud;
@@ -40,6 +49,7 @@ export async function initCloud() {
     cloud = await import('../vendor/cloud.bundle.js');
     cloud.init(FIREBASE_CONFIG, { android: !!window.Capacitor?.isNativePlatform?.() });
     cloud.onAuth((u) => { account = u; attach(u); });
+    resumeGoogle();
   } catch (e) { cloud = null; console.warn('sem nuvem', e); }
 }
 // ao entrar: junta o que estava no aparelho (sem conta) com o que está na nuvem (o recorde maior, todas as skins)
@@ -51,7 +61,7 @@ async function attach(u) {
   emit();
   if (!u.verified) return;
   try {
-    const remote = await cloud.loadSave();
+    const remote = (await api('save')).data;
     if (remote) {
       const m = sanitize(remote);
       m.best = Math.max(m.best, save.best);
@@ -63,6 +73,7 @@ async function attach(u) {
     // o progresso jogado sem conta passa para a conta uma única vez
     try { localStorage.removeItem(KEY(null)); } catch (_) { /* ok */ }
     commit();
+    submitScore().catch(() => {});   // o recorde do aparelho entra no ranking ao entrar na conta
   } catch (e) { console.warn('nuvem', e && e.code); }
 }
 export const signIn = (e, p) => cloud.signIn(e, p);
@@ -71,15 +82,23 @@ export const resetPass = (e) => cloud.reset(e);
 export const sendVerify = () => cloud.sendVerify();
 export async function refreshVerified() { const u = await cloud.refreshVerified(); account = u; await attach(u); return u; }
 export const logout = () => cloud.logout();
+export async function signInGoogle(pending = null) {
+  const u = await cloud.signInGoogle(nativeGoogleLogin(FIREBASE_CONFIG, pending));
+  if (u.googleState) { try { await acknowledgeGoogleLogin(u.googleState); } catch (_) { /* a conta já entrou */ } }
+  return u;
+}
+// Android: se o app foi fechado no meio do login com o Google, termina o login ao abrir de novo
+export async function resumeGoogle() { try { const p = await pendingGoogleLogin(); if (p) await signInGoogle(p); } catch (_) { /* sem login pendente */ } }
 
 // ---------------------------------------------------------------- ranking
 export async function submitScore() {
   if (!cloud || !account || !account.verified || !save.best) return false;
   const name = (save.name || account.email.split('@')[0]).replace(/[^\p{L}\p{N} _.-]/gu, '').slice(0, 16) || 'Jerry';
-  await cloud.putScore({ name, best: save.best, skin: save.skin, at: Date.now() });
+  await api('score', { name, best: save.best, skin: save.skin });
   return true;
 }
-export async function top10() { if (!cloud) return null; return cloud.top10(); }
+// o ranking é público: aparece mesmo sem conta
+export async function top10() { return (await api('top')).list; }
 export function friendly(e) {
   const c = (e && e.code) || '';
   if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'E-mail ou senha incorretos.';
@@ -88,6 +107,8 @@ export function friendly(e) {
   if (c.includes('invalid-email')) return 'E-mail inválido.';
   if (c.includes('too-many-requests')) return 'Muitas tentativas. Espere um pouco e tente de novo.';
   if (c.includes('network')) return 'Sem internet no momento.';
+  if (c.includes('popup-blocked')) return 'O navegador bloqueou a janela do Google. Permita e tente de novo.';
+  if (c.includes('account-exists-with-different-credential')) return 'Esse e-mail já tem conta com senha. Entre com e-mail e senha.';
   if (c.includes('permission-denied')) return 'O servidor recusou (confirme seu e-mail ou tente mais tarde).';
   return 'Não deu certo agora. Tente de novo.';
 }

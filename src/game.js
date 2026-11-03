@@ -73,6 +73,17 @@ export class Game {
     else if (kind === 'hit') sfx.hit();
     else { sfx.portal(); this.j.view = 'front'; }
   }
+  // atropelado: o Jerry fica achatado no chão e o que o atropelou para em cima dele
+  squash(L, o, jx, row) {
+    const j = this.j;
+    if (j.hop) { j.x = jx; j.row = row; j.hop = null; }
+    L.frozen = true;
+    // o que atropelou para com a traseira (a roda de trás) em cima dele: metade do Jerry achatado fica embaixo
+    // e a outra metade aparece. O slime para em cima dele.
+    if (L.type === 'slime') o.x = jx - o.w / 2;
+    else o.x = L.dir > 0 ? jx + 1 : jx - 1 - o.w;
+    this.die('hit'); this.end.dir = L.dir || 1; this.end.slime = L.type === 'slime';
+  }
   toast(text, color = '#ffffff') { this.toasts.push({ text, color, t: 0 }); }
 
   // ---------------------------------------------------------------- tempo
@@ -117,8 +128,9 @@ export class Game {
     const L = W.lane(row);
     if (L) {
       const hit = (x, w, pad = 3) => jx + 4 > x + pad && jx - 4 < x + w - pad;
-      if ((L.type === 'road' || L.type === 'slime') && L.objs.some((o) => hit(o.x, o.w))) return this.die('hit');
-      if (L.type === 'rail' && L.train && hit(L.train.x, L.train.w, 0)) return this.die('hit');
+      const by = (L.type === 'road' || L.type === 'slime') && L.objs.find((o) => hit(o.x, o.w));
+      if (by) return this.squash(L, by, jx, row);
+      if (L.type === 'rail' && L.train && hit(L.train.x, L.train.w, 0)) return this.squash(L, L.train, jx, row);
     }
     // câmera: sobe sozinha (cada vez mais rápido) e acompanha o Jerry quando ele avança
     const d = Math.min(1, this.score / 700);
@@ -143,16 +155,19 @@ export class Game {
     for (const g of this.ghosts) if (g.row >= r0 && g.row <= r1) this.drawGhost(c, g, ox, rowY(g.row));
     for (let r = r1; r >= r0; r--) {
       const L = this.world.lane(r), y = rowY(r);
-      if (L) {
-        for (const [col, v] of L.coins) drawCoin(c, ox + col * T, y, v, t);
-        drawUpright(c, L, x0, x1, ox, y, t);
-      }
-      const jr = this.j.hop ? Math.max(this.j.hop.fr, this.j.hop.tr) : this.j.row;
-      if (r === jr) this.drawJerry(c, ox, rowY);
+      const jr = this.j.hop ? Math.max(this.j.hop.fr, this.j.hop.tr) : this.j.row, flat = this.end && this.end.kind === 'hit';
+      if (L) for (const [col, v] of L.coins) drawCoin(c, ox + col * T, y, v, t);
+      if (r === jr && flat) this.drawJerry(c, ox, rowY);   // achatado: fica embaixo do que o atropelou
+      if (L) drawUpright(c, L, x0, x1, ox, y, t);
+      if (r === jr && !flat) this.drawJerry(c, ox, rowY);
     }
     // borda da área jogável: as laterais ficam um pouco mais escuras
     c.fillStyle = 'rgba(10,6,24,0.35)'; c.fillRect(0, 0, ox, LH); c.fillRect(ox + COLS * T, 0, LW - ox - COLS * T, LH);
     for (const f of this.fx) this.drawFx(c, f, ox, rowY);
+    if (this.end && this.end.kind === 'hit') {   // estrelinhas de tonto por cima de tudo (até do que atropelou)
+      const { x, y } = this.jerryPos(ox, rowY);
+      for (let i = 0; i < 4; i++) { const a = t * 6 + i * 1.57, sx = Math.round(x + Math.cos(a) * 8), sy = Math.round(y + 2 + Math.sin(a) * 2.5); c.fillStyle = '#1a1226'; c.fillRect(sx - 1, sy - 1, 4, 4); c.fillStyle = i % 2 ? '#ffe070' : '#ffffff'; c.fillRect(sx, sy, 2, 2); }
+    }
     drawWeather(c, zoneAt(Math.floor(cam + LH / T / 2)).id, LW, LH, t, cam * T);
   }
   jerryPos(ox, rowY) {
@@ -166,20 +181,25 @@ export class Game {
     let { x, y, air } = this.jerryPos(ox, rowY);
     if (e && e.kind === 'water') return;
     if (e && e.kind === 'portal') {   // o portal abre ao lado; ele olha, pula para dentro e o portal fecha
-      const px = x + (x < ox + COLS * T / 2 ? 14 : -14), py = y + 6, k = e.t < 0.45 ? e.t / 0.45 : e.t < 1.25 ? 1 : Math.max(0, 1 - (e.t - 1.25) / 0.35);
+      const px = x + (x < ox + COLS * T / 2 ? 22 : -22), py = y + 5, k = e.t < 0.45 ? e.t / 0.45 : e.t < 1.25 ? 1 : Math.max(0, 1 - (e.t - 1.25) / 0.35);
       drawPortal(c, px, py, k, this.t);
       if (e.t > 1.15) return;
       if (e.t > 0.6) { const p = (e.t - 0.6) / 0.55; x += (px - x) * p; y -= Math.sin(p * Math.PI) * 8; c.globalAlpha = 1 - p * 0.8; }
       j.view = e.t > 0.6 ? (px > x ? 'side' : 'left') : 'front';
     }
-    const pose = e && e.kind === 'hit' ? 'scared' : air ? 'hop' : 'idle';
+    if (e && e.kind === 'hit') {   // achatado no chão, com estrelinhas girando por cima
+      // de lado, achatado e esticado: o rabo e o corpo para fora, a cabeça embaixo da roda (o slime fica em cima dele todo)
+      const fr = jerryFrame(e.dir > 0 ? 'side' : 'left', 'scared', 0, skin), k = Math.min(1, e.t / 0.08), h = Math.round(17 - 8 * k), w = Math.round(17 + 11 * k);
+      c.drawImage(fr, Math.round(x) - Math.round(w / 2) - (e.slime ? 0 : e.dir > 0 ? 4 : -4), Math.round(y) + 13 - h, w, h);
+      return;
+    }
+    const pose = air ? 'hop' : 'idle';
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / HOP : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
     if (skin.fx === 'ghost') c.globalAlpha *= 0.75;
     c.drawImage(fr, Math.round(x) - 8, Math.round(y) - 1);
     c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y) + 6);
-    if (e && e.kind === 'hit') for (let i = 0; i < 3; i++) { const a = this.t * 6 + i * 2.1; c.fillStyle = '#ffe070'; c.fillRect(Math.round(x + Math.cos(a) * 6), Math.round(y - 2 + Math.sin(a) * 2), 2, 2); }
   }
   drawAura(c, fx, x, y) {
     const t = this.t;

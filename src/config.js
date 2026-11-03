@@ -9,4 +9,6 @@ export const FIREBASE_CONFIG = {
   appId: '1:488125121977:web:258de63329fde358446268',
 };
 export const SITE_URL = 'https://songofmoonlight.online';
-export const VERSION = '1.0.0';
+// servidor do site: ranking e progresso da conta (o mesmo domínio do site, sem o redirecionamento do www)
+export const API_URL = 'https://www.songofmoonlight.online/api/jerry';
+export const VERSION = '1.0.1';

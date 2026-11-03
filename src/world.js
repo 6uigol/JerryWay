@@ -132,6 +132,7 @@ export class World {
 
   update(dt, rnd) {
     for (const L of this.lanes.values()) {
+      if (L.frozen) continue;   // a faixa que atropelou o Jerry para em cima dele
       if (L.type === 'rail') {
         if (L.train) {
           L.train.x += L.dir * L.speed * dt;

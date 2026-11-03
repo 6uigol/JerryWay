@@ -1,11 +1,11 @@
 // Sons sintetizados na hora (nada de arquivo de áudio): pulo, moeda, splash, batida, portal, trem, sorte e uma musiquinha.
-let ac = null, master = null, musicGain = null, muted = false, musicOn = true, musicTimer = null;
+let ac = null, master = null, musicGain = null, muted = false;
 export function initAudio() {
-  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  if (ac) { if (ac.state === 'suspended' && !hiddenNow) ac.resume(); return; }
   try {
     ac = new (window.AudioContext || window.webkitAudioContext)();
     master = ac.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(ac.destination);
-    musicGain = ac.createGain(); musicGain.gain.value = 0.16; musicGain.connect(master);
+    musicGain = ac.createGain(); musicGain.gain.value = 0.22; musicGain.connect(master);
   } catch (_) { ac = null; }
 }
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.5; }
@@ -45,21 +45,16 @@ export const sfx = {
   record: () => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.14, 'square', 0.13, 0, i * 0.08)); },
 };
 
-// musiquinha alegre em loop (melodia + baixo), feita de notas curtas
-const MEL = [76, 79, 81, 79, 76, 74, 72, 74, 76, 76, 79, 81, 84, 81, 79, 0, 74, 76, 77, 76, 74, 72, 71, 72, 74, 74, 76, 79, 76, 74, 72, 0];
-const BASS = [48, 48, 55, 55, 53, 53, 55, 55];
-const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
-let step = 0;
-export function setMusic(on) { musicOn = on; if (!on) stopMusic(); else startMusic(); }
-export const musicEnabled = () => musicOn;
-export function startMusic() {
-  if (!ac || !musicOn || musicTimer) return;
-  const beat = 0.16;
-  musicTimer = setInterval(() => {
-    if (!ac || muted) return;
-    const n = MEL[step % MEL.length]; if (n) tone(midi(n), beat * 0.9, 'square', 0.5, 0, 0, musicGain);
-    if (step % 4 === 0) tone(midi(BASS[(step / 4) % BASS.length]), beat * 3.5, 'triangle', 0.9, 0, 0, musicGain);
-    step++;
-  }, 160);
+export const audioCtx = () => ac;
+export const musicBus = () => musicGain;
+// app em segundo plano (outra aba, minimizado, celular bloqueado ou outro app na frente): tudo fica em silêncio
+let hiddenNow = false;
+export function setBackground(hidden) {
+  hiddenNow = hidden;
+  if (!ac) return;
+  if (hidden) { if (ac.state === 'running') ac.suspend(); }
+  else if (ac.state === 'suspended') ac.resume().then(() => resumeHooks.forEach((f) => f()));
 }
-export function stopMusic() { clearInterval(musicTimer); musicTimer = null; }
+export const isBackground = () => hiddenNow;
+const resumeHooks = new Set();
+export const onResume = (f) => resumeHooks.add(f);

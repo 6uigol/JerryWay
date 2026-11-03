@@ -1,8 +1,9 @@
 // Telas por cima do jogo (HTML): início, resultado, Sorte, Coleção, Ranking, Conta e pausa.
-import { save, commit, cloudReady, currentAccount, signIn, signUp, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { save, commit, cloudReady, currentAccount, signIn, signUp, signInGoogle, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
-import { sfx, isMuted, setMuted, musicEnabled, setMusic, initAudio } from './audio.js';
+import { sfx, isMuted, setMuted, initAudio } from './audio.js';
+import { musicEnabled, setMusic, startMusic } from './music.js';
 import { SITE_URL } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -13,7 +14,7 @@ export function initUI(h) {
   hooks = h; root = $('#ui');
   root.addEventListener('click', (e) => {
     const b = e.target.closest('[data-go]'); if (!b) return;
-    initAudio(); sfx.click();
+    initAudio(); startMusic(); sfx.click();
     const go = b.dataset.go;
     if (go === 'play') hooks.play();
     else if (go === 'resume') hooks.resume();
@@ -152,7 +153,6 @@ async function ranking() {
     <div class="row"><button data-go="ranking">Atualizar</button><button data-go="title">Voltar</button></div>
   </div>`;
   const ol = $('#rk');
-  if (!cloudReady()) { ol.innerHTML = '<li class="muted">Ranking indisponível neste aparelho.</li>'; return; }
   try {
     const list = await top10();
     if (current !== 'ranking') return;
@@ -171,6 +171,8 @@ function conta() {
     root.innerHTML = `<div class="panel">
       <h2>Conta</h2>
       <p class="muted">É a mesma conta do Song of Moonlight e do site. Com ela seu progresso fica salvo e você entra no ranking.</p>
+      <button class="google" id="lf-google" type="button"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg><span>Entrar com o Google</span></button>
+      <div class="or">ou com e-mail</div>
       <form id="lf" class="form">
         <input id="lf-e" type="email" placeholder="E-mail" autocomplete="email" required>
         <input id="lf-p" type="password" placeholder="Senha" autocomplete="current-password" required minlength="6">
@@ -183,6 +185,12 @@ function conta() {
     const msg = (t) => ($('#lf-msg').textContent = t), E = () => $('#lf-e').value.trim(), Pw = () => $('#lf-p').value;
     $('#lf').addEventListener('submit', async (e) => { e.preventDefault(); msg('Entrando...'); try { await signIn(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } });
     $('#lf-new').onclick = async () => { if (!E() || Pw().length < 6) return msg('Preencha o e-mail e uma senha com pelo menos 6 caracteres.'); msg('Criando...'); try { await signUp(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } };
+    $('#lf-google').onclick = async () => {
+      const b = $('#lf-google'); b.disabled = true;
+      msg(window.desktop || window.Capacitor?.isNativePlatform?.() ? 'Termine o login no navegador que abriu e volte ao jogo.' : 'Abrindo o Google...');
+      try { await signInGoogle(); msg(''); setTimeout(() => show('conta'), 300); }
+      catch (er) { b.disabled = false; msg(er && /popup-closed|cancelled/.test(er.code || '') ? 'Login cancelado.' : (er && er.code ? friendly(er) : (er && er.message) || 'Não deu certo agora.')); }
+    };
     $('#lf-reset').onclick = async () => { if (!E()) return msg('Escreva seu e-mail acima.'); try { await resetPass(E()); msg('Enviamos um link para trocar a senha.'); } catch (er) { msg(friendly(er)); } };
     return;
   }

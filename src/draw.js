@@ -534,13 +534,22 @@ export function drawCoin(c, x, y, v, t) {
   if (Math.sin(t * 5 + x) > 0.85) { R(c, cx + 3, cy - r - 1, 1, 3, '#ffffff'); R(c, cx + 2, cy - r, 3, 1, '#ffffff'); }
 }
 export function drawPortal(c, x, y, k, t) {
+  // o mesmo portal violeta de Lacrímora do Song of Moonlight: disco com redemoinho e aro luminoso (32x32), abrindo com k
   if (k <= 0) return;
-  const rw = 11 * k, rh = 15 * k;
-  c.globalAlpha = 0.35 * k; c.fillStyle = '#c08aff'; c.beginPath(); c.ellipse(x, y, rw + 6, rh + 6, 0, 0, 7); c.fill(); c.globalAlpha = 1;
-  for (let i = 3; i >= 0; i--) { c.fillStyle = ['#1a0638', '#5a1aa8', '#a85aff', '#f0d0ff'][3 - i]; c.beginPath(); c.ellipse(x, y, Math.max(0.5, rw - i * 2.4), Math.max(0.5, rh - i * 3), 0, 0, 7); c.fill(); }
-  c.strokeStyle = '#ffffff'; c.lineWidth = 1;
-  for (let i = 0; i < 3; i++) { const a = t * 4 + i * 2.1; c.beginPath(); c.ellipse(x, y, rw * 0.55, rh * 0.55, 0, a, a + 1.2); c.stroke(); }
-  for (let i = 0; i < 12; i++) { const a = t * 3 + i * 0.52, r = rw + 3 + Math.sin(t * 5 + i) * 2; R(c, x + Math.cos(a) * r, y + Math.sin(a) * r * 1.35, 1, 1, i % 2 ? '#ffffff' : '#e0b8ff'); }
+  const C = 7.5, ox = Math.round(x) - 16, oy = Math.round(y) - 16;
+  c.globalAlpha = 0.25 * k; c.fillStyle = '#c47bff'; c.beginPath(); c.arc(x, y, 20 * k, 0, 7); c.fill(); c.globalAlpha = 1;
+  for (let yy = 0; yy < 16; yy++) for (let xx = 0; xx < 16; xx++) {
+    const dx = xx - C, dy = yy - C, d = Math.hypot(dx, dy) / k;
+    if (d > 7.9) continue;
+    let color;
+    if (d > 6.6) color = (xx + yy + Math.floor(t * 6)) % 4 === 0 ? '#f6d4ff' : '#c47bff';
+    else {
+      const ang = Math.atan2(dy, dx), wave = Math.sin(ang * 3 + d * 1.1 - t * 3.2) + Math.cos(d * 1.6 - t * 1.7);
+      color = d < 1.8 ? '#f0b5ff' : wave > 1.0 ? '#d77bff' : wave > 0.2 ? '#b653e8' : wave > -0.7 ? '#913bc6' : '#69239c';
+    }
+    R(c, ox + xx * 2, oy + yy * 2, 2, 2, color);
+  }
+  for (let i = 0; i < 6; i++) { const a = t * 1.4 + i * 1.05, r = (5 + (i % 3) * 3) * k; R(c, x + Math.round(Math.cos(a) * r), y + Math.round(Math.sin(a) * r), 1, 1, '#ffffff'); }
 }
 
 // ---------------------------------------------------------------- clima de cada zona (por cima de tudo)
