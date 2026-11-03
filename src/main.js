@@ -11,7 +11,7 @@ const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // tela lógica em pixel art, ampliada para a tela real
 let LW = 176, LH = 300, dpr = 1;
 const game = new Game();
-window.__jw = game; window.__jwlc = lc;
+window.__jw = game; window.__jwlc = lc; window.__jwcv = cv;
 game.skinId = save.skin;
 onChange(() => { game.skinId = save.skin; });
 let topList = [];
