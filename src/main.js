@@ -1,6 +1,7 @@
 // Jerry Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
 import { TILE } from './world.js';
+import { SKIN_BY_ID } from './skins.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { initAudio, setBackground, onResume } from './audio.js';
@@ -10,21 +11,66 @@ const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // tela lógica em pixel art, ampliada para a tela real
 let LW = 176, LH = 300, dpr = 1;
 const game = new Game();
-window.__jw = game;
+window.__jw = game; window.__jwlc = lc;
 game.skinId = save.skin;
 onChange(() => { game.skinId = save.skin; });
 let topList = [];
 
+// No computador (tela larga) o jogo fica numa janela em pé no meio, com a moldura azul do Song of Moonlight em volta e as
+// informações da partida nas laterais. No celular só uma borda azul fina, sem informação (o placar fica dentro do jogo).
+let VP = { x: 0, y: 0, w: 1, h: 1 }, desktop = false, frameCv = null, panels = null;
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 3);
   const W = window.innerWidth, H = window.innerHeight;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
-  // cabem pelo menos 11 colunas na largura e 14 fileiras na altura
-  let s = Math.min(W / (11 * TILE), H / (14 * TILE)) * dpr;
-  if (s >= 3) s = Math.floor(s);
-  LW = Math.ceil(cv.width / s); LH = Math.ceil(cv.height / s);
+  const CW = cv.width, CH = cv.height;
+  const full = /[?&]full\b/.test(location.search);   // ?full: só o jogo, sem moldura (usado para gravar o gameplay do site)
+  desktop = !full && W >= 760 && W / H > 1.15;
+  if (desktop) {
+    const pad = Math.round(18 * dpr), vh = CH - pad * 2, vw = Math.round(Math.min(vh * 0.78, CW - 2 * Math.round(250 * dpr) - pad * 4));
+    VP = { x: Math.round((CW - vw) / 2), y: pad, w: vw, h: vh };
+    const side = VP.x - pad * 2;
+    panels = { l: { x: pad, y: pad, w: side, h: vh }, r: { x: VP.x + vw + pad, y: pad, w: side, h: vh }, u: dpr * Math.max(1, Math.min(1.9, H / 720, side / dpr / 300)) };
+  } else {
+    const b = full ? 0 : Math.round(5 * dpr);
+    VP = { x: b, y: b, w: CW - 2 * b, h: CH - 2 * b }; panels = null;
+  }
+  // cabem pelo menos 11 colunas na largura e 14 fileiras na altura da janela do jogo
+  let sc = Math.min(VP.w / (11 * TILE), VP.h / (14 * TILE));
+  if (sc >= 3) sc = Math.floor(sc);
+  LW = Math.ceil(VP.w / sc); LH = Math.ceil(VP.h / sc);
   lc.width = LW; lc.height = LH;
+  frameCv = buildFrame(CW, CH);
+}
+// moldura desenhada uma vez por tamanho de tela: céu noturno azul com estrelas, borda em camadas azuis com cantos dourados
+function buildFrame(CW, CH) {
+  const f = document.createElement('canvas'); f.width = CW; f.height = CH;
+  const c = f.getContext('2d'), u = dpr;
+  const g = c.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, '#0b1240'); g.addColorStop(0.55, '#121a5a'); g.addColorStop(1, '#0a0e30');
+  c.fillStyle = g; c.fillRect(0, 0, CW, CH);
+  for (let i = 0; i < (desktop ? 220 : 60); i++) {   // estrelinhas
+    const x = (Math.sin(i * 12.9898) * 43758.5453 % 1 + 1) % 1 * CW, y = (Math.sin(i * 78.233) * 12543.123 % 1 + 1) % 1 * CH, sz = i % 9 === 0 ? 2 : 1;
+    c.fillStyle = i % 7 === 0 ? '#ffe9a8' : i % 3 ? '#8aa8ff' : '#ffffff'; c.globalAlpha = 0.4 + (i % 5) * 0.12; c.fillRect(Math.round(x), Math.round(y), sz * u, sz * u);
+  }
+  c.globalAlpha = 1;
+  if (desktop) {   // lua no canto de cima
+    const mx = CW - 70 * u, my = 64 * u;
+    c.fillStyle = 'rgba(160,190,255,0.12)'; c.beginPath(); c.arc(mx, my, 44 * u, 0, 7); c.fill();
+    c.fillStyle = '#f4ecc8'; c.beginPath(); c.arc(mx, my, 26 * u, 0, 7); c.fill();
+    c.fillStyle = '#d8cfa8'; for (const [dx, dy, r] of [[-8, -6, 5], [7, 6, 6], [6, -10, 3]]) { c.beginPath(); c.arc(mx + dx * u, my + dy * u, r * u, 0, 7); c.fill(); }
+  }
+  frameBox(c, VP.x, VP.y, VP.w, VP.h, u, desktop ? 6 : 3);
+  if (panels) for (const p of [panels.l, panels.r]) { frameBox(c, p.x, p.y, p.w, p.h, u, 4); c.fillStyle = 'rgba(8,10,40,0.82)'; c.fillRect(p.x, p.y, p.w, p.h); }
+  return f;
+}
+// borda em camadas: azul escuro, azul Moonlight, brilho e cantinhos dourados
+function frameBox(c, x, y, w, h, u, k) {
+  const layers = [['#05081e', k + 3], ['#2a3aa8', k + 1.5], ['#7a9aff', 1], ['#1a2470', 0]];
+  for (const [col, d] of layers) { c.fillStyle = col; c.fillRect(x - d * u, y - d * u, w + 2 * d * u, h + 2 * d * u); }
+  for (const [cx, cy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+    const s = (k + 4) * u; c.fillStyle = '#e0c060'; c.fillRect(cx - s / 2, cy - s / 2, s, s); c.fillStyle = '#fff2a0'; c.fillRect(cx - s / 2, cy - s / 2, s / 2, s / 2); c.fillStyle = '#8a6a1c'; c.fillRect(cx, cy, s / 2, s / 2);
+  }
 }
 window.addEventListener('resize', resize); resize();
 
@@ -65,6 +111,7 @@ initUI({
 });
 show('title');
 initCloud().then(refreshTop);
+setInterval(refreshTop, 60000);   // ranking das laterais sempre atualizado
 
 // ---------------------------------------------------------------- controles
 const keys = { ArrowUp: [0, 1], KeyW: [0, 1], Space: [0, 1], ArrowDown: [0, -1], KeyS: [0, -1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
@@ -96,8 +143,8 @@ window.addEventListener('jerry-app-background', () => background(true));   // An
 window.addEventListener('jerry-app-foreground', () => { if (!document.hidden) background(false); });
 onResume(resyncMusic);
 // nome da música que começou (aparece um instante no canto)
-let songToast = null;
-onSongChange((name) => { songToast = { name, t: performance.now() }; });
+let songToast = null, songName = '';
+onSongChange((name) => { songToast = { name, t: performance.now() }; songName = name; });
 
 // ---------------------------------------------------------------- laço
 let last = performance.now();
@@ -110,25 +157,64 @@ function frame(now) {
   game.draw(lctx, LW, LH);
   if (game.state === 'play' || game.state === 'dying') hud();
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(lc, 0, 0, LW, LH, 0, 0, LW * (cv.width / LW), LH * (cv.height / LH));
-  requestAnimationFrame(frame);
+  if (frameCv) ctx.drawImage(frameCv, 0, 0);
+  ctx.drawImage(lc, 0, 0, LW, LH, VP.x, VP.y, VP.w, VP.h);
+  if (panels) drawPanels();
+requestAnimationFrame(frame);
 }
 function hud() {
   const c = lctx;
+  if (!desktop) {
   label(c, String(game.score), LW / 2, 22, '#ffffff', 16);
   c.textAlign = 'right';
   coin(c, LW - 8 - String(save.coins + game.coins).length * 8 - 10, 7);
   label(c, String(save.coins + game.coins), LW - 8 - String(save.coins + game.coins).length * 4, 15, '#ffe070');
   if (save.best) label(c, 'REC ' + save.best, 8 + ('REC ' + save.best).length * 4, 15, '#c8b8ff');
+  }
   const b = game.zoneBanner;
   if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, 44, '#ffe9a8'); c.globalAlpha = 1; }
   game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, 60 + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
-  if (songToast) {
+  if (songToast && !desktop) {
     const a = (performance.now() - songToast.t) / 1000;
     if (a > 4) songToast = null;
     else { c.globalAlpha = Math.min(1, a * 3, (4 - a) * 2); label(c, '\u266a ' + songToast.name, LW / 2, LH - 10, '#c8b8ff'); c.globalAlpha = 1; }
   }
-  if (!game.started && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, 'TOQUE PARA PULAR', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
+  if (!game.started && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, desktop ? 'Espaço ou setas para pular' : 'Toque para pular', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
 }
 function coin(c, x, y) { c.fillStyle = '#c8901a'; c.fillRect(x, y + 1, 8, 7); c.fillStyle = '#ffcc3a'; c.fillRect(x, y, 8, 7); c.fillStyle = '#fff2a0'; c.fillRect(x + 1, y + 1, 3, 2); }
+// ---------------------------------------------------------------- painéis do computador (informações da partida)
+const ZONE_NAMES = { campo: 'Campo de Brumavale', floresta: 'Floresta Sombria', deserto: 'Dunas', neve: 'Picos Gelados', lacrimora: 'Lacrímora', lua: 'A Lua' };
+function ptext(text, x, y, size, col, align = 'left') {
+  const u = panels.u; ctx.font = `${Math.round(size * u)}px "Press Start 2P", monospace`; ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#05081e'; ctx.fillText(text, x + u * 2, y + u * 2); ctx.fillStyle = col; ctx.fillText(text, x, y);
+}
+function fit(text, max) { return text.length > max ? text.slice(0, max - 1) + '…' : text; }
+function drawPanels() {
+  const u = panels.u, L = panels.l, Rp = panels.r, playing = game.state === 'play' || game.state === 'dying' || game.state === 'pause';
+  const cols = Math.max(8, Math.floor(L.w / (11 * u)));
+  let x = L.x + 18 * u, y = L.y + 22 * u;
+  ptext('JERRY', L.x + L.w / 2, y, 22, '#ffcc3a', 'center'); ptext('WAY', L.x + L.w / 2, y + 28 * u, 22, '#ffcc3a', 'center'); y += 78 * u;
+  const row = (k, v, col = '#ffffff') => { ptext(k, x, y, 8, '#8aa8ff'); ptext(String(v), x, y + 14 * u, 16, col); y += 46 * u; };
+  row('Distância', playing ? game.score : save.last || 0);
+  row('Recorde', save.best, '#ffe070');
+  row('Moedas', save.coins + (playing ? game.coins : 0), '#ffcc3a');
+  ptext('Lugar', x, y, 8, '#8aa8ff'); ptext(fit(ZONE_NAMES[game.zone] || '', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
+  ptext('Música', x, y, 8, '#8aa8ff'); ptext(fit(songName ? '\u266a ' + songName : '\u266a ...', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
+  ptext('Skin', x, y, 8, '#8aa8ff'); ptext(fit(skinName(), cols), x, y + 14 * u, 9, '#ffffff');
+  // direita: ranking e controles
+  x = Rp.x + 18 * u; y = Rp.y + 22 * u;
+  ptext('Ranking', Rp.x + Rp.w / 2, y, 12, '#ffcc3a', 'center'); y += 30 * u;
+  const me = currentAccount(), rcols = Math.max(6, Math.floor((Rp.w - 90 * u) / (9 * u)));
+  if (!topList.length) { ptext('Ninguém ainda.', x, y, 8, '#8aa8ff'); y += 20 * u; }
+  topList.slice(0, 10).forEach((r, i) => {
+    const mine = me && r.uid === me.uid;
+    ptext(String(i + 1).padStart(2, ' ') + '.', x, y, 8, i < 3 ? '#ffcc3a' : '#8aa8ff');
+    ptext(fit(r.name, rcols), x + 34 * u, y, 8, mine ? '#7aff9a' : '#ffffff');
+    ptext(String(r.best), Rp.x + Rp.w - 18 * u, y, 8, '#ffe070', 'right'); y += 18 * u;
+  });
+  y = Math.max(y + 16 * u, Rp.y + Rp.h - 150 * u);
+  ptext('Controles', x, y, 8, '#8aa8ff'); y += 18 * u;
+  for (const line of ['Setas ou WASD: pular', 'Espaço: pra frente', 'Esc: pausa', 'F11: tela cheia']) { ptext(line, x, y, 8, '#c8d0ff'); y += 16 * u; }
+}
+function skinName() { const s = SKIN_BY_ID[save.skin]; return s ? s.name : ''; }
 requestAnimationFrame(frame);

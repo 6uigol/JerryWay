@@ -62,7 +62,8 @@ export class Game {
       const o = L.objs.find((o) => j.x >= o.x - 1 && j.x <= o.x + o.w + 1);
       if (!o) return this.die('water');
       j.on = o; j.onOff = j.x - o.x;
-      if (j.onOff < 4) j.onOff = Math.min(o.w - 4, 6); if (j.onOff > o.w - 4) j.onOff = Math.max(4, o.w - 6);   // escorrega para cima do tronco
+      // encaixa num pedaço inteiro do tronco (de 16 em 16): o Jerry fica sempre todo em cima, nunca metade para fora da ponta
+      j.onOff = Math.max(T / 2, Math.min(o.w - T / 2, Math.round((j.onOff - T / 2) / T) * T + T / 2));
     }
     if (this.queue) { const q = this.queue; this.queue = null; this.move(q[0], q[1]); }
   }
@@ -219,7 +220,7 @@ export class Game {
     c.fillStyle = g.kind === 'best' ? '#ffe070' : g.kind === 'last' ? '#c8b8ff' : '#7af0ff';
     for (let k = 0; k < COLS * T; k += 6) c.fillRect(ox + k, y + T - 2, 3, 1);
     c.globalAlpha = 1;
-    label(c, g.name, x, y - 5, c.fillStyle);
+    label(c, g.name, x, y - 5, c.fillStyle, 8, 16);
   }
   drawFx(c, f, ox, rowY) {
     const y = rowY(f.row), x = ox + f.x;
@@ -230,9 +231,9 @@ export class Game {
   get over() { return this.state === 'dying' && this.end.t > (this.end.kind === 'portal' ? 1.8 : 1.2); }
 }
 // texto pequeno com contorno (nomes dos fantasmas)
-export function label(c, text, x, y, col = '#ffffff', size = 8) {
+export function label(c, text, x, y, col = '#ffffff', size = 8, max = 40) {
   c.font = `${size}px "Press Start 2P", monospace`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
-  const s = String(text).slice(0, 16);
+  const s = String(text).slice(0, max);
   c.fillStyle = '#1a1226';
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) c.fillText(s, Math.round(x) + dx, Math.round(y) + dy);
   c.fillStyle = col; c.fillText(s, Math.round(x), Math.round(y));

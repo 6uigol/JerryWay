@@ -2,7 +2,7 @@
   "name": "jerry-way",
   "private": true,
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Jerry Way — o jogo infinito do Jerry (universo Song of Moonlight)",
   "author": { "name": "Song of Moonlight", "email": "146967020+6uigol@users.noreply.github.com" },
   "main": "electron/main.cjs",
@@ -31,7 +31,7 @@
   },
   "build": {
     "appId": "com.jerryway.game",
-    "buildVersion": "1.0.1.0",
+    "buildVersion": "1.0.2.0",
     "productName": "Jerry Way",
     "copyright": "Todos os direitos reservados",
     "directories": { "output": "dist" },
