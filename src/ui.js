@@ -1,0 +1,219 @@
+// Telas por cima do jogo (HTML): início, resultado, Sorte, Coleção, Ranking, Conta e pausa.
+import { save, commit, cloudReady, currentAccount, signIn, signUp, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
+import { jerryFrame } from './jerry.js';
+import { sfx, isMuted, setMuted, musicEnabled, setMusic, initAudio } from './audio.js';
+import { SITE_URL } from './config.js';
+
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+let root, hooks = {}, current = null;
+
+export function initUI(h) {
+  hooks = h; root = $('#ui');
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-go]'); if (!b) return;
+    initAudio(); sfx.click();
+    const go = b.dataset.go;
+    if (go === 'play') hooks.play();
+    else if (go === 'resume') hooks.resume();
+    else if (go === 'quit') hooks.quit();
+    else if (go === 'sound') { setMuted(!isMuted()); show(current); }
+    else if (go === 'music') { setMusic(!musicEnabled()); show(current); }
+    else show(go);
+  });
+}
+export const hide = () => { current = null; root.innerHTML = ''; root.hidden = true; };
+export const showing = () => current;
+
+// prévia do Jerry com a skin (desenho grande, sem reduzir)
+function preview(skin, view = 'front', scale = 4) {
+  const cv = document.createElement('canvas'), fr = jerryFrame(view, 'idle', 0, skin, false);
+  cv.width = fr.width * scale; cv.height = fr.height * scale;
+  const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(fr, 0, 0, cv.width, cv.height);
+  cv.className = 'pix'; return cv;
+}
+function thumb(skin, owned) {
+  const cv = document.createElement('canvas'), fr = jerryFrame('front', 'idle', 0, skin);
+  cv.width = fr.width * 2; cv.height = fr.height * 2;
+  const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(fr, 0, 0, cv.width, cv.height);
+  if (!owned) { c.globalCompositeOperation = 'source-in'; c.fillStyle = '#5a4a8a'; c.fillRect(0, 0, cv.width, cv.height); }
+  cv.className = 'pix'; return cv;
+}
+const coinsTag = () => `<span class="coins"><i class="coin"></i>${save.coins}</span>`;
+const soundBtns = () => `<div class="row small"><button class="ghost" data-go="sound">${isMuted() ? 'Som: desligado' : 'Som: ligado'}</button><button class="ghost" data-go="music">${musicEnabled() ? 'Música: ligada' : 'Música: desligada'}</button></div>`;
+
+export function show(name, data) {
+  current = name; root.hidden = false;
+  const screens = { title, result, sorte, colecao, ranking, conta, pause };
+  root.innerHTML = '';
+  screens[name](data);
+}
+
+function title() {
+  const skin = SKIN_BY_ID[save.skin];
+  root.innerHTML = `<div class="panel title">
+    <h1 class="logo">JERRY<br>WAY</h1>
+    <div id="pv" class="pv"></div>
+    <div class="info">${coinsTag()}<span>Recorde <b>${save.best}</b></span></div>
+    <button class="big" data-go="play">JOGAR</button>
+    <div class="row"><button data-go="sorte">Sorte</button><button data-go="colecao">Coleção</button></div>
+    <div class="row"><button data-go="ranking">Ranking</button><button data-go="conta">Conta</button></div>
+    ${soundBtns()}
+    <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD.</p>
+  </div>`;
+  $('#pv').append(preview(skin), Object.assign(document.createElement('div'), { className: 'skinname', textContent: skin.name }));
+}
+
+const END_TEXT = { portal: 'A tela passou do Jerry... ele abriu um portal para Lacrímora e foi embora!', water: 'O Jerry caiu na água!', hit: 'O Jerry foi atropelado!' };
+function result(r) {
+  root.innerHTML = `<div class="panel">
+    <h2>${r.record ? 'NOVO RECORDE!' : 'Fim da corrida'}</h2>
+    <p class="muted">${END_TEXT[r.kind] || ''}</p>
+    <div class="score">${r.score}</div>
+    <div class="info"><span>Recorde <b>${save.best}</b></span><span>+${r.coins} <i class="coin"></i></span>${coinsTag()}</div>
+    <p class="muted" id="rk-msg">${r.rankMsg || ''}</p>
+    <button class="big" data-go="play">JOGAR DE NOVO</button>
+    <div class="row"><button data-go="sorte">Sorte</button><button data-go="title">Menu</button></div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------- Sorte (100 moedas por tentativa; pode repetir)
+function sorte() {
+  const odds = Object.values(RARITIES).map((r) => `<span style="color:${r.color}">${r.name} ${String(r.chance).replace('.', ',')}%</span>`).join('');
+  root.innerHTML = `<div class="panel">
+    <h2>Sorte</h2>
+    <div class="info">${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span></div>
+    <div id="gacha" class="gacha"><div class="nut"></div></div>
+    <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma das ${SKINS.length} skins. Pode vir repetida (aí as moedas não voltam).</div>
+    <button class="big" id="g-pull" ${save.coins < PULL_COST ? 'disabled' : ''}>TENTAR (${PULL_COST})</button>
+    <div class="odds">${odds}</div>
+    <div class="row"><button data-go="colecao">Coleção</button><button data-go="title">Voltar</button></div>
+  </div>`;
+  $('#g-pull').addEventListener('click', pull);
+}
+let pulling = false;
+function pull() {
+  if (pulling || save.coins < PULL_COST) return;
+  initAudio(); pulling = true;
+  save.coins -= PULL_COST; save.pulls++;
+  const s = rollSkin(), dup = save.owned.includes(s.id);
+  if (!dup) save.owned.push(s.id);
+  commit();
+  const box = $('#gacha'), out = $('#g-out'), btn = $('#g-pull');
+  btn.disabled = true; out.textContent = 'Abrindo a noz...';
+  box.innerHTML = '<div class="nut shake"></div>';
+  let n = 0; const tick = setInterval(() => { sfx.tick(); if (++n > 14) clearInterval(tick); }, 80);
+  setTimeout(() => {
+    const rr = RARITIES[s.rarity], rank = Object.keys(RARITIES).indexOf(s.rarity);
+    box.innerHTML = ''; box.style.setProperty('--glow', rr.color); box.classList.add('open');
+    box.append(preview(s, 'front', 5));
+    (dup ? sfx.dup : () => sfx.reveal(rank))();
+    out.innerHTML = `<b style="color:${rr.color}">${rr.name}</b><br>${esc(s.name)}<br>${dup ? '<span class="muted">Repetida! Você já tinha essa.</span>' : '<span class="new">NOVA!</span>'}`;
+    if (!dup) { const u = document.createElement('button'); u.textContent = 'Usar agora'; u.className = 'use'; u.onclick = () => { save.skin = s.id; commit(); sfx.click(); u.disabled = true; u.textContent = 'Usando'; }; out.append(document.createElement('br'), u); }
+    $('.info', root).innerHTML = `${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span>`;
+    btn.disabled = save.coins < PULL_COST; pulling = false;
+    setTimeout(() => box.classList.remove('open'), 900);
+  }, 1300);
+}
+
+// ---------------------------------------------------------------- Coleção
+let colFilter = 'todas';
+function colecao() {
+  const tabs = ['todas', ...Object.keys(RARITIES)].map((k) => `<button class="tab ${k === colFilter ? 'on' : ''}" data-f="${k}" style="${k !== 'todas' ? 'color:' + RARITIES[k].color : ''}">${k === 'todas' ? 'Todas' : RARITIES[k].name}</button>`).join('');
+  const per = Object.keys(RARITIES).map((k) => { const all = SKINS.filter((s) => s.rarity === k); return `<span style="color:${RARITIES[k].color}">${all.filter((s) => save.owned.includes(s.id)).length}/${all.length}</span>`; }).join('');
+  root.innerHTML = `<div class="panel wide">
+    <h2>Coleção <small>${save.owned.length}/${SKINS.length}</small></h2>
+    <div class="odds">${per}</div>
+    <div class="tabs">${tabs}</div>
+    <div class="grid" id="grid"></div>
+    <div class="row"><button data-go="sorte">Sorte</button><button data-go="title">Voltar</button></div>
+  </div>`;
+  const grid = $('#grid');
+  for (const s of SKINS) {
+    if (colFilter !== 'todas' && s.rarity !== colFilter) continue;
+    const own = save.owned.includes(s.id), cell = document.createElement('button');
+    cell.className = 'cell' + (s.id === save.skin ? ' on' : '') + (own ? '' : ' locked');
+    cell.style.borderColor = RARITIES[s.rarity].color;
+    cell.title = own ? s.name : '???';
+    cell.append(thumb(s, own));
+    cell.onclick = () => { if (!own) { sfx.bump(); return; } save.skin = s.id; commit(); sfx.click(); colecao(); };
+    grid.append(cell);
+  }
+  root.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { colFilter = b.dataset.f; colecao(); }));
+}
+
+// ---------------------------------------------------------------- Ranking (10 maiores recordes)
+async function ranking() {
+  root.innerHTML = `<div class="panel">
+    <h2>Ranking</h2>
+    <p class="muted">Os 10 maiores recordes do Jerry Way. Seu recorde: <b>${save.best}</b></p>
+    <ol class="rank" id="rk"><li class="muted">Carregando...</li></ol>
+    <div class="row"><button data-go="ranking">Atualizar</button><button data-go="title">Voltar</button></div>
+  </div>`;
+  const ol = $('#rk');
+  if (!cloudReady()) { ol.innerHTML = '<li class="muted">Ranking indisponível neste aparelho.</li>'; return; }
+  try {
+    const list = await top10();
+    if (current !== 'ranking') return;
+    const me = currentAccount();
+    ol.innerHTML = list.length ? list.map((r, i) => `<li class="${me && me.uid === r.uid ? 'me' : ''}"><span class="pos">${i + 1}</span><span class="th" data-skin="${esc(r.skin || '')}"></span><span class="nm">${esc(r.name)}</span><b>${r.best}</b></li>`).join('') : '<li class="muted">Ninguém no ranking ainda. Seja o primeiro!</li>';
+    ol.querySelectorAll('[data-skin]').forEach((el) => { const s = SKIN_BY_ID[el.dataset.skin] || SKINS[0]; el.append(thumb(s, true)); });
+    if (!me) ol.insertAdjacentHTML('afterend', '<p class="muted">Entre com sua conta para aparecer no ranking.</p>');
+  } catch (e) { ol.innerHTML = `<li class="muted">${esc(friendly(e))}</li>`; }
+}
+
+// ---------------------------------------------------------------- Conta (a mesma do Song of Moonlight)
+function conta() {
+  const a = currentAccount();
+  if (!cloudReady()) { root.innerHTML = `<div class="panel"><h2>Conta</h2><p class="muted">Login indisponível neste aparelho.</p><button data-go="title">Voltar</button></div>`; return; }
+  if (!a) {
+    root.innerHTML = `<div class="panel">
+      <h2>Conta</h2>
+      <p class="muted">É a mesma conta do Song of Moonlight e do site. Com ela seu progresso fica salvo e você entra no ranking.</p>
+      <form id="lf" class="form">
+        <input id="lf-e" type="email" placeholder="E-mail" autocomplete="email" required>
+        <input id="lf-p" type="password" placeholder="Senha" autocomplete="current-password" required minlength="6">
+        <button class="big" type="submit">Entrar</button>
+      </form>
+      <div class="row"><button id="lf-new">Criar conta</button><button id="lf-reset">Esqueci a senha</button></div>
+      <p class="muted" id="lf-msg"></p>
+      <button data-go="title">Jogar sem conta</button>
+    </div>`;
+    const msg = (t) => ($('#lf-msg').textContent = t), E = () => $('#lf-e').value.trim(), Pw = () => $('#lf-p').value;
+    $('#lf').addEventListener('submit', async (e) => { e.preventDefault(); msg('Entrando...'); try { await signIn(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } });
+    $('#lf-new').onclick = async () => { if (!E() || Pw().length < 6) return msg('Preencha o e-mail e uma senha com pelo menos 6 caracteres.'); msg('Criando...'); try { await signUp(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } };
+    $('#lf-reset').onclick = async () => { if (!E()) return msg('Escreva seu e-mail acima.'); try { await resetPass(E()); msg('Enviamos um link para trocar a senha.'); } catch (er) { msg(friendly(er)); } };
+    return;
+  }
+  if (!a.verified) {
+    root.innerHTML = `<div class="panel"><h2>Confirme seu e-mail</h2>
+      <p class="muted">Enviamos um link para <b>${esc(a.email)}</b>. Clique nele e depois toque em "Já confirmei".</p>
+      <button class="big" id="vf-ok">Já confirmei</button>
+      <div class="row"><button id="vf-send">Reenviar</button><button id="vf-out">Sair</button></div>
+      <p class="muted" id="vf-msg"></p><button data-go="title">Voltar</button></div>`;
+    $('#vf-ok').onclick = async () => { try { const u = await refreshVerified(); if (u.verified) show('conta'); else $('#vf-msg').textContent = 'Ainda não confirmado. Veja sua caixa de entrada (e o spam).'; } catch (er) { $('#vf-msg').textContent = friendly(er); } };
+    $('#vf-send').onclick = async () => { try { await sendVerify(); $('#vf-msg').textContent = 'Link reenviado.'; } catch (er) { $('#vf-msg').textContent = friendly(er); } };
+    $('#vf-out').onclick = async () => { await logout(); setTimeout(() => show('conta'), 200); };
+    return;
+  }
+  root.innerHTML = `<div class="panel"><h2>Conta</h2>
+    <p class="muted">Conectado como <b>${esc(a.email)}</b>. Seu progresso fica salvo na nuvem.</p>
+    <label class="lbl">Nome no ranking</label>
+    <div class="row"><input id="nm" maxlength="16" value="${esc(save.name || a.email.split('@')[0].slice(0, 16))}"><button id="nm-ok">Salvar</button></div>
+    <p class="muted" id="nm-msg"></p>
+    <div class="row"><button id="out">Sair da conta</button><button data-go="title">Voltar</button></div>
+    <p class="muted small">Também em <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://', '')}</a></p></div>`;
+  $('#nm-ok').onclick = async () => {
+    save.name = $('#nm').value.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 16); commit();
+    try { await submitScore(); $('#nm-msg').textContent = 'Nome salvo.'; } catch (er) { $('#nm-msg').textContent = friendly(er); }
+  };
+  $('#out').onclick = async () => { await logout(); setTimeout(() => show('conta'), 200); };
+}
+
+function pause() {
+  root.innerHTML = `<div class="panel"><h2>Pausa</h2>
+    <button class="big" data-go="resume">CONTINUAR</button>
+    ${soundBtns()}
+    <button data-go="quit">Desistir</button></div>`;
+}

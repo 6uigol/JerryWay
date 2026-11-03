@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Jerry Way</string>
+    <string name="title_activity_main">Jerry Way</string>
+    <string name="package_name">com.jerryway.game</string>
+    <string name="custom_url_scheme">com.jerryway.game</string>
+</resources>
