@@ -1,5 +1,5 @@
 // Telas por cima do jogo (HTML): início, resultado, Sorte, Coleção, Ranking, Conta e pausa.
-import { save, commit, cloudReady, currentAccount, signIn, signUp, signInGoogle, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { save, commit, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { sfx, isMuted, setMuted, initAudio } from './audio.js';
@@ -9,6 +9,12 @@ import { SITE_URL } from './config.js';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 let root, hooks = {}, current = null;
+// "Conectando..." com os segundos contando (até 20 s); devolve uma função que para o contador
+function connecting(el) {
+  const t0 = Date.now(), tick = () => { if (el) el.innerHTML = `<span class="spin"></span> Conectando... ${Math.min(20, Math.floor((Date.now() - t0) / 1000))}s`; };
+  tick(); const id = setInterval(tick, 500);
+  return () => clearInterval(id);
+}
 
 export function initUI(h) {
   hooks = h; root = $('#ui');
@@ -152,10 +158,10 @@ async function ranking() {
   root.innerHTML = `<div class="panel">
     <h2>Ranking</h2>
     <p class="muted">Os 10 maiores recordes do Jerry Way. O 1º é o recorde mundial. Seu recorde pessoal: <b>${save.best}</b></p>
-    <ol class="rank" id="rk"><li class="muted">Carregando...</li></ol>
+    <ol class="rank" id="rk"><li class="muted" id="rk-wait"></li></ol>
     <div class="row"><button data-go="ranking">Atualizar</button><button data-go="title">Voltar</button></div>
   </div>`;
-  const ol = $('#rk');
+  const ol = $('#rk'), stop = connecting($('#rk-wait'));
   try {
     const list = await top10();
     if (current !== 'ranking') return;
@@ -163,7 +169,8 @@ async function ranking() {
     ol.innerHTML = list.length ? list.map((r, i) => `<li class="${me && me.uid === r.uid ? 'me' : ''}"><span class="pos">${i + 1}</span><span class="th" data-skin="${esc(r.skin || '')}"></span><span class="nm">${esc(r.name)}</span><b>${r.best}</b></li>`).join('') : '<li class="muted">Ninguém no ranking ainda. Seja o primeiro!</li>';
     ol.querySelectorAll('[data-skin]').forEach((el) => { const s = SKIN_BY_ID[el.dataset.skin] || SKINS[0]; el.append(thumb(s, true)); });
     if (!me) ol.insertAdjacentHTML('afterend', '<p class="muted">Entre com sua conta para aparecer no ranking.</p>');
-  } catch (e) { ol.innerHTML = `<li class="muted">${esc(friendly(e))}</li>`; }
+  } catch (e) { if (current === 'ranking') ol.innerHTML = `<li class="muted">${esc(friendly(e))}</li>`; }
+  finally { stop(); }
 }
 
 // ---------------------------------------------------------------- Conta (a mesma do Song of Moonlight)
@@ -185,16 +192,17 @@ function conta() {
       <p class="muted" id="lf-msg"></p>
       <button data-go="title">Jogar sem conta</button>
     </div>`;
-    const msg = (t) => ($('#lf-msg').textContent = t), E = () => $('#lf-e').value.trim(), Pw = () => $('#lf-p').value;
-    $('#lf').addEventListener('submit', async (e) => { e.preventDefault(); msg('Entrando...'); try { await signIn(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } });
-    $('#lf-new').onclick = async () => { if (!E() || Pw().length < 6) return msg('Preencha o e-mail e uma senha com pelo menos 6 caracteres.'); msg('Criando...'); try { await signUp(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } };
+    let stop = () => {};
+    const msg = (t) => { stop(); $('#lf-msg').textContent = t; }, wait = () => { stop(); stop = connecting($('#lf-msg')); }, E = () => $('#lf-e').value.trim(), Pw = () => $('#lf-p').value;
+    $('#lf').addEventListener('submit', async (e) => { e.preventDefault(); wait(); try { await signIn(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } });
+    $('#lf-new').onclick = async () => { if (!E() || Pw().length < 6) return msg('Preencha o e-mail e uma senha com pelo menos 6 caracteres.'); wait(); try { await signUp(E(), Pw()); setTimeout(() => show('conta'), 300); } catch (er) { msg(friendly(er)); } };
     $('#lf-google').onclick = async () => {
       const b = $('#lf-google'); b.disabled = true;
-      msg(window.desktop || window.Capacitor?.isNativePlatform?.() ? 'Termine o login no navegador que abriu e volte ao jogo.' : 'Abrindo o Google...');
-      try { await signInGoogle(); msg(''); setTimeout(() => show('conta'), 300); }
+      wait();
+      try { await checkOnline(); msg(window.desktop || window.Capacitor?.isNativePlatform?.() ? 'Termine o login no navegador que abriu e volte ao jogo.' : 'Abrindo o Google...'); await signInGoogle();  msg(''); setTimeout(() => show('conta'), 300); }
       catch (er) { b.disabled = false; msg(er && /popup-closed|cancelled/.test(er.code || '') ? 'Login cancelado.' : (er && er.code ? friendly(er) : (er && er.message) || 'Não deu certo agora.')); }
     };
-    $('#lf-reset').onclick = async () => { if (!E()) return msg('Escreva seu e-mail acima.'); try { await resetPass(E()); msg('Enviamos um link para trocar a senha.'); } catch (er) { msg(friendly(er)); } };
+    $('#lf-reset').onclick = async () => { if (!E()) return msg('Escreva seu e-mail acima.'); wait(); try { await resetPass(E()); msg('Enviamos um link para trocar a senha.'); } catch (er) { msg(friendly(er)); } };
     return;
   }
   if (!a.verified) {
@@ -203,7 +211,7 @@ function conta() {
       <button class="big" id="vf-ok">Já confirmei</button>
       <div class="row"><button id="vf-send">Reenviar</button><button id="vf-out">Sair</button></div>
       <p class="muted" id="vf-msg"></p><button data-go="title">Voltar</button></div>`;
-    $('#vf-ok').onclick = async () => { try { const u = await refreshVerified(); if (u.verified) show('conta'); else $('#vf-msg').textContent = 'Ainda não confirmado. Veja sua caixa de entrada (e o spam).'; } catch (er) { $('#vf-msg').textContent = friendly(er); } };
+    $('#vf-ok').onclick = async () => { const stop = connecting($('#vf-msg')); try { const u = await refreshVerified(); stop(); if (u.verified) show('conta'); else $('#vf-msg').textContent = 'Ainda não confirmado. Veja sua caixa de entrada (e o spam).'; } catch (er) { stop(); $('#vf-msg').textContent = friendly(er); } };
     $('#vf-send').onclick = async () => { try { await sendVerify(); $('#vf-msg').textContent = 'Link reenviado.'; } catch (er) { $('#vf-msg').textContent = friendly(er); } };
     $('#vf-out').onclick = async () => { await logout(); setTimeout(() => show('conta'), 200); };
     return;

@@ -4,6 +4,7 @@ import { TILE } from './world.js';
 import { SKIN_BY_ID } from './skins.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
 import { initUI, show, hide, showing } from './ui.js';
+import { brandIntro } from './brand.js';
 import { initAudio, setBackground, onResume } from './audio.js';
 import { startMusic, resyncMusic } from './music.js';
 
@@ -113,6 +114,7 @@ initUI({
   quit: () => { game.state = 'play'; game.die('portal'); hide(); },
 });
 show('title');
+brandIntro();   // abertura da marca Song of Moonlight por cima da tela inicial
 initCloud().then(refreshTop);
 setInterval(refreshTop, 60000);   // ranking das laterais sempre atualizado
 

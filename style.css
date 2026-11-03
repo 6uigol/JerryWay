@@ -65,3 +65,5 @@ button.google span { color: #1a1226; }
 .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .small-rank li { padding: 3px 8px; font-size: 8px; }
 .small-rank li:first-child b { color: #ffcc3a; }
+.spin { display: inline-block; width: 8px; height: 8px; border: 2px solid var(--muted); border-top-color: var(--gold); border-radius: 50%; animation: sp 0.8s linear infinite; vertical-align: -1px; }
+@keyframes sp { to { transform: rotate(360deg); } }

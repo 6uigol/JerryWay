@@ -31,10 +31,19 @@ export function commit() {
   if (uid && account && account.verified) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 }
 // conversa com o servidor do site (/api/jerry); as chamadas da conta levam o token do Firebase
+// O jogo funciona sem internet. O que precisa dela (ranking, conta, salvar na nuvem) tenta conectar por até 20 s;
+// se não conseguir, avisa que está offline (o progresso continua salvo no aparelho).
+export const CONNECT_MS = 20000;
+export function connect(p, ms = CONNECT_MS) {
+  let timer;
+  return Promise.race([p, new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error('offline'), { code: 'offline' })), ms); })]).finally(() => clearTimeout(timer));
+}
 async function api(op, payload) {
   const headers = { 'content-type': 'application/json' };
   if (op !== 'top') headers.authorization = 'Bearer ' + (await cloud.idToken());
-  const r = payload ? await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ op, ...payload }) }) : await fetch(API_URL + '?op=' + op, { headers, cache: 'no-store' });
+  let r;
+  try { r = await connect(payload ? fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ op, ...payload }) }) : fetch(API_URL + '?op=' + op, { headers, cache: 'no-store' })); }
+  catch (e) { throw Object.assign(new Error('offline'), { code: 'offline' }); }
   if (!r.ok) throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : 'network' });
   return r.json();
 }
@@ -76,12 +85,14 @@ async function attach(u) {
     submitScore().catch(() => {});   // o recorde do aparelho entra no ranking ao entrar na conta
   } catch (e) { console.warn('nuvem', e && e.code); }
 }
-export const signIn = (e, p) => cloud.signIn(e, p);
-export const signUp = (e, p) => cloud.signUp(e, p);
-export const resetPass = (e) => cloud.reset(e);
+export const signIn = (e, p) => connect(cloud.signIn(e, p));
+export const signUp = (e, p) => connect(cloud.signUp(e, p));
+export const resetPass = (e) => connect(cloud.reset(e));
 export const sendVerify = () => cloud.sendVerify();
-export async function refreshVerified() { const u = await cloud.refreshVerified(); account = u; await attach(u); return u; }
+export async function refreshVerified() { const u = await connect(cloud.refreshVerified()); account = u; await attach(u); return u; }
 export const logout = () => cloud.logout();
+// confere se tem internet (até 20 s) antes de abrir o Google
+export const checkOnline = () => api('top');
 export async function signInGoogle(pending = null) {
   const u = await cloud.signInGoogle(nativeGoogleLogin(FIREBASE_CONFIG, pending));
   if (u.googleState) { try { await acknowledgeGoogleLogin(u.googleState); } catch (_) { /* a conta já entrou */ } }
@@ -101,6 +112,7 @@ export async function submitScore() {
 export async function top10() { return (await api('top')).list; }
 export function friendly(e) {
   const c = (e && e.code) || '';
+  if (c === 'offline' || c.includes('network-request-failed')) return 'Você está offline. O jogo continua funcionando e salvando no aparelho; tente de novo quando tiver internet.';
   if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'E-mail ou senha incorretos.';
   if (c.includes('email-already-in-use')) return 'Já existe uma conta com esse e-mail. É a mesma do Song of Moonlight: use Entrar.';
   if (c.includes('weak-password')) return 'A senha precisa de pelo menos 6 caracteres.';
