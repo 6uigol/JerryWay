@@ -2,7 +2,7 @@
   "name": "jerry-way",
   "private": true,
   "type": "module",
-  "version": "1.0.4",
+  "version": "1.0.0",
   "description": "Jerry Way — o jogo infinito do Jerry (universo Song of Moonlight)",
   "author": { "name": "Song of Moonlight", "email": "146967020+6uigol@users.noreply.github.com" },
   "main": "electron/main.cjs",
@@ -31,7 +31,7 @@
   },
   "build": {
     "appId": "com.jerryway.game",
-    "buildVersion": "1.0.4.0",
+    "buildVersion": "1.0.0.0",
     "productName": "Jerry Way",
     "copyright": "Todos os direitos reservados",
     "directories": { "output": "dist" },
@@ -41,14 +41,14 @@
     "linux": {
       "target": [{ "target": "AppImage", "arch": ["x64"] }],
       "icon": "icons/icon-512.png", "category": "Game", "executableName": "jerry-way",
-      "artifactName": "Jerry-Way-${version}.${ext}",
+      "artifactName": "Jerry-Way-1.0.0.0.${ext}",
       "maintainer": "6uigol <146967020+6uigol@users.noreply.github.com>"
     },
     "nsis": {
       "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Jerry Way",
       "runAfterFinish": true, "deleteAppDataOnUninstall": false, "language": "1046",
-      "artifactName": "Jerry-Way-Setup-${version}.${ext}"
+      "artifactName": "Jerry-Way-Setup-1.0.0.0.${ext}"
     },
     "electronLanguages": ["pt-BR", "en-US"],
     "compression": "maximum"

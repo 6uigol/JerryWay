@@ -75,12 +75,14 @@ function frameBox(c, x, y, w, h, u, k) {
 window.addEventListener('resize', resize); resize();
 
 // ---------------------------------------------------------------- partida
+// marcas no chão: recorde pessoal, recorde mundial (o 1º do ranking), a última partida e os outros do ranking
 function ghostsFor() {
-  const list = [];
-  if (save.best > 2) list.push({ key: 'best', kind: 'best', row: save.best, name: 'Recorde', skin: save.skin });
-  if (save.last > 2 && save.last !== save.best) list.push({ key: 'last', kind: 'last', row: save.last, name: 'Última', skin: save.skin });
-  const me = currentAccount();
-  for (const r of topList) if (!me || r.uid !== me.uid) list.push({ key: 'top:' + r.uid, kind: 'top', row: r.best, name: r.name, skin: r.skin });
+  const list = [], me = currentAccount(), w = topList[0];
+  const worldIsMine = w && me && w.uid === me.uid;
+  if (save.best > 2) list.push({ key: 'best', kind: 'best', row: save.best, name: worldIsMine && w.best <= save.best ? 'Recorde pessoal e mundial' : 'Recorde pessoal', skin: save.skin });
+  if (w && w.best > 2 && !(worldIsMine && w.best <= save.best)) list.push({ key: 'world', kind: 'world', row: w.best, name: 'Recorde mundial', who: w.name, skin: w.skin });
+  if (save.last > 2 && save.last !== save.best) list.push({ key: 'last', kind: 'last', row: save.last, name: 'Última partida', skin: save.skin });
+  for (const r of topList.slice(1)) if (!me || r.uid !== me.uid) list.push({ key: 'top:' + r.uid, kind: 'top', row: r.best, name: r.name, skin: r.skin });
   return list;
 }
 function play() {
@@ -167,14 +169,11 @@ function hud() {
   c.textAlign = 'right';
   coin(c, LW - 8 - String(save.coins + game.coins).length * 8 - 10, 7);
   label(c, String(save.coins + game.coins), LW - 8 - String(save.coins + game.coins).length * 4, 15, '#ffe070');
-  // recorde pessoal e mundial (ficam verdes/dourados quando a partida passa deles)
-  const pb = Math.max(save.best, game.score), wb = game.worldBest ? Math.max(game.worldBest, game.score) : game.score;
-  label(c, 'PESSOAL ' + pb, LW / 2, 36, game.score > save.best && save.best ? '#7aff9a' : '#c8b8ff');
-  label(c, 'MUNDIAL ' + (wb || '-'), LW / 2, 47, game.beatWorld ? '#ffcc3a' : '#9ad0ff');
+
   }
   const b = game.zoneBanner;
-  if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, desktop ? 44 : 62, '#ffe9a8'); c.globalAlpha = 1; }
-  game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, (desktop ? 60 : 76) + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
+  if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, 44, '#ffe9a8'); c.globalAlpha = 1; }
+  game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, 60 + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
   if (!game.started && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, desktop ? 'Espaço ou setas para pular' : 'Toque para pular', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
 }
 function coin(c, x, y) { c.fillStyle = '#c8901a'; c.fillRect(x, y + 1, 8, 7); c.fillStyle = '#ffcc3a'; c.fillRect(x, y, 8, 7); c.fillStyle = '#fff2a0'; c.fillRect(x + 1, y + 1, 3, 2); }

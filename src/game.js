@@ -25,7 +25,7 @@ export class Game {
   }
   // fantasmas dos recordes: o seu, o da última partida e os 10 maiores do ranking, parados onde cada um chegou
   setGhosts(list) {
-    this.ghosts = list.filter((g) => g.row > 2).map((g, i) => ({ ...g, col: Math.abs((g.row * 7 + i * 3) % COLS) }));
+    this.ghosts = list.filter((g) => g.row > 2).map((g, i) => ({ ...g, col: [0, 1, 7, 8][Math.abs(g.row * 7 + i * 3) % 4] }));
   }
   start() { this.state = 'play'; }
 
@@ -217,15 +217,22 @@ export class Game {
       c.fillRect(px, py, 1, 1);
     }
   }
+  // marca no chão da fileira do recorde: faixa tracejada de lado a lado, o texto escrito no chão e o Jerry fantasma
   drawGhost(c, g, ox, y) {
-    const skin = SKIN_BY_ID[g.skin] || SKIN_BY_ID[DEFAULT_SKIN], x = ox + g.col * T + T / 2;
-    c.globalAlpha = this.passed.has(g.key) ? 0.25 : 0.5 + Math.sin(this.t * 3) * 0.1;
-    c.drawImage(jerryFrame('front', 'idle', 0, skin), x - 8, y - 1 - Math.round(Math.abs(Math.sin(this.t * 2 + g.row)) * 2));
-    // faixa tracejada na fileira do recorde
-    c.fillStyle = g.kind === 'best' ? '#ffe070' : g.kind === 'last' ? '#c8b8ff' : '#7af0ff';
-    for (let k = 0; k < COLS * T; k += 6) c.fillRect(ox + k, y + T - 2, 3, 1);
+    const skin = SKIN_BY_ID[g.skin] || SKIN_BY_ID[DEFAULT_SKIN], x = ox + g.col * T + T / 2, passed = this.passed.has(g.key);
+    const col = g.kind === 'world' ? '#ffcc3a' : g.kind === 'best' ? '#7aff9a' : g.kind === 'last' ? '#c8b8ff' : '#7af0ff';
+    const big = g.kind === 'world' || g.kind === 'best';
+    c.globalAlpha = passed ? 0.35 : 0.85;
+    c.fillStyle = col;
+    for (let k = -T * 8; k < COLS * T + T * 8; k += 6) c.fillRect(ox + k, y + T - (big ? 3 : 2), 3, big ? 2 : 1);
+    c.globalAlpha = passed ? 0.2 : 0.5 + Math.sin(this.t * 3) * 0.1;
+    if (g.kind !== 'world' || g.who) c.drawImage(jerryFrame('front', 'idle', 0, skin), x - 8, y - 4 - Math.round(Math.abs(Math.sin(this.t * 2 + g.row)) * 2));
+    c.globalAlpha = passed ? 0.4 : 1;
+    // texto no chão, logo acima da faixa
+    const text = g.kind === 'world' || g.kind === 'best' ? `${g.name} ${g.row}` : g.name;
+    label(c, text, ox + COLS * T / 2, y + T - 5, col, 8, 40);
+    if (g.kind === 'world' && g.who) label(c, g.who, x, y - 7, col, 8, 16);   // quem tem o recorde mundial, em cima do fantasma
     c.globalAlpha = 1;
-    label(c, g.name, x, y - 5, c.fillStyle, 8, 16);
   }
   drawFx(c, f, ox, rowY) {
     const y = rowY(f.row), x = ox + f.x;
