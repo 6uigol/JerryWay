@@ -21,7 +21,7 @@ export class Game {
     this.started = false;   // a câmera só começa a subir depois do primeiro pulo
     this.score = 0; this.coins = 0; this.queue = null;
     this.fx = []; this.toasts = []; this.end = null; this.zone = zoneAt(0).id; this.zoneBanner = { name: zoneAt(0).name, t: 0 };
-    this.ghosts = []; this.passed = new Set();
+    this.ghosts = []; this.passed = new Set(); this.worldBest = 0; this.worldName = ''; this.beatWorld = false;
   }
   // fantasmas dos recordes: o seu, o da última partida e os 10 maiores do ranking, parados onde cada um chegou
   setGhosts(list) {
@@ -51,7 +51,12 @@ export class Game {
     const L = this.world.lane(j.row);
     if (j.row > this.score) {
       this.score = j.row;
-      for (const g of this.ghosts) if (!this.passed.has(g.key) && this.score > g.row) { this.passed.add(g.key); this.toast(g.kind === 'top' ? `Passou ${g.name}!` : g.kind === 'best' ? 'Novo recorde!' : 'Passou a última partida!', g.kind === 'best' ? '#ffe070' : '#c8b8ff'); sfx[g.kind === 'best' ? 'record' : 'pass'](); }
+      // passou o recorde mundial (o 1º do ranking): aviso grande, som e chuva de estrelas
+      if (this.worldBest > 0 && !this.beatWorld && this.score > this.worldBest) {
+        this.beatWorld = true; this.toast('NOVO RECORDE MUNDIAL!', '#ffcc3a'); sfx.record(); setTimeout(() => sfx.bigcoin(), 450);
+        for (let i = 0; i < 24; i++) this.fx.push({ k: 'star', x: j.x + (Math.random() - 0.5) * 120, row: j.row + Math.random() * 6, t: -Math.random() * 0.4, c: i % 3 });
+      }
+      for (const g of this.ghosts) if (!this.passed.has(g.key) && this.score > g.row) { this.passed.add(g.key); this.toast(g.kind === 'top' ? `Passou ${g.name}!` : g.kind === 'best' ? 'Novo recorde pessoal!' : 'Passou a última partida!', g.kind === 'best' ? '#ffe070' : '#c8b8ff'); sfx[g.kind === 'best' ? 'record' : 'pass'](); }
     }
     const z = zoneAt(j.row);
     if (z.id !== this.zone && j.row === this.score) { this.zone = z.id; this.zoneBanner = { name: z.name, t: 0 }; }
@@ -224,6 +229,7 @@ export class Game {
   }
   drawFx(c, f, ox, rowY) {
     const y = rowY(f.row), x = ox + f.x;
+    if (f.k === 'star' && f.t > 0) { c.globalAlpha = 1 - f.t; c.fillStyle = ['#ffcc3a', '#ffffff', '#7af0ff'][f.c]; const yy = Math.round(y - f.t * 30); c.fillRect(Math.round(x) - 1, yy, 3, 1); c.fillRect(Math.round(x), yy - 1, 1, 3); c.globalAlpha = 1; }
     if (f.k === 'spark') { c.fillStyle = '#fff2a0'; for (let i = 0; i < 6; i++) { const a = i * 1.05; c.fillRect(Math.round(x + Math.cos(a) * f.t * 18), Math.round(y + 6 + Math.sin(a) * f.t * 12 - f.t * 6), 1, 1); } }
     if (f.k === 'splash') { c.strokeStyle = '#e8f8ff'; c.lineWidth = 1; for (let i = 0; i < 2; i++) { const k = f.t + i * 0.25; if (k > 1) continue; c.globalAlpha = 1 - k; c.beginPath(); c.ellipse(x, y + 9, 3 + k * 12, 1.5 + k * 4, 0, 0, 7); c.stroke(); } c.globalAlpha = 1; c.fillStyle = '#ffffff'; for (let i = 0; i < 6; i++) c.fillRect(Math.round(x - 6 + i * 2.4), Math.round(y + 6 - Math.sin(f.t * Math.PI) * (6 + (i % 3) * 3)), 1, 2); }
   }

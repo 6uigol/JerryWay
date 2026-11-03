@@ -68,14 +68,17 @@ function title() {
 
 const END_TEXT = { portal: 'A tela passou do Jerry... ele abriu um portal para Lacrímora e foi embora!', water: 'O Jerry caiu na água!', hit: 'O Jerry foi atropelado!' };
 function result(r) {
+  const top = (r.top || []).map((t, i) => `<li><span class="pos">${i + 1}</span><span class="nm">${esc(t.name)}</span><b>${t.best}</b></li>`).join('');
   root.innerHTML = `<div class="panel">
-    <h2>${r.record ? 'NOVO RECORDE!' : 'Fim da corrida'}</h2>
+    <h2 style="${r.world ? 'color:#ffcc3a' : ''}">${r.world ? 'NOVO RECORDE MUNDIAL!' : r.record ? 'NOVO RECORDE PESSOAL!' : 'Fim da corrida'}</h2>
     <p class="muted">${END_TEXT[r.kind] || ''}</p>
     <div class="score">${r.score}</div>
-    <div class="info"><span>Recorde <b>${save.best}</b></span><span>+${r.coins} <i class="coin"></i></span>${coinsTag()}</div>
+    <div class="info"><span>Pessoal <b>${save.best}</b></span><span>Mundial <b>${r.world ? r.score : r.worldBest || '-'}</b></span></div>
+    <div class="info"><span>+${r.coins} <i class="coin"></i></span>${coinsTag()}</div>
+    ${top ? `<ol class="rank small-rank">${top}</ol>` : ''}
     <p class="muted" id="rk-msg">${r.rankMsg || ''}</p>
     <button class="big" data-go="play">JOGAR DE NOVO</button>
-    <div class="row"><button data-go="sorte">Sorte</button><button data-go="title">Menu</button></div>
+    <div class="row"><button data-go="ranking">Ranking</button><button data-go="sorte">Sorte</button><button data-go="title">Menu</button></div>
   </div>`;
 }
 
@@ -148,7 +151,7 @@ function colecao() {
 async function ranking() {
   root.innerHTML = `<div class="panel">
     <h2>Ranking</h2>
-    <p class="muted">Os 10 maiores recordes do Jerry Way. Seu recorde: <b>${save.best}</b></p>
+    <p class="muted">Os 10 maiores recordes do Jerry Way. O 1º é o recorde mundial. Seu recorde pessoal: <b>${save.best}</b></p>
     <ol class="rank" id="rk"><li class="muted">Carregando...</li></ol>
     <div class="row"><button data-go="ranking">Atualizar</button><button data-go="title">Voltar</button></div>
   </div>`;

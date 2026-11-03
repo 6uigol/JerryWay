@@ -88,6 +88,7 @@ function play() {
   game.reset((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
   game.skinId = save.skin;
   game.setGhosts(ghostsFor());
+  game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();
 }
 function finish() {
@@ -95,7 +96,7 @@ function finish() {
   save.coins += g.coins; save.runs++; save.last = g.score;
   if (record) save.best = g.score;
   commit();
-  const r = { kind: g.end.kind, score: g.score, coins: g.coins, record, rankMsg: '' };
+  const r = { kind: g.end.kind, score: g.score, coins: g.coins, record, world: g.beatWorld, worldBest: g.worldBest, worldName: g.worldName, top: topList.slice(0, 5), rankMsg: '' };
   g.state = 'over';
   show('result', r);
   const me = currentAccount();
@@ -166,11 +167,14 @@ function hud() {
   c.textAlign = 'right';
   coin(c, LW - 8 - String(save.coins + game.coins).length * 8 - 10, 7);
   label(c, String(save.coins + game.coins), LW - 8 - String(save.coins + game.coins).length * 4, 15, '#ffe070');
-  if (save.best) label(c, 'REC ' + save.best, 8 + ('REC ' + save.best).length * 4, 15, '#c8b8ff');
+  // recorde pessoal e mundial (ficam verdes/dourados quando a partida passa deles)
+  const pb = Math.max(save.best, game.score), wb = game.worldBest ? Math.max(game.worldBest, game.score) : game.score;
+  label(c, 'PESSOAL ' + pb, LW / 2, 36, game.score > save.best && save.best ? '#7aff9a' : '#c8b8ff');
+  label(c, 'MUNDIAL ' + (wb || '-'), LW / 2, 47, game.beatWorld ? '#ffcc3a' : '#9ad0ff');
   }
   const b = game.zoneBanner;
-  if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, 44, '#ffe9a8'); c.globalAlpha = 1; }
-  game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, 60 + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
+  if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, desktop ? 44 : 62, '#ffe9a8'); c.globalAlpha = 1; }
+  game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, (desktop ? 60 : 76) + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
   if (!game.started && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, desktop ? 'Espaço ou setas para pular' : 'Toque para pular', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
 }
 function coin(c, x, y) { c.fillStyle = '#c8901a'; c.fillRect(x, y + 1, 8, 7); c.fillStyle = '#ffcc3a'; c.fillRect(x, y, 8, 7); c.fillStyle = '#fff2a0'; c.fillRect(x + 1, y + 1, 3, 2); }
@@ -188,7 +192,10 @@ function drawPanels() {
   ptext('JERRY', L.x + L.w / 2, y, 22, '#ffcc3a', 'center'); ptext('WAY', L.x + L.w / 2, y + 28 * u, 22, '#ffcc3a', 'center'); y += 78 * u;
   const row = (k, v, col = '#ffffff') => { ptext(k, x, y, 8, '#8aa8ff'); ptext(String(v), x, y + 14 * u, 16, col); y += 46 * u; };
   row('Distância', playing ? game.score : save.last || 0);
-  row('Recorde', save.best, '#ffe070');
+  row('Recorde pessoal', Math.max(save.best, playing ? game.score : 0), playing && game.score > save.best && save.best ? '#7aff9a' : '#ffe070');
+  const wb = topList[0] ? topList[0].best : 0, beat = playing && game.beatWorld;
+  ptext('Recorde mundial', x, y, 8, '#8aa8ff'); ptext(String(beat ? game.score : wb || '-'), x, y + 14 * u, 16, beat ? '#ffcc3a' : '#9ad0ff');
+  ptext(fit(beat ? 'é seu agora!' : topList[0] ? 'de ' + topList[0].name : 'ninguém ainda', cols), x, y + 36 * u, 8, beat ? '#ffcc3a' : '#c8d0ff'); y += 60 * u;
   row('Moedas', save.coins + (playing ? game.coins : 0), '#ffcc3a');
   ptext('Lugar', x, y, 8, '#8aa8ff'); ptext(fit(ZONE_NAMES[game.zone] || '', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
   ptext('Skin', x, y, 8, '#8aa8ff'); ptext(fit(skinName(), cols), x, y + 14 * u, 9, '#ffffff');
