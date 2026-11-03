@@ -11,4 +11,4 @@ export const FIREBASE_CONFIG = {
 export const SITE_URL = 'https://songofmoonlight.online';
 // servidor do site: ranking e progresso da conta (o mesmo domínio do site, sem o redirecionamento do www)
 export const API_URL = 'https://www.songofmoonlight.online/api/jerry';
-export const VERSION = '1.0.2';
+export const VERSION = '1.0.3';

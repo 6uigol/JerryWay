@@ -5,7 +5,7 @@ import { SKIN_BY_ID } from './skins.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { initAudio, setBackground, onResume } from './audio.js';
-import { startMusic, onSongChange, resyncMusic } from './music.js';
+import { startMusic, resyncMusic } from './music.js';
 
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // tela lógica em pixel art, ampliada para a tela real
@@ -142,9 +142,6 @@ window.addEventListener('pagehide', () => background(true));
 window.addEventListener('jerry-app-background', () => background(true));   // Android (MainActivity)
 window.addEventListener('jerry-app-foreground', () => { if (!document.hidden) background(false); });
 onResume(resyncMusic);
-// nome da música que começou (aparece um instante no canto)
-let songToast = null, songName = '';
-onSongChange((name) => { songToast = { name, t: performance.now() }; songName = name; });
 
 // ---------------------------------------------------------------- laço
 let last = performance.now();
@@ -174,11 +171,6 @@ function hud() {
   const b = game.zoneBanner;
   if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, 44, '#ffe9a8'); c.globalAlpha = 1; }
   game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, 60 + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
-  if (songToast && !desktop) {
-    const a = (performance.now() - songToast.t) / 1000;
-    if (a > 4) songToast = null;
-    else { c.globalAlpha = Math.min(1, a * 3, (4 - a) * 2); label(c, '\u266a ' + songToast.name, LW / 2, LH - 10, '#c8b8ff'); c.globalAlpha = 1; }
-  }
   if (!game.started && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, desktop ? 'Espaço ou setas para pular' : 'Toque para pular', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
 }
 function coin(c, x, y) { c.fillStyle = '#c8901a'; c.fillRect(x, y + 1, 8, 7); c.fillStyle = '#ffcc3a'; c.fillRect(x, y, 8, 7); c.fillStyle = '#fff2a0'; c.fillRect(x + 1, y + 1, 3, 2); }
@@ -199,7 +191,6 @@ function drawPanels() {
   row('Recorde', save.best, '#ffe070');
   row('Moedas', save.coins + (playing ? game.coins : 0), '#ffcc3a');
   ptext('Lugar', x, y, 8, '#8aa8ff'); ptext(fit(ZONE_NAMES[game.zone] || '', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
-  ptext('Música', x, y, 8, '#8aa8ff'); ptext(fit(songName ? '\u266a ' + songName : '\u266a ...', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
   ptext('Skin', x, y, 8, '#8aa8ff'); ptext(fit(skinName(), cols), x, y + 14 * u, 9, '#ffffff');
   // direita: ranking e controles
   x = Rp.x + 18 * u; y = Rp.y + 22 * u;
