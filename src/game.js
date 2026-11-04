@@ -197,19 +197,12 @@ export class Game {
       c.drawImage(fr, Math.round(x) - Math.round(w / 2) - (e.slime ? 0 : e.dir > 0 ? 4 : -4), Math.round(y) + 13 - h, w, h);
       return;
     }
-    // na ponta do tronco: balança, aparece um "!" e a ponta do tronco desse lado pisca (dá para saber que é a beirada)
+    // na ponta do tronco: o Jerry só se assusta (balança, cara de susto e o "!"); nada é marcado no mapa
     let edge = 0;
     if (j.on && !air && !e) {
       const o = j.on, lane = this.world.lane(j.row);
       if (lane && !lane.lily && o.w > T) { if (j.onOff <= T / 2 + 0.5) edge = -1; else if (j.onOff >= o.w - T / 2 - 0.5) edge = 1; }
-      if (edge) {
-        const blink = Math.floor(this.t * 6) % 2, ex = edge < 0 ? ox + o.x - 1 : ox + o.x + o.w - 4;
-        c.fillStyle = blink ? '#ffe070' : '#ff8a3a'; c.fillRect(Math.round(ex), Math.round(y) + 2, 1, 11); c.fillRect(Math.round(ex) + 4, Math.round(y) + 2, 1, 11); c.fillRect(Math.round(ex), Math.round(y) + 2, 5, 1); c.fillRect(Math.round(ex), Math.round(y) + 12, 5, 1);
-        x += Math.round(Math.sin(this.t * 14) * 1);
-      }
-      // o tronco está levando o Jerry para fora: a beirada da tela pisca em vermelho desse lado
-      const side = j.x < T * 1.3 ? -1 : j.x > COLS * T - T * 1.3 ? 1 : 0;
-      if (side && Math.floor(this.t * 5) % 2) { c.fillStyle = 'rgba(255,60,60,0.55)'; c.fillRect(side < 0 ? ox : ox + COLS * T - 3, Math.round(y), 3, T); }
+      if (edge) x += Math.round(Math.sin(this.t * 14) * 1);
     }
     const pose = air ? 'hop' : edge ? 'scared' : 'idle';
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
