@@ -199,13 +199,28 @@ export class Game {
       c.drawImage(fr, Math.round(x) - Math.round(w / 2) - (e.slime ? 0 : e.dir > 0 ? 4 : -4), Math.round(y) + 13 - h, w, h);
       return;
     }
-    const pose = air ? 'hop' : 'idle';
+    // na ponta do tronco: balança, aparece um "!" e a ponta do tronco desse lado pisca (dá para saber que é a beirada)
+    let edge = 0;
+    if (j.on && !air && !e) {
+      const o = j.on, lane = this.world.lane(j.row);
+      if (lane && !lane.lily && o.w > T) { if (j.onOff <= T / 2 + 0.5) edge = -1; else if (j.onOff >= o.w - T / 2 - 0.5) edge = 1; }
+      if (edge) {
+        const blink = Math.floor(this.t * 6) % 2, ex = edge < 0 ? ox + o.x - 1 : ox + o.x + o.w - 4;
+        c.fillStyle = blink ? '#ffe070' : '#ff8a3a'; c.fillRect(Math.round(ex), Math.round(y) + 2, 1, 11); c.fillRect(Math.round(ex) + 4, Math.round(y) + 2, 1, 11); c.fillRect(Math.round(ex), Math.round(y) + 2, 5, 1); c.fillRect(Math.round(ex), Math.round(y) + 12, 5, 1);
+        x += Math.round(Math.sin(this.t * 14) * 1);
+      }
+      // o tronco está levando o Jerry para fora: a beirada da tela pisca em vermelho desse lado
+      const side = j.x < T * 1.3 ? -1 : j.x > COLS * T - T * 1.3 ? 1 : 0;
+      if (side && Math.floor(this.t * 5) % 2) { c.fillStyle = 'rgba(255,60,60,0.55)'; c.fillRect(side < 0 ? ox : ox + COLS * T - 3, Math.round(y), 3, T); }
+    }
+    const pose = air ? 'hop' : edge ? 'scared' : 'idle';
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / HOP : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
     if (skin.fx === 'ghost') c.globalAlpha *= 0.75;
     c.drawImage(fr, Math.round(x) - 8, Math.round(y) - 1);
     c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y) + 6);
+    if (edge) { const by = Math.round(y) - 9 + (Math.floor(this.t * 6) % 2); c.fillStyle = '#1a1226'; c.fillRect(Math.round(x) - 2, by - 1, 4, 9); c.fillStyle = '#ffe070'; c.fillRect(Math.round(x) - 1, by, 2, 5); c.fillRect(Math.round(x) - 1, by + 6, 2, 1); }
   }
   drawAura(c, fx, x, y) {
     const t = this.t;
