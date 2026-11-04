@@ -44,7 +44,7 @@ async function api(op, payload) {
   let r;
   try { r = await connect(payload ? fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ op, ...payload }) }) : fetch(API_URL + '?op=' + op, { headers, cache: 'no-store' })); }
   catch (e) { throw Object.assign(new Error('offline'), { code: 'offline' }); }
-  if (!r.ok) throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : 'network' });
+  if (!r.ok) throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : r.status === 409 ? 'name-taken' : 'network' });
   return r.json();
 }
 async function pushCloud() { try { await api('save', { data: JSON.parse(JSON.stringify(save)) }); } catch (e) { console.warn('nuvem', e && e.code); } }
@@ -75,10 +75,13 @@ async function attach(u) {
       const m = sanitize(remote);
       m.best = Math.max(m.best, save.best);
       m.owned = [...new Set([...m.owned, ...save.owned])];
-      if (!m.name) m.name = save.name;
+      m.name = remote.name || '';   // o nome é o da conta (o servidor garante que é único)
       if ((save.updatedAt || 0) > (m.updatedAt || 0)) { m.coins = save.coins; m.skin = save.skin; m.ghost = save.ghost || m.ghost; m.last = save.last; }
       load(m);
     }
+    // contas antigas (ou nome escolhido sem conta): registra o nome se estiver livre; se já for de outra conta, fica sem nome
+    const wanted = remote && remote.nameKey ? '' : (remote && remote.name) || save.name;
+    if (wanted) { try { await setName(wanted); } catch (e) { if (e.code === 'name-taken') save.name = ''; } }
     // o progresso jogado sem conta passa para a conta uma única vez
     try { localStorage.removeItem(KEY(null)); } catch (_) { /* ok */ }
     commit();
@@ -101,6 +104,12 @@ export async function signInGoogle(pending = null) {
 // Android: se o app foi fechado no meio do login com o Google, termina o login ao abrir de novo
 export async function resumeGoogle() { try { const p = await pendingGoogleLogin(); if (p) await signInGoogle(p); } catch (_) { /* sem login pendente */ } }
 
+// troca o nome da conta: o servidor confere se nenhuma outra conta usa esse nome e já atualiza o ranking
+export async function setName(name) {
+  const r = await api('name', { name: String(name || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8) });
+  save.name = r.name; commit();
+  return r.name;
+}
 // ---------------------------------------------------------------- ranking
 export async function submitScore() {
   if (!cloud || !account || !account.verified || !save.best) return false;
@@ -121,6 +130,7 @@ export function friendly(e) {
   if (c.includes('network')) return 'Sem internet no momento.';
   if (c.includes('popup-blocked')) return 'O navegador bloqueou a janela do Google. Permita e tente de novo.';
   if (c.includes('account-exists-with-different-credential')) return 'Esse e-mail já tem conta com senha. Entre com e-mail e senha.';
+  if (c === 'name-taken') return 'Esse nome já é de outra conta. Escolha outro.';
   if (c.includes('permission-denied')) return 'O servidor recusou (confirme seu e-mail ou tente mais tarde).';
   return 'Não deu certo agora. Tente de novo.';
 }

@@ -1,5 +1,5 @@
 // Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
-import { save, commit, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
@@ -271,8 +271,10 @@ function conta() {
     <div class="row"><button id="out">Sair da conta</button><button data-go="title">Voltar</button></div>
     <p class="muted small">Também em <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://', '')}</a></p></div>`;
   $('#nm-ok').onclick = async () => {
-    save.name = $('#nm').value.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8); commit();
-    try { await submitScore(); $('#nm-msg').textContent = 'Nome salvo.'; } catch (er) { $('#nm-msg').textContent = friendly(er); }
+    const nm = $('#nm').value.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8);
+    if (!nm) { $('#nm-msg').textContent = 'Escolha um nome.'; return; }
+    $('#nm-msg').textContent = 'Salvando...';
+    try { await setName(nm); $('#nm-msg').textContent = 'Nome salvo. No ranking também.'; } catch (er) { $('#nm-msg').textContent = friendly(er); }
   };
   $('#out').onclick = async () => { await logout(); setTimeout(() => show('conta'), 200); };
 }
