@@ -1,7 +1,7 @@
 // Jerry Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
 import { TILE } from './world.js';
-import { SKIN_BY_ID } from './skins.js';
+import { SKIN_BY_ID, missingMythics } from './skins.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { brandIntro } from './brand.js';
@@ -97,6 +97,12 @@ function play() {
   initAudio(); startMusic(); hide();
   game.reset((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
   game.skinId = save.skin;
+  game.world.mythOn = missingMythics(save.owned).length > 0;
+  game.onMyth = () => {   // ganha uma mítica que ainda não tem e já salva (vale mesmo se perder a partida depois)
+    const left = missingMythics(save.owned); if (!left.length) return null;
+    const s = left[Math.floor(Math.random() * left.length)];
+    save.owned.push(s.id); commit(); return s;
+  };
   game.setGhosts(ghostsFor());
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();

@@ -91,12 +91,12 @@ function result(r) {
 
 // ---------------------------------------------------------------- Sorte (100 moedas por tentativa; pode repetir)
 function sorte() {
-  const odds = Object.values(RARITIES).map((r) => `<span style="color:${r.color}">${r.name} ${String(r.chance).replace('.', ',')}%</span>`).join('');
+  const odds = Object.values(RARITIES).map((r) => r.onlyRun ? `<span style="color:${r.color}">${r.name}: só achando no caminho</span>` : `<span style="color:${r.color}">${r.name} ${String(r.chance).replace('.', ',')}%</span>`).join('');
   root.innerHTML = `<div class="panel">
     <h2>Sorte</h2>
     <div class="info">${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span></div>
     <div id="gacha" class="gacha"><canvas id="nutcv" class="pix" width="320" height="256"></canvas><div id="g-skin" class="g-skin"></div></div>
-    <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma das ${SKINS.length} skins. Pode vir repetida (aí as moedas não voltam).</div>
+    <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma skin. Pode vir repetida (aí as moedas não voltam). As míticas não saem aqui: só achando a Noz Mítica no caminho.</div>
     <button class="big" id="g-pull" ${save.coins < PULL_COST ? 'disabled' : ''}>TENTAR (${PULL_COST})</button>
     <div class="odds">${odds}</div>
     <div class="row"><button data-go="colecao">Coleção</button><button data-go="title">Voltar</button></div>
@@ -139,6 +139,7 @@ function colecao() {
     <div class="odds">${per}</div>
     <div class="tabs">${tabs}</div>
     <div class="grid" id="grid"></div>
+    <p class="hint" id="col-hint">${colFilter === 'mitica' ? 'Míticas não saem na Sorte: só achando a Noz Mítica (rosa e dourada) no caminho, bem longe da largada. Nunca repete.' : ''}</p>
     <div class="row"><button data-go="sorte">Sorte</button><button data-go="title">Voltar</button></div>
   </div>`;
   const grid = $('#grid');
@@ -147,9 +148,9 @@ function colecao() {
     const own = save.owned.includes(s.id), cell = document.createElement('button');
     cell.className = 'cell' + (s.id === save.skin ? ' on' : '') + (own ? '' : ' locked');
     cell.style.borderColor = RARITIES[s.rarity].color;
-    cell.title = own ? s.name : '???';
+    cell.title = own ? s.name : s.rarity === 'mitica' ? 'Mítica: ache a Noz Mítica no caminho (muito rara, longe da largada)' : '???';
     cell.append(thumb(s, own));
-    cell.onclick = () => { if (!own) { sfx.bump(); return; } save.skin = s.id; commit(); sfx.click(); colecao(); };
+    cell.onclick = () => { if (!own) { sfx.bump(); if (s.rarity === 'mitica') { const h = $('#col-hint'); if (h) h.textContent = 'Míticas não saem na Sorte: só achando a Noz Mítica (rosa e dourada) no caminho, bem longe da largada. Nunca repete.'; } return; } save.skin = s.id; commit(); sfx.click(); colecao(); };
     grid.append(cell);
   }
   root.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { colFilter = b.dataset.f; colecao(); }));

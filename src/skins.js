@@ -1,12 +1,13 @@
 // As 180 skins do Jerry. Cada uma troca as cores do pelo (pal), pode ter um traje (suit), um acessório na cabeça (acc)
 // e, nas mais raras, um efeito em volta dele (fx). Saem na Sorte: 100 moedas por tentativa, podendo repetir.
 // Raridade: comum, rara, épica, lendária e mítica. A chance é da raridade; dentro dela, todas têm a mesma chance.
+// As míticas NÃO saem na Sorte: só achando a Noz Mítica no caminho, muito rara, e nunca repetem.
 export const RARITIES = {
   comum: { name: 'Comum', color: '#c8c8d8', chance: 55 },
   rara: { name: 'Rara', color: '#5ab0ff', chance: 28 },
-  epica: { name: 'Épica', color: '#c07aff', chance: 12.2 },
-  lendaria: { name: 'Lendária', color: '#ffb84a', chance: 4 },
-  mitica: { name: 'Mítica', color: '#ff5a8a', chance: 0.8 },
+  epica: { name: 'Épica', color: '#c07aff', chance: 12.5 },
+  lendaria: { name: 'Lendária', color: '#ffb84a', chance: 4.5 },
+  mitica: { name: 'Mítica', color: '#ff5a8a', chance: 0, onlyRun: true },   // só no caminho
 };
 export const PULL_COST = 100;
 
@@ -119,10 +120,12 @@ export const SKIN_BY_ID = Object.fromEntries(SKINS.map((s) => [s.id, s]));
 export const DEFAULT_SKIN = 's000';
 if (SKINS.length !== 180) console.warn('skins:', SKINS.length);
 
-// sorteio: escolhe a raridade pela chance e, dentro dela, qualquer uma (pode repetir)
+// míticas que a conta ainda não tem (a Noz Mítica só aparece enquanto faltar alguma)
+export const missingMythics = (owned) => SKINS.filter((s) => s.rarity === 'mitica' && !owned.includes(s.id));
+// sorteio: escolhe a raridade pela chance e, dentro dela, qualquer uma (pode repetir); mítica nunca sai aqui
 export function rollSkin(rnd = Math.random) {
   let r = rnd() * 100, rar = 'comum';
-  for (const [k, v] of Object.entries(RARITIES)) { if (r < v.chance) { rar = k; break; } r -= v.chance; }
+  for (const [k, v] of Object.entries(RARITIES)) { if (!v.chance) continue; if (r < v.chance) { rar = k; break; } r -= v.chance; }
   const pool = SKINS.filter((s) => s.rarity === rar);
   return pool[Math.floor(rnd() * pool.length)];
 }

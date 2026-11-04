@@ -1,7 +1,7 @@
 // A partida: o Jerry pula de faixa em faixa (toque = pra frente; arrastar = para os lados ou para trás).
 // A tela sobe sozinha, devagar e cada vez mais rápido. Se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
 import { World, TILE, COLS, zoneAt } from './world.js';
-import { drawGround, drawFloaters, drawUpright, drawCoin, drawPortal, drawWeather } from './draw.js';
+import { drawGround, drawFloaters, drawUpright, drawCoin, drawMythNut, drawPortal, drawWeather } from './draw.js';
 import { jerryFrame } from './jerry.js';
 import { SKIN_BY_ID, DEFAULT_SKIN } from './skins.js';
 import { sfx } from './audio.js';
@@ -62,6 +62,7 @@ export class Game {
     if (z.id !== this.zone && j.row === this.score) { this.zone = z.id; this.zoneBanner = { name: z.name, t: 0 }; }
     if (!L) return;
     const col = Math.round((j.x - T / 2) / T);
+    if (L.myth !== undefined && L.myth === col) { delete L.myth; this.findMyth(j); }
     if (L.coins.has(col)) { const v = L.coins.get(col); L.coins.delete(col); this.coins += v; (v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }
     if (L.type === 'river') {
       // margem de erro: se cair até 7 px fora do tronco (ou da vitória-régia), o Jerry escorrega para cima dele
@@ -92,6 +93,15 @@ export class Game {
     if (L.type === 'slime') o.x = jx - o.w / 2;
     else o.x = L.dir > 0 ? jx + 1 : jx - 1 - o.w;
     this.die('hit'); this.end.dir = L.dir || 1; this.end.slime = L.type === 'slime';
+  }
+  // achou a Noz Mítica: ganha uma mítica que ainda não tem (quem chama decide qual e salva na hora)
+  findMyth(j) {
+    const s = this.onMyth ? this.onMyth() : null;
+    if (!s) return;
+    this.mythFound = s.id;
+    this.toast('Skin Mítica!', '#ff5a8a'); this.toast(s.name, '#ffd0e0');
+    sfx.record(); setTimeout(() => sfx.bigcoin(), 300); setTimeout(() => sfx.bigcoin(), 600);
+    for (let i = 0; i < 30; i++) this.fx.push({ k: 'star', x: j.x + (Math.random() - 0.5) * 100, row: j.row + Math.random() * 4, t: -Math.random() * 0.5, c: i % 3 });
   }
   toast(text, color = '#ffffff') { this.toasts.push({ text, color, t: 0 }); }
 
@@ -166,6 +176,7 @@ export class Game {
       const L = this.world.lane(r), y = rowY(r);
       const jr = this.j.hop ? Math.max(this.j.hop.fr, this.j.hop.tr) : this.j.row, flat = this.end && this.end.kind === 'hit';
       if (L) for (const [col, v] of L.coins) drawCoin(c, ox + col * T, y, v, t);
+      if (L && L.myth !== undefined) drawMythNut(c, ox + L.myth * T, y, t);
       if (r === jr && flat) this.drawJerry(c, ox, rowY);   // achatado: fica embaixo do que o atropelou
       if (L) drawUpright(c, L, x0, x1, ox, y, t);
       if (r === jr && !flat) this.drawJerry(c, ox, rowY);
