@@ -476,44 +476,68 @@ function train(c, L, x, y, w, t) {
   c.globalAlpha = 0.3; R(c, x, y + 13, w, 3, '#000000'); c.globalAlpha = 1;
   for (let i = 0; i < n; i++) {
     const front = right ? i === n - 1 : i === 0, ci = (L.row + i) % 4, key = `car:${ci}:${front ? (right ? 'r' : 'l') : 'm'}:${fr}`;
-    c.drawImage(sprite(key, 48, 34, (g) => paintCar(g, ci, front ? (right ? 1 : -1) : 0, fr, L.row + i)), x + i * 3 * T - 1, y - 19);
+    if (front) { c.drawImage(sprite(`loco:${right ? 'r' : 'l'}:${fr}`, 48, 28, (g) => paintLoco(g, right, fr)), x + i * 3 * T - 1, y - 13); continue; }
+    c.drawImage(sprite(key, 48, 24, (g) => paintCar(g, ci, 0, fr, L.row + i)), x + i * 3 * T - 1, y - 9);
   }
+  // fumaça da chaminé da locomotiva (sobe e fica para trás)
+  const chx = right ? x + w - 3 * T + 33 : x + 14;
+  for (let k = 0; k < 4; k++) {
+    const p = (t * 1.6 + k / 4) % 1, sx = Math.round(chx - L.dir * p * 22), sy = Math.round(y - 14 - p * 12), r = 2 + Math.round(p * 3);
+    c.globalAlpha = 0.75 * (1 - p); R(c, sx - r, sy - r + 1, r * 2, r * 2 - 2, '#d8d8e4'); R(c, sx - r + 1, sy - r, r * 2 - 2, r * 2, '#d8d8e4'); R(c, sx - r + 1, sy - r + 1, r, 1, '#ffffff');
+  }
+  c.globalAlpha = 1;
   // farol iluminando os trilhos à frente
   const hx = right ? x + w : x;
   c.globalAlpha = 0.18; c.fillStyle = '#fff4a0'; c.beginPath(); c.moveTo(hx, y + 4); c.lineTo(hx + (right ? 60 : -60), y - 6); c.lineTo(hx + (right ? 60 : -60), y + 16); c.fill(); c.globalAlpha = 1;
 }
+// locomotiva com o maquinista (igual à do Trem Infinito: caldeira vermelha, cabine azul, chaminé e farol)
+// baixinha de propósito: passa pela fileira sem tampar quase nada da fileira de cima
+function paintLoco(g, right, fr) {
+  if (!right) { g.translate(48, 0); g.scale(-1, 1); }
+  const by = 25, O = '#1a1a24';
+  R(g, 0, by - 5, 46, 3, '#2a2a34'); R(g, 1, by - 5, 44, 1, '#4a4a58');                                  // chassi
+  for (let i = 0; i < 4; i++) R(g, 42 + i, by - 5 + i, 1, 5 - i, i % 2 ? '#8a8a9c' : '#c8ccd8');           // limpa-trilhos
+  // cabine azul com o maquinista na janela
+  R(g, 1, by - 21, 16, 16, '#3a6ac0'); R(g, 1, by - 21, 16, 1, '#5a8ae0'); R(g, 1, by - 21, 1, 16, '#5a8ae0'); R(g, 15, by - 21, 2, 16, '#264a8a');
+  R(g, 0, by - 23, 18, 2, '#8a8a9c'); R(g, 0, by - 23, 18, 1, '#c8ccd8');
+  R(g, 1, by - 8, 16, 1, '#f0d068');
+  R(g, 4, by - 19, 10, 9, O); R(g, 5, by - 18, 8, 7, '#ffe9a8');
+  R(g, 7, by - 15, 5, 4, '#f0c8a0'); R(g, 6, by - 18, 7, 2, '#2a3a6a'); R(g, 6, by - 16, 8, 1, '#1a2448');    // rosto e boné
+  R(g, 8, by - 14, 1, 1, O); R(g, 11, by - 14, 1, 1, O); R(g, 8, by - 12, 3, 1, '#c87a5a');                  // olhos e bigode
+  // caldeira vermelha com faixas douradas
+  R(g, 17, by - 15, 23, 10, '#c8443a'); R(g, 17, by - 15, 23, 2, '#e8685a'); R(g, 17, by - 7, 23, 2, '#8a2a24'); R(g, 17, by - 14, 23, 1, '#ff9a8a');
+  for (const bx of [22, 30]) { R(g, bx, by - 15, 2, 10, '#d8a830'); R(g, bx, by - 15, 2, 1, '#f0c850'); }
+  R(g, 39, by - 15, 5, 11, '#2a2a34'); R(g, 39, by - 15, 5, 1, '#4a4a58');                                // frente
+  R(g, 42, by - 14, 4, 4, O); R(g, 43, by - 13, 3, 2, '#fff4a0'); R(g, 43, by - 13, 1, 1, '#ffffff');        // farol
+  R(g, 32, by - 22, 5, 7, '#2a2a34'); R(g, 31, by - 24, 7, 2, '#3a3a48'); R(g, 31, by - 24, 7, 1, '#6a6a7c'); R(g, 33, by - 21, 1, 5, '#4a4a58');   // chaminé
+  R(g, 24, by - 18, 5, 3, '#d8a830'); R(g, 25, by - 19, 3, 1, '#f0c850'); R(g, 25, by - 18, 1, 2, '#fff2a0');   // domo
+  // rodas: duas grandes com biela, uma pequena atrás e uma na frente
+  const wheel = (wx, rad) => {
+    const cy = by + 2 - rad;
+    for (let py = -rad; py <= rad; py++) for (let px = -rad; px <= rad; px++) { const d = Math.hypot(px, py); if (d <= rad + 0.3) R(g, wx + px, cy + py, 1, 1, d > rad - 1.1 ? O : d < 1 ? '#e8c060' : '#c83a3a'); }
+    const an = fr ? 0.8 : 0; R(g, Math.round(wx + Math.cos(an) * (rad - 1.5)), Math.round(cy + Math.sin(an) * (rad - 1.5)), 1, 1, '#ffd0c8'); R(g, Math.round(wx - Math.cos(an) * (rad - 1.5)), Math.round(cy - Math.sin(an) * (rad - 1.5)), 1, 1, '#ffd0c8');
+  };
+  wheel(8, 3); wheel(22, 4); wheel(32, 4); wheel(41, 3);
+  const ry = by - 3 + (fr ? -1 : 0); R(g, 21, ry, 12, 1, '#c8ccd8'); R(g, 21, ry, 1, 1, '#ffffff'); R(g, 32, ry, 1, 1, '#ffffff');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+}
+// vagão de passageiros, também baixinho
 function paintCar(g, ci, front, fr, seed) {
-  const [col, hi, lo] = CAR_COLORS[ci], by = 31, cw = 44;
-  // sanfona até o próximo vagão
-  if (!front) { R(g, cw, by - 24, 4, 18, '#2a2a34'); for (let yy = by - 23; yy < by - 7; yy += 3) R(g, cw, yy, 4, 1, '#4a4a58'); }
-  // chassi e truques das rodas
+  const [col, hi, lo] = CAR_COLORS[ci], by = 21, cw = 44;
+  R(g, cw, by - 16, 4, 11, '#2a2a34'); for (let yy = by - 15; yy < by - 6; yy += 3) R(g, cw, yy, 4, 1, '#4a4a58');   // sanfona
   R(g, 0, by - 5, cw, 3, '#2a2a34'); R(g, 1, by - 5, cw - 2, 1, '#4a4a58');
-  for (const bx of [4, cw - 18]) { R(g, bx, by - 4, 14, 3, '#1a1a24'); R(g, bx + 1, by - 4, 12, 1, '#3a3a48'); }
-  // caixa do vagão
-  R(g, 1, by - 27, cw - 2, 22, col); R(g, 1, by - 27, cw - 2, 2, hi); R(g, 1, by - 9, cw - 2, 4, lo);
-  R(g, 1, by - 27, 2, 22, hi); R(g, cw - 3, by - 27, 2, 22, lo);
-  R(g, 1, by - 11, cw - 2, 1, '#f0d068'); R(g, 1, by - 24, cw - 2, 1, shade(lo, 1.1));
-  // teto prateado com respiros
-  R(g, 2, by - 30, cw - 4, 3, '#8a8a9c'); R(g, 1, by - 29, cw - 2, 2, '#8a8a9c'); R(g, 3, by - 31, cw - 6, 1, '#c8ccd8'); R(g, 2, by - 30, cw - 4, 1, '#b0b4c4');
-  for (const vx of [10, cw - 15]) { R(g, vx, by - 33, 5, 2, '#6a6a7c'); R(g, vx, by - 33, 5, 1, '#a8acbc'); }
-  // janelas acesas, às vezes com passageiro
-  for (let w = 0; w < 4; w++) {
-    const wx = 4 + w * 9 + (front ? (front > 0 ? 0 : 3) : 0);
-    if (front && ((front > 0 && w === 3) || (front < 0 && w === 0))) continue;   // no vagão da frente, a cabine
-    R(g, wx, by - 22, 7, 9, '#1e1e28'); R(g, wx + 1, by - 21, 5, 7, '#ffe9a8'); R(g, wx + 1, by - 21, 5, 2, '#fff6d0'); R(g, wx + 1, by - 15, 5, 1, '#e8c070');
-    if (hash(seed, w, 3) < 0.45) { R(g, wx + 2, by - 18, 2, 2, '#3a2a3a'); R(g, wx + 1, by - 16, 4, 2, '#4a3a5a'); }
+  R(g, 1, by - 17, cw - 2, 12, col); R(g, 1, by - 17, cw - 2, 1, hi); R(g, 1, by - 7, cw - 2, 2, lo);
+  R(g, 1, by - 17, 1, 12, hi); R(g, cw - 2, by - 17, 1, 12, lo);
+  R(g, 1, by - 8, cw - 2, 1, '#f0d068');
+  R(g, 2, by - 19, cw - 4, 2, '#8a8a9c'); R(g, 3, by - 20, cw - 6, 1, '#c8ccd8');                           // teto prateado
+  for (let w = 0; w < 4; w++) {                                                                             // janelas acesas
+    const wx = 4 + w * 10;
+    R(g, wx, by - 15, 7, 6, '#1e1e28'); R(g, wx + 1, by - 14, 5, 4, '#ffe9a8'); R(g, wx + 1, by - 14, 5, 1, '#fff6d0');
+    if (hash(seed, w, 3) < 0.45) { R(g, wx + 2, by - 13, 2, 1, '#3a2a3a'); R(g, wx + 1, by - 12, 4, 2, '#4a3a5a'); }
   }
-  // número do vagão
-  R(g, cw / 2 - 3, by - 8, 6, 3, '#f0d068'); R(g, cw / 2 - 2, by - 7, 4, 1, lo);
-  if (front) {   // cabine com vidro grande e farol na ponta
-    const fx = front > 0 ? cw - 10 : 2;
-    R(g, fx, by - 23, 8, 11, '#1e1e28'); R(g, fx + 1, by - 22, 6, 6, '#bfe8ff'); R(g, fx + 1, by - 22, 6, 1, '#ffffff');
-    R(g, front > 0 ? cw - 1 : -1, by - 14, 2, 4, '#fff4a0'); R(g, front > 0 ? cw - 1 : -1, by - 14, 2, 1, '#ffffff');
-  }
-  // rodas com raios (giram)
-  for (const wx of [8, 15, cw - 15, cw - 8]) {
+  for (const wx of [7, 13, cw - 13, cw - 7]) {                                                              // rodas com raios
     for (let py = -3; py <= 3; py++) for (let px = -3; px <= 3; px++) { const d = Math.hypot(px, py); if (d <= 3.3) R(g, wx + px, by - 1 + py, 1, 1, d > 2.2 ? '#1a1a24' : '#5a5a6a'); }
-    const a = fr ? 0.8 : 0; for (let k = 0; k < 2; k++) { const an = a + k * Math.PI / 2; R(g, Math.round(wx + Math.cos(an) * 2), Math.round(by - 1 + Math.sin(an) * 2), 1, 1, '#c8c8d8'); R(g, Math.round(wx - Math.cos(an) * 2), Math.round(by - 1 - Math.sin(an) * 2), 1, 1, '#c8c8d8'); }
+    const an = fr ? 0.8 : 0; R(g, Math.round(wx + Math.cos(an) * 2), Math.round(by - 1 + Math.sin(an) * 2), 1, 1, '#c8c8d8'); R(g, Math.round(wx - Math.cos(an) * 2), Math.round(by - 1 - Math.sin(an) * 2), 1, 1, '#c8c8d8');
     R(g, wx, by - 1, 1, 1, '#e8c060');
   }
 }

@@ -20,6 +20,12 @@ let topList = [];
 // No computador (tela larga) o jogo fica numa janela em pé no meio, com a moldura azul do Song of Moonlight em volta e as
 // informações da partida nas laterais. No celular só uma borda azul fina, sem informação (o placar fica dentro do jogo).
 let VP = { x: 0, y: 0, w: 1, h: 1 }, desktop = false, frameCv = null, panels = null;
+// botão de pausa no canto superior esquerdo (aparece só durante a partida)
+const pauseBtn = document.createElement('button');
+pauseBtn.id = 'pausebtn'; pauseBtn.type = 'button'; pauseBtn.setAttribute('aria-label', 'Pausar'); pauseBtn.innerHTML = '<i></i><i></i>'; pauseBtn.hidden = true;
+document.body.appendChild(pauseBtn);
+pauseBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+pauseBtn.addEventListener('click', () => { if (game.state === 'play') { game.state = 'pause'; show('pause'); } });
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 3);
   const W = window.innerWidth, H = window.innerHeight;
@@ -38,10 +44,11 @@ function resize() {
     VP = { x: b, y: b, w: CW - 2 * b, h: CH - 2 * b }; panels = null;
   }
   // um pequeno zoom: cabem umas 9,8 colunas na largura (a área jogável quase inteira) e 12,6 fileiras na altura
-  let sc = Math.min(VP.w / (9.8 * TILE), VP.h / (12.6 * TILE));
+  let sc = Math.min(VP.w / (8.8 * TILE), VP.h / (11.2 * TILE));
   if (sc >= 3) sc = Math.floor(sc);
   LW = Math.ceil(VP.w / sc); LH = Math.ceil(VP.h / sc);
   lc.width = LW; lc.height = LH;
+  pauseBtn.style.left = Math.round(VP.x / dpr + 8) + 'px'; pauseBtn.style.top = `max(${Math.round(VP.y / dpr + 8)}px, calc(env(safe-area-inset-top) + 4px))`;
   frameCv = buildFrame(CW, CH);
 }
 // moldura desenhada uma vez por tamanho de tela: céu noturno azul com estrelas, borda em camadas azuis com cantos dourados
@@ -158,6 +165,7 @@ function frame(now) {
   lctx.imageSmoothingEnabled = false;
   game.draw(lctx, LW, LH);
   if (game.state === 'play' || game.state === 'dying') hud();
+  const showPause = game.state === 'play' && !showing(); if (pauseBtn.hidden === showPause) pauseBtn.hidden = !showPause;
   ctx.imageSmoothingEnabled = false;
   if (frameCv) ctx.drawImage(frameCv, 0, 0);
   ctx.drawImage(lc, 0, 0, LW, LH, VP.x, VP.y, VP.w, VP.h);

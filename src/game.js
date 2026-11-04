@@ -251,8 +251,10 @@ export class Game {
 }
 // texto pequeno com contorno (nomes dos fantasmas)
 export function label(c, text, x, y, col = '#ffffff', size = 8, max = 40) {
-  c.font = `${size}px "Press Start 2P", monospace`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
   const s = String(text).slice(0, max);
+  // diminui a letra se o texto não couber na largura da tela
+  for (;;) { c.font = `${size}px "Press Start 2P", monospace`; if (size <= 5 || c.measureText(s).width <= c.canvas.width - 8) break; size--; }
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic';
   c.fillStyle = '#1a1226';
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) c.fillText(s, Math.round(x) + dx, Math.round(y) + dy);
   c.fillStyle = col; c.fillText(s, Math.round(x), Math.round(y));
