@@ -8,7 +8,8 @@ const L1 = { x0: 160, x1: 612, y0: 0, y1: 172, base: 166, hop: 70, n: 4 };
 const OF = { x0: 300, x1: 610, y0: 150, y1: 205 };
 const L2 = { x0: 0, x1: 900, y0: 172, y1: 366, base: 318, hop: 92, n: 6 };
 const MOON = { x: 272, y: 262, r: 46 };
-const NOTES1 = [523.25, 659.25, 783.99, 880], NOTES2 = [587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+// uma escala só, subindo sem parar do primeiro ao último quique ("tim tum tum..."), sem recomeçar no meio
+const NOTES = [392, 440, 523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.5, 1568];
 
 function sounds() {
   let ac;
@@ -21,17 +22,12 @@ function sounds() {
     g.gain.setValueAtTime(0.0001, t0 + at); g.gain.exponentialRampToValueAtTime(v, t0 + at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + d);
     o.connect(g); g.connect(out); o.start(t0 + at); o.stop(t0 + at + d + 0.05);
   };
-  // quiques das duas linhas (subindo de tom)
-  NOTES1.forEach((f, i) => note(f, T.l1[0] + (i + 1) * (T.l1[1] - T.l1[0]) / L1.n, 0.3, 0.45));
-  NOTES2.forEach((f, i) => note(f, T.l2[0] + (i + 1) * (T.l2[1] - T.l2[0]) / L2.n, 0.28, 0.42));
-  // o "of" se abrindo: um sopro curto
-  try {
-    const n = Math.floor(ac.sampleRate * 0.3), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n) * 0.5;
-    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-    s.buffer = b; f.type = 'bandpass'; f.frequency.setValueAtTime(800, t0 + T.of[0]); f.frequency.exponentialRampToValueAtTime(3200, t0 + T.of[1]); g.gain.value = 0.5;
-    s.connect(f); f.connect(g); g.connect(out); s.start(t0 + T.of[0]);
-  } catch (_) { /* sem sopro */ }
+  // os quiques: 4 em "Song", 1 no "of" e 6 em "Moonlight", numa sequência contínua de notas subindo
+  const hits = [];
+  for (let i = 1; i <= L1.n; i++) hits.push(T.l1[0] + i * (T.l1[1] - T.l1[0]) / L1.n);
+  hits.push(T.of[1]);
+  for (let i = 1; i <= L2.n; i++) hits.push(T.l2[0] + i * (T.l2[1] - T.l2[0]) / L2.n);
+  hits.forEach((at, i) => note(NOTES[Math.min(i, NOTES.length - 1)], at, 0.32, 0.42));
   // a luazinha virando a lua: acorde de sino com brilho
   for (const [f, d, v] of [[523.25, 1.8, 0.5], [659.25, 1.7, 0.36], [783.99, 1.6, 0.3], [1046.5, 1.4, 0.22], [2093, 0.6, 0.06]]) note(f, T.flash, d, v);
   setTimeout(() => ac.close().catch(() => {}), 5200);

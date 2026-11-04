@@ -373,19 +373,20 @@ export function drawUpright(c, L, x0, x1, ox, y, t) {
     for (const o of L.objs) vehicle(c, L, o, Math.round(ox + o.x), y, t);
   } else if (L.type === 'rail') {
     // semáforo do trem: pisca vermelho quando ele está para passar
-    const px = ox - T + 3, warn = L.train || L.timer < 1.3, on = Math.floor(t * 8) % 2;
-    c.drawImage(signalArt(), px, y - 16);
-    if (warn) { R(c, px + 2, y - 13, 3, 3, on ? '#ff3a3a' : '#5a1a1a'); R(c, px + 6, y - 13, 3, 3, on ? '#5a1a1a' : '#ff3a3a'); c.globalAlpha = 0.35; R(c, on ? px : px + 4, y - 15, 7, 7, '#ff6a5a'); c.globalAlpha = 1; }
+    const px = ox - T + 2, warn = L.train || L.timer < 1.3, on = Math.floor(t * 4) % 2;
+    c.drawImage(signalArt(), px - 2, y - 14);
+    if (warn) { R(c, px + 1, y - 3, 3, 3, on ? '#ff3a3a' : '#5a2020'); R(c, px + 10, y - 3, 3, 3, on ? '#5a2020' : '#ff3a3a'); c.globalAlpha = 0.3; R(c, on ? px - 2 : px + 7, y - 6, 10, 10, '#ff3a3a'); c.globalAlpha = 1; }
     if (L.train) train(c, L, Math.round(ox + L.train.x), y, L.train.w, t);
   } else if (L.type === 'slime') {
     for (const o of L.objs) slime(c, L, Math.round(ox + o.x), y, o.ph, t);
   }
 }
 function signalArt() {
-  return sprite('signal', 11, 26, (c) => {
-    R(c, 4, 8, 3, 18, '#4a4a58'); R(c, 4, 8, 1, 18, '#7a7a8a'); R(c, 0, 0, 11, 9, '#2a2a36'); R(c, 1, 1, 9, 1, '#4a4a58');
-    R(c, 2, 3, 3, 3, '#5a1a1a'); R(c, 6, 3, 3, 3, '#5a1a1a'); R(c, 2, 24, 7, 2, '#3a3a48');
-    R(c, 1, 11, 9, 3, '#ffffff'); R(c, 2, 11, 2, 3, '#d83a3a'); R(c, 6, 11, 2, 3, '#d83a3a');   // placa listrada
+  return sprite('signal', 16, 28, (c) => {
+    R(c, 7, 6, 2, 22, '#4a4a58'); R(c, 7, 6, 1, 22, '#7a7a90');
+    R(c, 1, 4, 14, 3, '#f0f0f8'); R(c, 6, 0, 4, 12, '#f0f0f8'); R(c, 1, 4, 14, 1, '#c84a3a');   // cruz de aviso
+    R(c, 1, 9, 5, 5, '#1a1a24'); R(c, 10, 9, 5, 5, '#1a1a24'); R(c, 2, 10, 3, 3, '#5a2020'); R(c, 11, 10, 3, 3, '#5a2020');
+    R(c, 4, 26, 8, 2, '#3a3a48');
   });
 }
 
@@ -466,36 +467,55 @@ function paintVehicle(g, kind, w, h, big, variant, fr) {
   wheel(g, 5, 19, 4, fr); wheel(g, cw - 4, 19, 4, fr);
 }
 
-// ---------------------------------------------------------------- Trem Infinito
+// ---------------------------------------------------------------- Trem Infinito (o mesmo do Song of Moonlight)
+// Vagões em cores alternadas (vermelho, azul, dourado e verde), teto prateado com respiros, friso dourado, janelas
+// acesas com passageiros, sanfona entre os vagões e rodas com raios. O da frente tem farol.
+const CAR_COLORS = [['#c8443a', '#e8685a', '#8a2a24'], ['#3a6ac0', '#5a8ae0', '#264a8a'], ['#d8a830', '#f0c850', '#9a7418'], ['#3a9a5a', '#5ac07a', '#246a3a']];
 function train(c, L, x, y, w, t) {
-  const n = Math.floor(w / (3 * T)), right = L.dir > 0;
+  const n = Math.floor(w / (3 * T)), right = L.dir > 0, fr = Math.floor(t * 12) % 2;
   c.globalAlpha = 0.3; R(c, x, y + 13, w, 3, '#000000'); c.globalAlpha = 1;
   for (let i = 0; i < n; i++) {
-    const loco = right ? i === n - 1 : i === 0, key = loco ? 'loco' : 'car' + (i % 2);
-    let spr = sprite(key, 48, 28, (g) => (loco ? paintLoco(g) : paintCar(g, i % 2)));
-    if (!right) spr = flipped(key, spr);
-    c.drawImage(spr, x + i * 3 * T - 1, y - 13);
+    const front = right ? i === n - 1 : i === 0, ci = (L.row + i) % 4, key = `car:${ci}:${front ? (right ? 'r' : 'l') : 'm'}:${fr}`;
+    c.drawImage(sprite(key, 48, 34, (g) => paintCar(g, ci, front ? (right ? 1 : -1) : 0, fr, L.row + i)), x + i * 3 * T - 1, y - 19);
   }
-  // fumaça saindo da chaminé
-  const cx = right ? x + w - 14 : x + 13;
-  for (let i = 0; i < 6; i++) { const k = (t * 2 + i / 6) % 1; c.globalAlpha = (1 - k) * 0.6; R(c, cx - (right ? 1 : -1) * k * 30 - 3, y - 16 - k * 10, 4 + k * 6, 3 + k * 4, '#e8e4f0'); }
-  c.globalAlpha = 1;
+  // farol iluminando os trilhos à frente
+  const hx = right ? x + w : x;
+  c.globalAlpha = 0.18; c.fillStyle = '#fff4a0'; c.beginPath(); c.moveTo(hx, y + 4); c.lineTo(hx + (right ? 60 : -60), y - 6); c.lineTo(hx + (right ? 60 : -60), y + 16); c.fill(); c.globalAlpha = 1;
 }
-function paintCar(g, v) {
-  R(g, 1, 2, 46, 20, '#4a2a7a'); R(g, 1, 2, 46, 3, '#7a5ab8'); R(g, 0, 0, 48, 3, '#2a1a4a'); R(g, 2, -1, 44, 1, '#2a1a4a');
-  R(g, 1, 15, 46, 2, '#e0b040'); R(g, 1, 15, 46, 1, '#fff0a0'); R(g, 1, 19, 46, 3, '#2a1a4a');
-  for (let k = 0; k < 4; k++) { const wx = 4 + k * 11; R(g, wx, 6, 8, 7, '#ffe08a'); R(g, wx, 6, 8, 1, '#fff8d0'); R(g, wx, 11, 8, 2, '#c89a3a'); if ((k + v) % 3 === 0) { R(g, wx + 3, 8, 3, 3, '#3a2a4a'); R(g, wx + 4, 7, 1, 1, '#3a2a4a'); } }
-  for (const wx of [8, 38]) { R(g, wx - 4, 21, 9, 5, '#1a1226'); R(g, wx - 3, 22, 3, 3, '#5a5a6a'); R(g, wx + 1, 22, 3, 3, '#5a5a6a'); }
-  R(g, 0, 17, 1, 3, '#c8a040'); R(g, 47, 17, 1, 3, '#c8a040');
-}
-function paintLoco(g) {
-  R(g, 1, 6, 30, 16, '#3a1a6a'); R(g, 1, 6, 30, 3, '#6a4aa8'); R(g, 1, 16, 30, 2, '#e0b040');
-  R(g, 28, 8, 16, 14, '#2a1a4a'); R(g, 28, 8, 16, 2, '#5a3a8a'); R(g, 30, 10, 8, 6, '#ffe08a'); R(g, 30, 10, 8, 1, '#fff8d0');
-  R(g, 6, 0, 6, 7, '#2a1a3a'); R(g, 5, 0, 8, 2, '#4a3a5a'); R(g, 16, 3, 5, 4, '#e0b040');
-  R(g, 44, 14, 4, 8, '#c8c8d8'); for (let k = 0; k < 4; k++) R(g, 44 + k, 18 + k % 2, 1, 4 - k % 2, '#8a8a9a');
-  R(g, 45, 10, 3, 4, '#fff4a0');
-  for (const wx of [8, 20, 34]) { R(g, wx - 5, 19, 11, 8, '#1a1226'); R(g, wx - 4, 20, 9, 6, '#c83a3a'); R(g, wx - 1, 22, 3, 2, '#e8c040'); }
-  R(g, 4, 22, 36, 1, '#c8c8d8');
+function paintCar(g, ci, front, fr, seed) {
+  const [col, hi, lo] = CAR_COLORS[ci], by = 31, cw = 44;
+  // sanfona até o próximo vagão
+  if (!front) { R(g, cw, by - 24, 4, 18, '#2a2a34'); for (let yy = by - 23; yy < by - 7; yy += 3) R(g, cw, yy, 4, 1, '#4a4a58'); }
+  // chassi e truques das rodas
+  R(g, 0, by - 5, cw, 3, '#2a2a34'); R(g, 1, by - 5, cw - 2, 1, '#4a4a58');
+  for (const bx of [4, cw - 18]) { R(g, bx, by - 4, 14, 3, '#1a1a24'); R(g, bx + 1, by - 4, 12, 1, '#3a3a48'); }
+  // caixa do vagão
+  R(g, 1, by - 27, cw - 2, 22, col); R(g, 1, by - 27, cw - 2, 2, hi); R(g, 1, by - 9, cw - 2, 4, lo);
+  R(g, 1, by - 27, 2, 22, hi); R(g, cw - 3, by - 27, 2, 22, lo);
+  R(g, 1, by - 11, cw - 2, 1, '#f0d068'); R(g, 1, by - 24, cw - 2, 1, shade(lo, 1.1));
+  // teto prateado com respiros
+  R(g, 2, by - 30, cw - 4, 3, '#8a8a9c'); R(g, 1, by - 29, cw - 2, 2, '#8a8a9c'); R(g, 3, by - 31, cw - 6, 1, '#c8ccd8'); R(g, 2, by - 30, cw - 4, 1, '#b0b4c4');
+  for (const vx of [10, cw - 15]) { R(g, vx, by - 33, 5, 2, '#6a6a7c'); R(g, vx, by - 33, 5, 1, '#a8acbc'); }
+  // janelas acesas, às vezes com passageiro
+  for (let w = 0; w < 4; w++) {
+    const wx = 4 + w * 9 + (front ? (front > 0 ? 0 : 3) : 0);
+    if (front && ((front > 0 && w === 3) || (front < 0 && w === 0))) continue;   // no vagão da frente, a cabine
+    R(g, wx, by - 22, 7, 9, '#1e1e28'); R(g, wx + 1, by - 21, 5, 7, '#ffe9a8'); R(g, wx + 1, by - 21, 5, 2, '#fff6d0'); R(g, wx + 1, by - 15, 5, 1, '#e8c070');
+    if (hash(seed, w, 3) < 0.45) { R(g, wx + 2, by - 18, 2, 2, '#3a2a3a'); R(g, wx + 1, by - 16, 4, 2, '#4a3a5a'); }
+  }
+  // número do vagão
+  R(g, cw / 2 - 3, by - 8, 6, 3, '#f0d068'); R(g, cw / 2 - 2, by - 7, 4, 1, lo);
+  if (front) {   // cabine com vidro grande e farol na ponta
+    const fx = front > 0 ? cw - 10 : 2;
+    R(g, fx, by - 23, 8, 11, '#1e1e28'); R(g, fx + 1, by - 22, 6, 6, '#bfe8ff'); R(g, fx + 1, by - 22, 6, 1, '#ffffff');
+    R(g, front > 0 ? cw - 1 : -1, by - 14, 2, 4, '#fff4a0'); R(g, front > 0 ? cw - 1 : -1, by - 14, 2, 1, '#ffffff');
+  }
+  // rodas com raios (giram)
+  for (const wx of [8, 15, cw - 15, cw - 8]) {
+    for (let py = -3; py <= 3; py++) for (let px = -3; px <= 3; px++) { const d = Math.hypot(px, py); if (d <= 3.3) R(g, wx + px, by - 1 + py, 1, 1, d > 2.2 ? '#1a1a24' : '#5a5a6a'); }
+    const a = fr ? 0.8 : 0; for (let k = 0; k < 2; k++) { const an = a + k * Math.PI / 2; R(g, Math.round(wx + Math.cos(an) * 2), Math.round(by - 1 + Math.sin(an) * 2), 1, 1, '#c8c8d8'); R(g, Math.round(wx - Math.cos(an) * 2), Math.round(by - 1 - Math.sin(an) * 2), 1, 1, '#c8c8d8'); }
+    R(g, wx, by - 1, 1, 1, '#e8c060');
+  }
 }
 
 // ---------------------------------------------------------------- slime (o mesmo jeito do Song of Moonlight)
