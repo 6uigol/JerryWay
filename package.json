@@ -3,8 +3,11 @@
   "private": true,
   "type": "module",
   "version": "1.0.0",
-  "description": "Jerry Way — o jogo infinito do Jerry (universo Song of Moonlight)",
-  "author": { "name": "Song of Moonlight", "email": "146967020+6uigol@users.noreply.github.com" },
+  "description": "Jerry's Way — o jogo infinito do Jerry (universo Song of Moonlight)",
+  "author": {
+    "name": "Song of Moonlight",
+    "email": "146967020+6uigol@users.noreply.github.com"
+  },
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
@@ -32,25 +35,65 @@
   "build": {
     "appId": "com.jerryway.game",
     "buildVersion": "1.0.0.0",
-    "productName": "Jerry Way",
+    "productName": "Jerry's Way",
     "copyright": "Todos os direitos reservados",
-    "directories": { "output": "dist" },
-    "files": ["electron/**", "index.html", "style.css", "src/**", "vendor/**", "icons/**", "fonts/**", "package.json", "!**/*.map"],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "index.html",
+      "style.css",
+      "src/**",
+      "vendor/**",
+      "icons/**",
+      "fonts/**",
+      "package.json",
+      "!**/*.map"
+    ],
     "asar": true,
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "icons/app.ico" },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/app.ico"
+    },
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }],
-      "icon": "icons/icon-512.png", "category": "Game", "executableName": "jerry-way",
-      "artifactName": "Jerry-Way-1.0.0.0.${ext}",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/icon-512.png",
+      "category": "Game",
+      "executableName": "jerry-way",
+      "artifactName": "Jerrys-Way-1.0.0.0.${ext}",
       "maintainer": "6uigol <146967020+6uigol@users.noreply.github.com>"
     },
     "nsis": {
-      "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Jerry Way",
-      "runAfterFinish": true, "deleteAppDataOnUninstall": false, "language": "1046",
-      "artifactName": "Jerry-Way-Setup-1.0.0.0.${ext}"
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Jerry's Way",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "language": "1046",
+      "artifactName": "Jerrys-Way-Setup-1.0.0.0.${ext}"
     },
-    "electronLanguages": ["pt-BR", "en-US"],
+    "electronLanguages": [
+      "pt-BR",
+      "en-US"
+    ],
     "compression": "maximum"
   }
 }

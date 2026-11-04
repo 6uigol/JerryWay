@@ -61,7 +61,7 @@ export function show(name, data) {
 function title() {
   const skin = SKIN_BY_ID[save.skin];
   root.innerHTML = `<div class="panel title">
-    <h1 class="logo">JERRY<br>WAY</h1>
+    <h1 class="logo">JERRY'S<br>WAY</h1>
     <div id="pv" class="pv"></div>
     <div class="info">${coinsTag()}<span>Recorde <b>${save.best}</b></span></div>
     <button class="big" data-go="play">JOGAR</button>
@@ -204,7 +204,7 @@ window.addEventListener('keydown', (e) => colKeys && colKeys(e));
 async function ranking() {
   root.innerHTML = `<div class="panel">
     <h2>Ranking</h2>
-    <p class="muted">Os 10 maiores recordes do Jerry Way. O 1º é o recorde mundial. Seu recorde pessoal: <b>${save.best}</b></p>
+    <p class="muted">Os 10 maiores recordes do Jerry's Way. O 1º é o recorde mundial. Seu recorde pessoal: <b>${save.best}</b></p>
     <ol class="rank" id="rk"><li class="muted" id="rk-wait"></li></ol>
     <div class="row"><button data-go="ranking">Atualizar</button><button data-go="title">Voltar</button></div>
   </div>`;

@@ -1,7 +1,9 @@
 'use strict';
-// Jerry Way — casca Electron (Windows e Linux). O jogo é o mesmo HTML/CSS/JS, servido por app://jogo/
+// Jerry's Way — casca Electron (Windows e Linux). O jogo é o mesmo HTML/CSS/JS, servido por app://jogo/
 // (módulos ES não funcionam em file://).
 const { app, BrowserWindow, Menu, protocol, net, shell, session, ipcMain } = require('electron');
+// o jogo mudou de nome (Jerry Way -> Jerry's Way): a pasta dos dados continua a antiga, para ninguém perder o progresso salvo no PC
+app.setPath('userData', require('path').join(app.getPath('appData'), 'Jerry Way'));
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const googleFlow = require('./googleflow.cjs');
@@ -26,7 +28,7 @@ ipcMain.handle('auth:google', async (_e, config) => {
 let win = null;
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 480, minHeight: 480, backgroundColor: '#1a1226', show: false, title: 'Jerry Way',
+    width: 1280, height: 800, minWidth: 480, minHeight: 480, backgroundColor: '#1a1226', show: false, title: 'Jerry\'s Way',
     icon: path.join(ROOT, 'icons', process.platform === 'win32' ? 'app.ico' : 'icon-512.png'), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: DEV, spellcheck: false, backgroundThrottling: false },
   });

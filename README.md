@@ -1,4 +1,4 @@
-# Jerry Way
+# Jerry's Way
 
 Jogo infinito e grátis do Jerry, no universo **Song of Moonlight**. Pule de fileira em fileira, desvie de carroças,
 atravesse rios em cima de troncos, fuja do Trem Infinito e dos slimes. A tela sobe sozinha, devagar e cada vez mais
@@ -18,8 +18,8 @@ npm install
 npm run start:web        # no navegador: http://localhost:8080
 npm start                # app desktop (Electron)
 npm run build:cloud      # empacota o Firebase em vendor/cloud.bundle.js
-npm run build:android    # dist/Jerry-Way-<versão>.apk (precisa do SDK Android)
-npm run build            # dist/Jerry-Way-Setup-<versão>.exe e dist/Jerry-Way-<versão>.AppImage
+npm run build:android    # dist/Jerrys-Way-<versão>.apk (precisa do SDK Android)
+npm run build            # dist/Jerrys-Way-Setup-<versão>.exe e dist/Jerrys-Way-<versão>.AppImage
 npm test                 # confere que o caminho gerado nunca fecha
 ```
 

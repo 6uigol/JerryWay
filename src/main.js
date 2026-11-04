@@ -1,4 +1,4 @@
-// Jerry Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
+// Jerry's Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
 import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD } from './world.js';
 import { SKIN_BY_ID, missingMythics } from './skins.js';
@@ -208,7 +208,7 @@ function drawPanels() {
   const u = panels.u, L = panels.l, Rp = panels.r, playing = game.state === 'play' || game.state === 'dying' || game.state === 'pause';
   const cols = Math.max(8, Math.floor(L.w / (11 * u)));
   let x = L.x + 18 * u, y = L.y + 22 * u;
-  ptext('JERRY', L.x + L.w / 2, y, 22, '#ffcc3a', 'center'); ptext('WAY', L.x + L.w / 2, y + 28 * u, 22, '#ffcc3a', 'center'); y += 78 * u;
+  ptext('JERRY\'S', L.x + L.w / 2, y, 22, '#ffcc3a', 'center'); ptext('WAY', L.x + L.w / 2, y + 28 * u, 22, '#ffcc3a', 'center'); y += 78 * u;
   const row = (k, v, col = '#ffffff') => { ptext(k, x, y, 8, '#8aa8ff'); ptext(String(v), x, y + 14 * u, 16, col); y += 46 * u; };
   row('Distância', playing ? game.score : save.last || 0);
   row('Recorde pessoal', Math.max(save.best, playing ? game.score : 0), playing && game.score > save.best && save.best ? '#7aff9a' : '#ffe070');

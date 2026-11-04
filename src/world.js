@@ -1,4 +1,4 @@
-// O mundo infinito do Jerry Way: faixas geradas para cima, sem fim. Cada faixa é grama (com árvores e pedras),
+// O mundo infinito do Jerry's Way: faixas geradas para cima, sem fim. Cada faixa é grama (com árvores e pedras),
 // estrada (carroças e carruagens), rio (troncos e vitórias-régias), trilho (Trem Infinito) ou campo de slimes.
 // A câmera sobe sozinha devagar; se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
 export const TILE = 16, COLS = 9;            // 9 colunas jogáveis

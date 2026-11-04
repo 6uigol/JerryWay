@@ -1,6 +1,8 @@
 {
   "appId": "com.jerryway.game",
-  "appName": "Jerry Way",
+  "appName": "Jerry's Way",
   "webDir": "android-web",
-  "server": { "androidScheme": "https" }
+  "server": {
+    "androidScheme": "https"
+  }
 }

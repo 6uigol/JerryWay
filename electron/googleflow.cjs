@@ -6,9 +6,9 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 
-const page = (config, state) => `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jerry Way</title>
+const page = (config, state) => `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jerry's Way</title>
 <style>body{font-family:system-ui,sans-serif;background:#1a1226;color:#fff;text-align:center;padding-top:16vh}button{font:18px system-ui;padding:14px 26px;border:0;border-radius:8px;background:#ffcc3a;color:#1a1030;cursor:pointer}p{color:#c8c0d8}</style></head>
-<body><h2>Jerry Way</h2><p id="m">Toque no botão para entrar com a sua conta Google.</p><button id="b">Entrar com o Google</button>
+<body><h2>Jerry's Way</h2><p id="m">Toque no botão para entrar com a sua conta Google.</p><button id="b">Entrar com o Google</button>
 <script type="module">
 import { init, googleTokens } from '/b.js';
 const cfg = ${JSON.stringify(config).replace(/</g, '\\u003c')}, state = ${JSON.stringify(state)};

@@ -1,4 +1,4 @@
-// Trilha do Jerry Way: 15 músicas compostas por regras, cada uma com nome, andamento, tom, modo, timbres e uma forma
+// Trilha do Jerry's Way: 15 músicas compostas por regras, cada uma com nome, andamento, tom, modo, timbres e uma forma
 // longa (introdução, A, A', B, B', ponte, A'', B'', variação e final), de 2 a 3 minutos e meio. Tocam uma depois da
 // outra numa ordem embaralhada; a melodia muda a cada parte, então nada fica repetindo em loop curto.
 import { audioCtx, musicBus } from './audio.js';

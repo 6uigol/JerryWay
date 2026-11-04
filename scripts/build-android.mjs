@@ -50,7 +50,7 @@ if (windows) {
 }
 
 const version = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).build.buildVersion;
-const output = join(projectRoot, 'dist', `Jerry-Way-${version}.apk`);
+const output = join(projectRoot, 'dist', `Jerrys-Way-${version}.apk`);
 mkdirSync(join(projectRoot, 'dist'), { recursive: true });
 cpSync(join(android, 'app/build/outputs/apk/debug/app-debug.apk'), output);
 console.log(`\nAPK pronto: ${output}`);
