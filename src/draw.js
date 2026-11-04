@@ -563,21 +563,6 @@ function slime(c, L, x, y, ph, t) {
 }
 
 // ---------------------------------------------------------------- moedas e portal
-// Noz Mítica: noz rosa e dourada flutuando, com halo pulsando e faíscas (bem diferente de moeda)
-export function drawMythNut(c, x, y, t) {
-  const bob = Math.round(Math.sin(t * 3) * 2), cx = x + 8, cy = y + 5 + bob, pulse = 0.35 + Math.sin(t * 5) * 0.15;
-  c.globalAlpha = 0.25; R(c, x + 3, y + 12, 10, 2, '#000000');
-  c.globalAlpha = pulse; c.fillStyle = '#ff5a8a'; c.beginPath(); c.arc(cx, cy, 10, 0, 7); c.fill();
-  c.globalAlpha = pulse * 0.8; c.fillStyle = '#fff0f6'; c.beginPath(); c.arc(cx, cy, 6, 0, 7); c.fill(); c.globalAlpha = 1;
-  c.drawImage(sprite('mythnut', 10, 12, (g) => {
-    R(g, 4, 0, 2, 2, '#6a3a1a');                                               // cabinho
-    R(g, 1, 2, 8, 3, '#ffd23a'); R(g, 0, 3, 10, 2, '#ffd23a'); R(g, 1, 2, 8, 1, '#fff4b0'); R(g, 2, 4, 1, 1, '#c89a1a'); R(g, 6, 4, 1, 1, '#c89a1a');   // chapéu dourado
-    R(g, 1, 5, 8, 4, '#ff5a8a'); R(g, 2, 9, 6, 1, '#ff5a8a'); R(g, 3, 10, 4, 1, '#d83a6a'); R(g, 4, 11, 2, 1, '#a82a52');   // corpo rosa
-    R(g, 7, 5, 2, 4, '#d83a6a'); R(g, 2, 6, 2, 2, '#ffd0e0'); R(g, 2, 6, 1, 1, '#ffffff');
-  }), cx - 6, cy - 7);
-  for (let i = 0; i < 4; i++) { const a = t * 2.4 + i * Math.PI / 2, px = Math.round(cx + Math.cos(a) * 9), py = Math.round(cy + Math.sin(a) * 6); R(c, px, py, 1, 1, i % 2 ? '#ffffff' : '#ffd23a'); }
-  if (Math.sin(t * 4) > 0.6) { R(c, cx + 5, cy - 9, 1, 3, '#ffffff'); R(c, cx + 4, cy - 8, 3, 1, '#ffffff'); }
-}
 export function drawCoin(c, x, y, v, t) {
   // moeda redonda girando (de frente fica um círculo; de lado, uma elipse fina), com borda, brilho e contorno
   const big = v > 1, spin = Math.abs(Math.cos(t * 3.5 + x * 0.13)), bob = Math.round(Math.sin(t * 3 + x) * 1.5);

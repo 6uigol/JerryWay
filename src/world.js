@@ -2,8 +2,8 @@
 // estrada (carroças e carruagens), rio (troncos e vitórias-régias), trilho (Trem Infinito) ou campo de slimes.
 // A câmera sobe sozinha devagar; se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
 export const TILE = 16, COLS = 9;            // 9 colunas jogáveis
-export const SPAN = 9 * TILE;
-export const MYTH_ROW = 200, MYTH_CHANCE = 0.012;   // Noz Mítica: a partir da fileira 200, 1,2% por fileira de grama                // objetos andam também fora da área jogável (aparecem nas laterais da tela)
+export const MYTH_ROW = 200, MYTH_CHANCE = 0.012;   // esquilo mítico: a partir da fileira 200, 1,2% por fileira de grama
+export const SPAN = 9 * TILE;                // objetos andam também fora da área jogável (aparecem nas laterais da tela)
 const MINX = -SPAN, MAXX = COLS * TILE + SPAN;
 
 // zonas que se repetem conforme o Jerry sobe
@@ -88,7 +88,7 @@ export class World {
     for (let c = COLS; c < COLS + 9; c++) if (r() < 0.55) L.deco.push(c);
     L.variant = Math.floor(r() * 4);
     this.coins(L, row < 3 ? 0 : 0.3);
-    // Noz Mítica: só se faltar mítica na coleção, só depois da fileira 200, no máximo uma por partida e bem rara
+    // esquilo mítico: só se faltar mítica na coleção, só depois da fileira 200, no máximo um por partida e bem raro
     if (this.mythOn && !this.mythDone && row >= MYTH_ROW && r() < MYTH_CHANCE) { L.myth = this.pathCol; L.coins.delete(this.pathCol); this.mythDone = true; }
   }
   // objetos que andam na faixa: espaçados com folga, dando a volta pelos dois lados

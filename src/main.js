@@ -97,11 +97,12 @@ function play() {
   initAudio(); startMusic(); hide();
   game.reset((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
   game.skinId = save.skin;
-  game.world.mythOn = missingMythics(save.owned).length > 0;
-  game.onMyth = () => {   // ganha uma mítica que ainda não tem e já salva (vale mesmo se perder a partida depois)
-    const left = missingMythics(save.owned); if (!left.length) return null;
-    const s = left[Math.floor(Math.random() * left.length)];
-    save.owned.push(s.id); commit(); return s;
+  // esquilo mítico da partida: uma das míticas que ainda faltam (se não faltar nenhuma, ele não aparece)
+  const left = missingMythics(save.owned), myth = left.length ? left[Math.floor(Math.random() * left.length)] : null;
+  game.world.mythOn = !!myth; game.mythSkin = myth ? myth.id : null;
+  game.onMyth = () => {   // pegou: a skin é dele e já salva (vale mesmo se perder a partida depois)
+    if (!myth || save.owned.includes(myth.id)) return null;
+    save.owned.push(myth.id); commit(); return myth;
   };
   game.setGhosts(ghostsFor());
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';

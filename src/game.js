@@ -1,7 +1,7 @@
 // A partida: o Jerry pula de faixa em faixa (toque = pra frente; arrastar = para os lados ou para trás).
 // A tela sobe sozinha, devagar e cada vez mais rápido. Se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
 import { World, TILE, COLS, zoneAt } from './world.js';
-import { drawGround, drawFloaters, drawUpright, drawCoin, drawMythNut, drawPortal, drawWeather } from './draw.js';
+import { drawGround, drawFloaters, drawUpright, drawCoin, drawPortal, drawWeather } from './draw.js';
 import { jerryFrame } from './jerry.js';
 import { SKIN_BY_ID, DEFAULT_SKIN } from './skins.js';
 import { sfx } from './audio.js';
@@ -63,6 +63,8 @@ export class Game {
     if (!L) return;
     const col = Math.round((j.x - T / 2) / T);
     if (L.myth !== undefined && L.myth === col) { delete L.myth; this.findMyth(j); }
+    // passou da fileira do esquilo mítico sem pegar: ele sai correndo para o lado e some
+    for (let r = j.row - 3; r < j.row; r++) { const M = this.world.lane(r); if (M && M.myth !== undefined) this.mythFlee(M); }
     if (L.coins.has(col)) { const v = L.coins.get(col); L.coins.delete(col); this.coins += v; (v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }
     if (L.type === 'river') {
       // margem de erro: se cair até 7 px fora do tronco (ou da vitória-régia), o Jerry escorrega para cima dele
@@ -94,14 +96,21 @@ export class Game {
     else o.x = L.dir > 0 ? jx + 1 : jx - 1 - o.w;
     this.die('hit'); this.end.dir = L.dir || 1; this.end.slime = L.type === 'slime';
   }
-  // achou a Noz Mítica: ganha uma mítica que ainda não tem (quem chama decide qual e salva na hora)
+  // pegou o esquilo mítico: ganha essa skin (quem chama salva na hora)
   findMyth(j) {
     const s = this.onMyth ? this.onMyth() : null;
     if (!s) return;
+    this.mythRun = null;
     this.mythFound = s.id;
     this.toast('Skin Mítica!', '#ff5a8a'); this.toast(s.name, '#ffd0e0');
     sfx.record(); setTimeout(() => sfx.bigcoin(), 300); setTimeout(() => sfx.bigcoin(), 600);
     for (let i = 0; i < 30; i++) this.fx.push({ k: 'star', x: j.x + (Math.random() - 0.5) * 100, row: j.row + Math.random() * 4, t: -Math.random() * 0.5, c: i % 3 });
+  }
+  mythFlee(M) {
+    const col = M.myth; delete M.myth;
+    const dir = col < COLS / 2 ? -1 : 1;   // foge para o lado mais perto da borda
+    this.mythRun = { row: M.row, x: col * T + T / 2, dir, t: 0 };
+    this.toast('O esquilo mítico fugiu!', '#ff8ab0'); sfx.bump();
   }
   toast(text, color = '#ffffff') { this.toasts.push({ text, color, t: 0 }); }
 
@@ -112,6 +121,7 @@ export class Game {
     W.ensure(Math.floor(this.cam + visRows + 12));
     W.prune(Math.floor(this.cam) - 6);
     W.update(dt, this.rnd);
+    if (this.mythRun) { const m = this.mythRun; m.t += dt; m.x += m.dir * (60 + m.t * 220) * dt; if (m.x < -60 || m.x > COLS * T + 60) this.mythRun = null; }
     for (const L of W.lanes.values()) {
       if (L.type === 'rail') {
         const warn = W.warning(L);
@@ -176,7 +186,8 @@ export class Game {
       const L = this.world.lane(r), y = rowY(r);
       const jr = this.j.hop ? Math.max(this.j.hop.fr, this.j.hop.tr) : this.j.row, flat = this.end && this.end.kind === 'hit';
       if (L) for (const [col, v] of L.coins) drawCoin(c, ox + col * T, y, v, t);
-      if (L && L.myth !== undefined) drawMythNut(c, ox + L.myth * T, y, t);
+      if (L && L.myth !== undefined) this.drawMyth(c, ox + L.myth * T + T / 2, y, t, false);
+      if (this.mythRun && this.mythRun.row === r) this.drawMyth(c, ox + this.mythRun.x, y, t, true);
       if (r === jr && flat) this.drawJerry(c, ox, rowY);   // achatado: fica embaixo do que o atropelou
       if (L) drawUpright(c, L, x0, x1, ox, y, t);
       if (r === jr && !flat) this.drawJerry(c, ox, rowY);
@@ -226,6 +237,19 @@ export class Game {
     c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y) + 6);
     if (edge) { const by = Math.round(y) - 9 + (Math.floor(this.t * 6) % 2); c.fillStyle = '#1a1226'; c.fillRect(Math.round(x) - 2, by - 1, 4, 9); c.fillStyle = '#ffe070'; c.fillRect(Math.round(x) - 1, by, 2, 5); c.fillRect(Math.round(x) - 1, by + 6, 2, 1); }
+  }
+  // o esquilo mítico parado no caminho (com o brilho da skin) ou fugindo
+  drawMyth(c, x, y, t, running) {
+    const skin = SKIN_BY_ID[this.mythSkin]; if (!skin) return;
+    const m = this.mythRun, hop = running ? Math.abs(Math.sin(m.t * 18)) * 4 : Math.abs(Math.sin(t * 2.5)) * 2;
+    c.globalAlpha = 0.3 + Math.sin(t * 5) * 0.1; c.fillStyle = '#ff5a8a'; c.beginPath(); c.arc(Math.round(x), Math.round(y) + 7, 11, 0, 7); c.fill(); c.globalAlpha = 1;
+    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round(y) + 12, 10, 2);
+    const fr = running ? jerryFrame(m.dir > 0 ? 'side' : 'left', 'hop', 1, skin) : jerryFrame('front', 'idle', 0, skin);
+    if (skin.fx === 'ghost') c.globalAlpha = 0.75;
+    c.drawImage(fr, Math.round(x) - 8, Math.round(y - 1 - hop)); c.globalAlpha = 1;
+    if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y - hop) + 6);
+    if (!running && Math.sin(t * 4) > 0.6) { c.fillStyle = '#ffffff'; c.fillRect(Math.round(x) + 6, Math.round(y) - 6, 1, 3); c.fillRect(Math.round(x) + 5, Math.round(y) - 5, 3, 1); }
+    if (running) { c.fillStyle = 'rgba(232,232,240,0.7)'; for (let i = 1; i < 4; i++) c.fillRect(Math.round(x - m.dir * (6 + i * 5)), Math.round(y) + 11 - (i % 2), 3, 2); }
   }
   drawAura(c, fx, x, y) {
     const t = this.t;
