@@ -16,7 +16,7 @@ export const BAD_PARTS = [
   // inglês
   'fuck', 'fuk', 'shit', 'bitch', 'cunt', 'dickhead', 'pusy', 'whore', 'slut', 'fagot', 'faget', 'niger', 'niga', 'retard', 'rape', 'porn',
   // da lista LDNOOBW em português e combinações vulgares
-  'biscate', 'cabrao', 'chochota', 'xochota', 'colhoes', 'esporra', 'paneleiro', 'sacanagem', 'vibrador', 'clitoris', 'bastard', 'bundud', 'bucetud', 'paugrand', 'pauduro', 'paumol', 'paunoc', 'paunacu', 'paunobur', 'pausud', 'rolagrand', 'rolud', 'pirocud', 'picud', 'picagrand', 'pintud', 'chuparol', 'chupapau', 'chupapic', 'chupapir', 'tomanoc', 'vaitomar', 'filhodaput', 'fdput',
+  'biscate', 'cabrao', 'chochota', 'xochota', 'colhoes', 'esporra', 'paneleiro', 'sacanagem', 'vibrador', 'clitoris', 'bastard', 'bundud', 'bucetud', 'paugra', 'pauduro', 'paumol', 'paunoc', 'paunacu', 'paunobur', 'pausud', 'rolagra', 'rolud', 'pirocud', 'picud', 'picagra', 'pintud', 'chuparol', 'chupapau', 'chupapic', 'chupapir', 'tomanoc', 'vaitomar', 'filhodaput', 'fdput',
 
 ];
 // mais termos em inglês da lista LDNOOBW (sem as palavras neutras): valem no site, no servidor e nos jogos;
