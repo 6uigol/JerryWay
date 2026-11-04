@@ -1,6 +1,6 @@
 // Jerry Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
-import { TILE } from './world.js';
+import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD } from './world.js';
 import { SKIN_BY_ID, missingMythics } from './skins.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
 import { initUI, show, hide, showing } from './ui.js';
@@ -99,7 +99,10 @@ function play() {
   game.skinId = save.skin;
   // esquilo mítico da partida: uma das míticas que ainda faltam (se não faltar nenhuma, ele não aparece)
   const left = missingMythics(save.owned), myth = left.length ? left[Math.floor(Math.random() * left.length)] : null;
-  game.world.mythOn = !!myth; game.mythSkin = myth ? myth.id : null;
+  // um sorteio só, no começo da partida: 0,00014% de chance de o esquilo mítico aparecer nela
+  game.world.mythOn = !!myth && Math.random() < MYTH_RUN_CHANCE;
+  game.world.mythAt = MYTH_ROW + Math.floor(Math.random() * MYTH_SPREAD);
+  game.mythSkin = myth ? myth.id : null; game.mythFound = null;
   game.onMyth = () => {   // pegou: a skin é dele e já salva (vale mesmo se perder a partida depois)
     if (!myth || save.owned.includes(myth.id)) return null;
     save.owned.push(myth.id); commit(); return myth;
@@ -113,7 +116,7 @@ function finish() {
   save.coins += g.coins; save.runs++; save.last = g.score;
   if (record) save.best = g.score;
   commit();
-  const r = { kind: g.end.kind, score: g.score, coins: g.coins, record, world: g.beatWorld, worldBest: g.worldBest, worldName: g.worldName, top: topList.slice(0, 5), rankMsg: '' };
+  const r = { myth: g.mythFound ? SKIN_BY_ID[g.mythFound] : null, kind: g.end.kind, score: g.score, coins: g.coins, record, world: g.beatWorld, worldBest: g.worldBest, worldName: g.worldName, top: topList.slice(0, 5), rankMsg: '' };
   g.state = 'over';
   show('result', r);
   const me = currentAccount();

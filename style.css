@@ -71,3 +71,7 @@ button.google span { color: #1a1226; }
 #pausebtn[hidden] { display: none; }
 #pausebtn i { display: block; width: 5px; height: 16px; background: #ffffff; box-shadow: 1px 1px 0 #05081e; }
 #pausebtn:active { transform: translateY(2px); box-shadow: 0 0 0 2px #05081e, 0 1px 0 #05081e; }
+.myth-won { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px; border: 2px solid #ff5a8a; background: rgba(255, 90, 138, 0.12); box-shadow: 0 0 18px rgba(255, 90, 138, 0.45); }
+.myth-won b { color: #ff8ab0; font-weight: normal; font-size: 10px; }
+.myth-won span { color: #ffd0e0; font-size: 9px; }
+.myth-won canvas { filter: drop-shadow(0 0 8px #ff5a8a); }

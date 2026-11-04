@@ -80,6 +80,7 @@ function result(r) {
     <h2 style="${r.world ? 'color:#ffcc3a' : ''}">${r.world ? 'NOVO RECORDE MUNDIAL!' : r.record ? 'NOVO RECORDE PESSOAL!' : 'Fim da corrida'}</h2>
     <p class="muted">${END_TEXT[r.kind] || ''}</p>
     <div class="score">${r.score}</div>
+    ${r.myth ? `<div class="myth-won"><b>Skin Mítica desbloqueada!</b><div class="pv" id="myth-pv"></div><span>${esc(r.myth.name)}</span><button class="use" id="myth-use">Usar agora</button></div>` : ''}
     <div class="info"><span>Pessoal <b>${save.best}</b></span><span>Mundial <b>${r.world ? r.score : r.worldBest || '-'}</b></span></div>
     <div class="info"><span>+${r.coins} <i class="coin"></i></span>${coinsTag()}</div>
     ${top ? `<ol class="rank small-rank">${top}</ol>` : ''}
@@ -87,6 +88,11 @@ function result(r) {
     <button class="big" data-go="play">JOGAR DE NOVO</button>
     <div class="row"><button data-go="ranking">Ranking</button><button data-go="sorte">Sorte</button><button data-go="title">Menu</button></div>
   </div>`;
+  if (r.myth) {
+    $('#myth-pv').append(preview(r.myth, 'front', 4));
+    $('#myth-use').onclick = (e) => { save.skin = r.myth.id; commit(); sfx.click(); e.target.disabled = true; e.target.textContent = 'Usando'; };
+    sfx.reveal(4);
+  }
 }
 
 // ---------------------------------------------------------------- Sorte (100 moedas por tentativa; pode repetir)
