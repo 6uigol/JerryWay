@@ -167,8 +167,6 @@ export class Game {
       if (L) drawUpright(c, L, x0, x1, ox, y, t);
       if (r === jr && !flat) this.drawJerry(c, ox, rowY);
     }
-    // borda da área jogável: as laterais ficam um pouco mais escuras
-    c.fillStyle = 'rgba(10,6,24,0.35)'; c.fillRect(0, 0, ox, LH); c.fillRect(ox + COLS * T, 0, LW - ox - COLS * T, LH);
     for (const f of this.fx) this.drawFx(c, f, ox, rowY);
     if (this.end && this.end.kind === 'hit') {   // estrelinhas de tonto por cima de tudo (até do que atropelou)
       const { x, y } = this.jerryPos(ox, rowY);

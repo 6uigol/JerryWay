@@ -37,8 +37,8 @@ function resize() {
     const b = full ? 0 : Math.round(5 * dpr);
     VP = { x: b, y: b, w: CW - 2 * b, h: CH - 2 * b }; panels = null;
   }
-  // cabem pelo menos 11 colunas na largura e 14 fileiras na altura da janela do jogo
-  let sc = Math.min(VP.w / (11 * TILE), VP.h / (14 * TILE));
+  // um pequeno zoom: cabem umas 9,8 colunas na largura (a área jogável quase inteira) e 12,6 fileiras na altura
+  let sc = Math.min(VP.w / (9.8 * TILE), VP.h / (12.6 * TILE));
   if (sc >= 3) sc = Math.floor(sc);
   LW = Math.ceil(VP.w / sc); LH = Math.ceil(VP.h / sc);
   lc.width = LW; lc.height = LH;
