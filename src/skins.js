@@ -1,7 +1,7 @@
 // As 180 skins do Jerry. Cada uma troca as cores do pelo (pal), pode ter um traje (suit), um acessório na cabeça (acc)
-// e, nas mais raras, um efeito em volta dele (fx). Saem na Sorte: 100 moedas por tentativa, podendo repetir.
+// e, nas mais raras, um efeito em volta dele (fx). Saem no sorteio (Sortear skin): 100 moedas por tentativa, podendo repetir.
 // Raridade: comum, rara, épica, lendária e mítica. A chance é da raridade; dentro dela, todas têm a mesma chance.
-// As míticas NÃO saem na Sorte: só pegando o esquilo mítico no caminho (muito raro; se passar da fileira dele, ele foge) e nunca repetem.
+// As míticas NÃO saem no sorteio: só pegando o esquilo mítico no caminho (muito raro; se passar da fileira dele, ele foge) e nunca repetem.
 export const RARITIES = {
   comum: { name: 'Comum', color: '#c8c8d8', chance: 55 },
   rara: { name: 'Rara', color: '#5ab0ff', chance: 28 },

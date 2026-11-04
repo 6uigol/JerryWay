@@ -1,4 +1,4 @@
-// Telas por cima do jogo (HTML): início, resultado, Sorte, Coleção, Ranking, Conta e pausa.
+// Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
 import { save, commit, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
@@ -65,7 +65,7 @@ function title() {
     <div id="pv" class="pv"></div>
     <div class="info">${coinsTag()}<span>Recorde <b>${save.best}</b></span></div>
     <button class="big" data-go="play">JOGAR</button>
-    <div class="row"><button data-go="sorte">Sorte</button><button data-go="colecao">Coleção</button></div>
+    <div class="row"><button data-go="sorte">Sortear skin</button><button data-go="colecao">Coleção</button></div>
     <div class="row"><button data-go="ranking">Ranking</button><button data-go="conta">Conta</button></div>
     ${soundBtns()}
     <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD.</p>
@@ -86,7 +86,7 @@ function result(r) {
     ${top ? `<ol class="rank small-rank">${top}</ol>` : ''}
     <p class="muted" id="rk-msg">${r.rankMsg || ''}</p>
     <button class="big" data-go="play">JOGAR DE NOVO</button>
-    <div class="row"><button data-go="ranking">Ranking</button><button data-go="sorte">Sorte</button><button data-go="title">Menu</button></div>
+    <div class="row"><button data-go="ranking">Ranking</button><button data-go="sorte">Sortear</button><button data-go="title">Menu</button></div>
   </div>`;
   if (r.myth) {
     $('#myth-pv').append(preview(r.myth, 'front', 4));
@@ -95,11 +95,11 @@ function result(r) {
   }
 }
 
-// ---------------------------------------------------------------- Sorte (100 moedas por tentativa; pode repetir)
+// ---------------------------------------------------------------- Sortear skin (100 moedas por tentativa; pode repetir)
 function sorte() {
   const odds = Object.values(RARITIES).map((r) => r.onlyRun ? `<span style="color:${r.color}">${r.name}: só achando no caminho</span>` : `<span style="color:${r.color}">${r.name} ${String(r.chance).replace('.', ',')}%</span>`).join('');
   root.innerHTML = `<div class="panel">
-    <h2>Sorte</h2>
+    <h2>Sortear skin</h2>
     <div class="info">${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span></div>
     <div id="gacha" class="gacha"><canvas id="nutcv" class="pix" width="320" height="256"></canvas><div id="g-skin" class="g-skin"></div></div>
     <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma skin. Pode vir repetida (aí as moedas não voltam). As míticas não saem aqui: só pegando o esquilo mítico no caminho.</div>
@@ -145,8 +145,8 @@ function colecao() {
     <div class="odds">${per}</div>
     <div class="tabs">${tabs}</div>
     <div class="grid" id="grid"></div>
-    <p class="hint" id="col-hint">${colFilter === 'mitica' ? 'Míticas não saem na Sorte: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.' : ''}</p>
-    <div class="row"><button data-go="sorte">Sorte</button><button data-go="title">Voltar</button></div>
+    <p class="hint" id="col-hint">${colFilter === 'mitica' ? 'Míticas não saem no sorteio: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.' : ''}</p>
+    <div class="row"><button data-go="sorte">Sortear skin</button><button data-go="title">Voltar</button></div>
   </div>`;
   const grid = $('#grid');
   for (const s of SKINS) {
@@ -156,7 +156,7 @@ function colecao() {
     cell.style.borderColor = RARITIES[s.rarity].color;
     cell.title = own ? s.name : s.rarity === 'mitica' ? 'Mítica: pegue o esquilo mítico no caminho (muito raro, longe da largada)' : '???';
     cell.append(thumb(s, own));
-    cell.onclick = () => { if (!own) { sfx.bump(); if (s.rarity === 'mitica') { const h = $('#col-hint'); if (h) h.textContent = 'Míticas não saem na Sorte: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.'; } return; } save.skin = s.id; commit(); sfx.click(); colecao(); };
+    cell.onclick = () => { if (!own) { sfx.bump(); if (s.rarity === 'mitica') { const h = $('#col-hint'); if (h) h.textContent = 'Míticas não saem no sorteio: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.'; } return; } save.skin = s.id; commit(); sfx.click(); colecao(); };
     grid.append(cell);
   }
   root.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { colFilter = b.dataset.f; colecao(); }));

@@ -75,3 +75,5 @@ button.google span { color: #1a1226; }
 .myth-won b { color: #ff8ab0; font-weight: normal; font-size: 10px; }
 .myth-won span { color: #ffd0e0; font-size: 9px; }
 .myth-won canvas { filter: drop-shadow(0 0 8px #ff5a8a); }
+.row > button { white-space: nowrap; padding-left: 4px; padding-right: 4px; font-size: min(10px, 2.9vw); }
+.row.small > button { font-size: min(8px, 2.4vw); }
