@@ -136,31 +136,69 @@ function pull() {
 }
 
 // ---------------------------------------------------------------- Coleção
-let colFilter = 'todas';
+let colFilter = 'todas', colOwn = 'todas', colSel = null;
+const MYTH_HINT = 'Míticas não saem no sorteio: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.';
+// Coleção: a skin escolhida aparece grande em cima (com setinhas para ver uma por uma) e a grade embaixo,
+// com filtro de raridade e de "todas / faltam / já tenho"
 function colecao() {
   const tabs = ['todas', ...Object.keys(RARITIES)].map((k) => `<button class="tab ${k === colFilter ? 'on' : ''}" data-f="${k}" style="${k !== 'todas' ? 'color:' + RARITIES[k].color : ''}">${k === 'todas' ? 'Todas' : RARITIES[k].name}</button>`).join('');
+  const ownTabs = [['todas', 'Todas'], ['faltam', 'Faltam'], ['tenho', 'Já tenho']].map(([k, n]) => `<button class="tab ${k === colOwn ? 'on' : ''}" data-o="${k}">${n}</button>`).join('');
   const per = Object.keys(RARITIES).map((k) => { const all = SKINS.filter((s) => s.rarity === k); return `<span style="color:${RARITIES[k].color}">${all.filter((s) => save.owned.includes(s.id)).length}/${all.length}</span>`; }).join('');
+  const list = SKINS.filter((s) => (colFilter === 'todas' || s.rarity === colFilter) && (colOwn === 'todas' || (colOwn === 'tenho') === save.owned.includes(s.id)));
+  if (!list.some((s) => s.id === colSel)) colSel = (list.find((s) => s.id === save.skin) || list[0] || {}).id || null;
   root.innerHTML = `<div class="panel wide">
     <h2>Coleção <small>${save.owned.length}/${SKINS.length}</small></h2>
     <div class="odds">${per}</div>
+    <div class="col-view">
+      <button class="arrow" id="cv-prev" aria-label="Anterior" ${list.length < 2 ? 'disabled' : ''}>‹</button>
+      <div class="col-big" id="cv-big"></div>
+      <button class="arrow" id="cv-next" aria-label="Próxima" ${list.length < 2 ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="col-info" id="cv-info"></div>
+    <div class="tabs">${ownTabs}</div>
     <div class="tabs">${tabs}</div>
-    <div class="grid" id="grid"></div>
-    <p class="hint" id="col-hint">${colFilter === 'mitica' ? 'Míticas não saem no sorteio: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.' : ''}</p>
+    <div class="grid" id="grid">${list.length ? '' : '<p class="hint" style="grid-column:1/-1">Nenhuma skin aqui.</p>'}</div>
     <div class="row"><button data-go="sorte">Sortear skin</button><button data-go="title">Voltar</button></div>
   </div>`;
-  const grid = $('#grid');
-  for (const s of SKINS) {
-    if (colFilter !== 'todas' && s.rarity !== colFilter) continue;
+  const grid = $('#grid'), cells = new Map();
+  const show = (id) => {
+    const s = SKIN_BY_ID[id]; if (!s) { $('#cv-big').innerHTML = ''; $('#cv-info').innerHTML = ''; return; }
+    colSel = id;
+    const own = save.owned.includes(s.id), rr = RARITIES[s.rarity], hidden = !own && s.rarity === 'mitica';
+    const big = preview(s, 'front', 6);
+    if (hidden) { const c = big.getContext('2d'); c.globalCompositeOperation = 'source-in'; c.fillStyle = '#3a2a5a'; c.fillRect(0, 0, big.width, big.height); }
+    if (!own && !hidden) big.classList.add('dim');
+    const box = $('#cv-big'); box.innerHTML = ''; box.style.setProperty('--glow', rr.color); box.append(big);
+    if (hidden) { const q = document.createElement('b'); q.className = 'q'; q.textContent = '?'; box.append(q); }
+    const i = list.findIndex((x) => x.id === id);
+    $('#cv-info').innerHTML = `<b style="color:${rr.color}">${rr.name}</b> <span class="muted">${i + 1}/${list.length}</span><br>${hidden ? '???' : esc(s.name)}<br>`
+      + (own ? (s.id === save.skin ? '<button class="use" disabled>Usando</button>' : '<button class="use" id="cv-use">Usar esta skin</button>')
+        : `<span class="muted">${s.rarity === 'mitica' ? MYTH_HINT : 'Ainda não tem: sai no Sortear skin.'}</span>`);
+    const u = $('#cv-use'); if (u) u.onclick = () => { save.skin = s.id; commit(); sfx.click(); cells.forEach((c, k) => c.classList.toggle('on', k === s.id)); show(s.id); };
+    cells.forEach((c, k) => c.classList.toggle('sel', k === id));
+    const cell = cells.get(id); if (cell) cell.scrollIntoView({ block: 'nearest' });
+  };
+  for (const s of list) {
     const own = save.owned.includes(s.id), cell = document.createElement('button');
     cell.className = 'cell' + (s.id === save.skin ? ' on' : '') + (own ? '' : ' locked');
     cell.style.borderColor = RARITIES[s.rarity].color;
-    cell.title = own ? s.name : s.rarity === 'mitica' ? 'Mítica: pegue o esquilo mítico no caminho (muito raro, longe da largada)' : '???';
+    cell.title = own ? s.name : '???';
     cell.append(thumb(s, own));
-    cell.onclick = () => { if (!own) { sfx.bump(); if (s.rarity === 'mitica') { const h = $('#col-hint'); if (h) h.textContent = 'Míticas não saem no sorteio: o esquilo mítico aparece no caminho, bem longe da largada. Pule em cima dele; se passar da fileira dele, ele foge. Nunca repete.'; } return; } save.skin = s.id; commit(); sfx.click(); colecao(); };
-    grid.append(cell);
+    cell.onclick = () => { sfx.click(); show(s.id); };
+    cells.set(s.id, cell); grid.append(cell);
   }
-  root.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { colFilter = b.dataset.f; colecao(); }));
+  const step = (d) => { if (list.length < 2) return; const i = list.findIndex((x) => x.id === colSel); sfx.click(); show(list[(i + d + list.length) % list.length].id); };
+  $('#cv-prev').onclick = () => step(-1); $('#cv-next').onclick = () => step(1);
+  // no PC as setas do teclado também passam; no celular dá para arrastar a skin grande para os lados
+  const big = $('#cv-big'); let sx = null;
+  big.onpointerdown = (e) => { sx = e.clientX; }; big.onpointerup = (e) => { if (sx !== null && Math.abs(e.clientX - sx) > 30) step(e.clientX < sx ? 1 : -1); sx = null; };
+  colKeys = (e) => { if (current !== 'colecao') return; if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); };
+  root.querySelectorAll('[data-f]').forEach((b) => (b.onclick = () => { colFilter = b.dataset.f; sfx.click(); colecao(); }));
+  root.querySelectorAll('[data-o]').forEach((b) => (b.onclick = () => { colOwn = b.dataset.o; sfx.click(); colecao(); }));
+  show(colSel);
 }
+let colKeys = null;
+window.addEventListener('keydown', (e) => colKeys && colKeys(e));
 
 // ---------------------------------------------------------------- Ranking (10 maiores recordes)
 async function ranking() {

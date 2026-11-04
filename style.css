@@ -77,3 +77,15 @@ button.google span { color: #1a1226; }
 .myth-won canvas { filter: drop-shadow(0 0 8px #ff5a8a); }
 .row > button { white-space: nowrap; padding-left: 4px; padding-right: 4px; font-size: min(10px, 2.9vw); }
 .row.small > button { font-size: min(8px, 2.4vw); }
+/* Coleção: skin grande em cima com setinhas */
+.col-view { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.col-view .arrow { flex: none; width: 40px; height: 64px; padding: 0; font-size: 22px; line-height: 1; }
+.col-big { position: relative; flex: 1; height: 180px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--glow, #6a5aa8) 35%, transparent), transparent 65%); touch-action: pan-y; }
+.col-big canvas { image-rendering: pixelated; width: auto; height: 168px; animation: col-bob 1.6s ease-in-out infinite; filter: drop-shadow(0 0 8px var(--glow, transparent)); }
+.col-big canvas.dim { filter: grayscale(0.35) brightness(0.75) drop-shadow(0 0 6px var(--glow, transparent)); }
+.col-big .q { position: absolute; font-size: 40px; color: #ff8ab0; text-shadow: 3px 3px 0 #0a0618; font-weight: normal; }
+@keyframes col-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.col-info { font-size: 9px; min-height: 58px; }
+.col-info .muted { font-size: 7px; }
+.cell.sel { outline: 2px solid #ffcc3a; outline-offset: 1px; background: #4a3a8a; }
+.panel.wide .grid { max-height: 30vh; }
