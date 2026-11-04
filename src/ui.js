@@ -95,7 +95,7 @@ function sorte() {
   root.innerHTML = `<div class="panel">
     <h2>Sorte</h2>
     <div class="info">${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span></div>
-    <div id="gacha" class="gacha"><canvas id="nutcv" class="pix" width="240" height="192"></canvas><div id="g-skin" class="g-skin"></div></div>
+    <div id="gacha" class="gacha"><canvas id="nutcv" class="pix" width="320" height="256"></canvas><div id="g-skin" class="g-skin"></div></div>
     <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma das ${SKINS.length} skins. Pode vir repetida (aí as moedas não voltam).</div>
     <button class="big" id="g-pull" ${save.coins < PULL_COST ? 'disabled' : ''}>TENTAR (${PULL_COST})</button>
     <div class="odds">${odds}</div>

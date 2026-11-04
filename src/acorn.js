@@ -58,13 +58,17 @@ export function makeAcorn(canvas) {
       if (p >= 1) { mode = 'burst'; t0 = now; for (let i = 0; i < 40; i++) parts.push({ a: Math.random() * 6.28, v: 40 + Math.random() * 120, s: 1 + Math.floor(Math.random() * 2), col: i % 3 ? color : '#ffffff' }); if (onBurst) onBurst(); }
     } else if (mode === 'burst' || mode === 'open') {
       // raios girando e confete; as duas metades da noz voam para os lados
-      const R = Math.max(W, H);
-      c.save(); c.translate(cx, cy); c.rotate(t * 0.6);
-      for (let i = 0; i < 12; i++) { c.globalAlpha = 0.16; c.fillStyle = i % 2 ? color : '#ffffff'; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R, i * Math.PI / 6, i * Math.PI / 6 + 0.16); c.fill(); }
+      // tudo some em círculo antes da borda do canvas (sem cantos quadrados)
+      const R = Math.min(W, H) / 2 - 2, pulse = 1 + Math.sin(t * 3) * 0.04;
+      const ray = (col) => { const g = c.createRadialGradient(0, 0, 0, 0, 0, R * pulse); g.addColorStop(0, col); g.addColorStop(0.55, col); g.addColorStop(1, 'rgba(0,0,0,0)'); return g; };
+      const rw = ray('#ffffff'), rc = ray(color);
+      c.save(); c.translate(cx, cy); c.rotate(t * 0.6); c.globalAlpha = Math.min(1, t * 4) * 0.45;
+      for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? rc : rw; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R, i * Math.PI / 6, i * Math.PI / 6 + 0.17); c.closePath(); c.fill(); }
       c.restore(); c.globalAlpha = 1;
-      const g = c.createRadialGradient(cx, cy, 0, cx, cy, 26 * k); g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.4, color + '66'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-      if (t < 0.8) { const q = t / 0.8; c.globalAlpha = 1 - q; nut(-q * 40 * k / 2, q * q * 30 * k / 2, -q * 1.4, 1, -1); nut(q * 40 * k / 2, q * q * 30 * k / 2, q * 1.4, 1, 1); c.globalAlpha = 1; }
-      for (const pt of parts) { const r = pt.v * Math.min(t, 1.6) * k / 3, x = cx + Math.cos(pt.a) * r, y = cy + Math.sin(pt.a) * r + t * t * 40 * k / 3; c.globalAlpha = Math.max(0, 1 - t / 1.8); c.fillStyle = pt.col; c.fillRect(Math.round(x), Math.round(y), pt.s * k, pt.s * k); }
+      const g = c.createRadialGradient(cx, cy, 0, cx, cy, R); g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.4, color + "77"); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.fill();
+      if (t < 0.45) { const q = t / 0.45; c.globalAlpha = (1 - q) * (1 - q); nut(-q * 40 * k / 2, q * q * 30 * k / 2, -q * 1.4, 1, -1); nut(q * 40 * k / 2, q * q * 30 * k / 2, q * 1.4, 1, 1); c.globalAlpha = 1; }
+      for (const pt of parts) { const r = Math.min(pt.v * Math.min(t, 1.6) * k / 3, Math.min(W, H) / 2 - 6 * k), x = cx + Math.cos(pt.a) * r, y = cy + Math.sin(pt.a) * r + t * t * 40 * k / 3; c.globalAlpha = Math.max(0, 1 - t / 1.8); c.fillStyle = pt.col; c.fillRect(Math.round(x), Math.round(y), pt.s * k, pt.s * k); }
       c.globalAlpha = 1;
       if (t > 0.3) mode = 'open';
     }
