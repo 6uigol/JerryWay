@@ -3,6 +3,7 @@
 import { DEFAULT_SKIN, SKIN_BY_ID } from './skins.js';
 import { FIREBASE_CONFIG, API_URL } from './config.js';
 import { nativeGoogleLogin, pendingGoogleLogin, acknowledgeGoogleLogin } from './google-login.js';
+import { isBadName } from './names.js';
 
 const KEY = (uid) => 'jerryway.save.' + (uid || 'local');
 const fresh = () => ({ v: 1, coins: 0, best: 0, last: 0, runs: 0, pulls: 0, owned: [DEFAULT_SKIN], skin: DEFAULT_SKIN, name: '', ghost: null, updatedAt: 0 });
@@ -44,7 +45,7 @@ async function api(op, payload) {
   let r;
   try { r = await connect(payload ? fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ op, ...payload }) }) : fetch(API_URL + '?op=' + op, { headers, cache: 'no-store' })); }
   catch (e) { throw Object.assign(new Error('offline'), { code: 'offline' }); }
-  if (!r.ok) throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : r.status === 409 ? 'name-taken' : 'network' });
+  if (!r.ok) { const d = await r.json().catch(() => ({})); throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : r.status === 409 ? 'name-taken' : d.code === 'name-bad' ? 'name-bad' : 'network' }); }
   return r.json();
 }
 async function pushCloud() { try { await api('save', { data: JSON.parse(JSON.stringify(save)) }); } catch (e) { console.warn('nuvem', e && e.code); } }
@@ -81,7 +82,7 @@ async function attach(u) {
     }
     // contas antigas (ou nome escolhido sem conta): registra o nome se estiver livre; se já for de outra conta, fica sem nome
     const wanted = remote && remote.nameKey ? '' : (remote && remote.name) || save.name;
-    if (wanted) { try { await setName(wanted); } catch (e) { if (e.code === 'name-taken') save.name = ''; } }
+    if (wanted) { try { await setName(wanted); } catch (e) { if (e.code === 'name-taken' || e.code === 'name-bad') save.name = ''; } }
     // o progresso jogado sem conta passa para a conta uma única vez
     try { localStorage.removeItem(KEY(null)); } catch (_) { /* ok */ }
     commit();
@@ -106,7 +107,9 @@ export async function resumeGoogle() { try { const p = await pendingGoogleLogin(
 
 // troca o nome da conta: o servidor confere se nenhuma outra conta usa esse nome e já atualiza o ranking
 export async function setName(name) {
-  const r = await api('name', { name: String(name || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8) });
+  const n = String(name || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8);
+  if (isBadName(n)) throw Object.assign(new Error('nome'), { code: 'name-bad' });   // o servidor também recusa
+  const r = await api('name', { name: n });
   save.name = r.name; commit();
   return r.name;
 }
@@ -131,6 +134,7 @@ export function friendly(e) {
   if (c.includes('popup-blocked')) return 'O navegador bloqueou a janela do Google. Permita e tente de novo.';
   if (c.includes('account-exists-with-different-credential')) return 'Esse e-mail já tem conta com senha. Entre com e-mail e senha.';
   if (c === 'name-taken') return 'Esse nome já é de outra conta. Escolha outro.';
+  if (c === 'name-bad') return 'Esse nome não é permitido. Escolha outro.';
   if (c.includes('permission-denied')) return 'O servidor recusou (confirme seu e-mail ou tente mais tarde).';
   return 'Não deu certo agora. Tente de novo.';
 }
