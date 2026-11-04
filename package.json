@@ -20,16 +20,14 @@
     "build:android": "node scripts/build-android.mjs",
     "test": "node tests/world.test.mjs"
   },
-  "dependencies": {
-    "@capacitor/android": "^7.6.9",
-    "@capacitor/core": "^7.6.9",
-    "firebase": "^11.10.0"
-  },
   "devDependencies": {
+    "@capacitor/android": "^7.6.9",
     "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
     "electron": "^44.9.1",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
+    "firebase": "^11.10.0",
     "playwright": "1.57.0"
   },
   "build": {
@@ -94,6 +92,8 @@
       "pt-BR",
       "en-US"
     ],
-    "compression": "maximum"
-  }
+    "compression": "maximum",
+    "afterPack": "scripts/after-pack.cjs"
+  },
+  "dependencies": {}
 }
