@@ -30,8 +30,9 @@ function sounds() {
   hits.forEach((at, i) => note(NOTES[Math.min(i, NOTES.length - 1)], at, 0.32, 0.42));
   // a luazinha virando a lua: acorde de sino com brilho
   for (const [f, d, v] of [[523.25, 1.8, 0.5], [659.25, 1.7, 0.36], [783.99, 1.6, 0.3], [1046.5, 1.4, 0.22], [2093, 0.6, 0.06]]) note(f, T.flash, d, v);
-  setTimeout(() => ac.close().catch(() => {}), 5200);
-  return ac;
+  const timer = setTimeout(() => ac.close().catch(() => {}), 5200);
+  // pular a abertura corta o som junto com a imagem (some em ~50 ms, sem estalo)
+  return { stop() { clearTimeout(timer); try { out.gain.cancelScheduledValues(ac.currentTime); out.gain.setTargetAtTime(0, ac.currentTime, 0.015); } catch (_) { /* ok */ } setTimeout(() => ac.close().catch(() => {}), 120); } };
 }
 
 const clamp = (v) => Math.max(0, Math.min(1, v));
@@ -49,15 +50,16 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
     try { el.popover = 'manual'; el.showPopover(); } catch (_) { /* navegador antigo: z-index máximo */ }
     const img = new Image(); img.src = logo;
     let over = false, raf = 0, start = 0;
-    const end = () => { if (over) return; over = true; cancelAnimationFrame(raf); el.remove(); removeEventListener('keydown', key, true); done(); };
-    const key = (e) => { e.stopImmediatePropagation(); e.preventDefault(); end(); };   // a tecla que pula não chega ao jogo
-    el.addEventListener('pointerdown', end);
+    let snd = null;
+    const end = (skip) => { if (over) return; over = true; cancelAnimationFrame(raf); if (skip === true && snd) snd.stop(); el.remove(); removeEventListener('keydown', key, true); done(); };
+    const key = (e) => { e.stopImmediatePropagation(); e.preventDefault(); end(true); };   // a tecla que pula não chega ao jogo
+    el.addEventListener('pointerdown', () => end(true));
     addEventListener('keydown', key, true);
     setTimeout(end, 6500);   // garantia
     const stars = Array.from({ length: 60 }, (_, i) => ({ x: (i * 37.7 % 100) / 100, y: ((i * 61.3 + 7) % 100) / 100, p: i * 0.9, s: i % 6 === 0 ? 2 : 1 }));
     const trail = [];
     let mask = null;
-    const begin = () => { start = performance.now(); sounds(); raf = requestAnimationFrame(frame); };
+    const begin = () => { if (over) return; start = performance.now(); snd = sounds(); raf = requestAnimationFrame(frame); };
     img.onload = begin; img.onerror = end;
 
     function frame(now) {
