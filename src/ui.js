@@ -218,13 +218,13 @@ function conta() {
   }
   root.innerHTML = `<div class="panel"><h2>Conta</h2>
     <p class="muted">Conectado como <b>${esc(a.email)}</b>. Seu progresso fica salvo na nuvem.</p>
-    <label class="lbl">Nome no ranking</label>
-    <div class="row"><input id="nm" maxlength="16" value="${esc(save.name || a.email.split('@')[0].slice(0, 16))}"><button id="nm-ok">Salvar</button></div>
+    <label class="lbl">Nome no ranking (até 8 letras)</label>
+    <div class="row"><input id="nm" maxlength="8" value="${esc(save.name || a.email.split('@')[0].slice(0, 8))}"><button id="nm-ok">Salvar</button></div>
     <p class="muted" id="nm-msg"></p>
     <div class="row"><button id="out">Sair da conta</button><button data-go="title">Voltar</button></div>
     <p class="muted small">Também em <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://', '')}</a></p></div>`;
   $('#nm-ok').onclick = async () => {
-    save.name = $('#nm').value.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 16); commit();
+    save.name = $('#nm').value.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8); commit();
     try { await submitScore(); $('#nm-msg').textContent = 'Nome salvo.'; } catch (er) { $('#nm-msg').textContent = friendly(er); }
   };
   $('#out').onclick = async () => { await logout(); setTimeout(() => show('conta'), 200); };

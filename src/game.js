@@ -244,7 +244,7 @@ export class Game {
     // texto no chão, logo acima da faixa
     const text = g.kind === 'world' || g.kind === 'best' ? `${g.name} ${g.row}` : g.name;
     label(c, text, ox + COLS * T / 2, y + T - 5, col, 8, 40);
-    if (g.kind === 'world' && g.who) label(c, g.who, x, y - 7, col, 8, 16);   // quem tem o recorde mundial, em cima do fantasma
+    if (g.kind === 'world' && g.who) label(c, g.who, x, y - 7, col, 8, 8);   // quem tem o recorde mundial, em cima do fantasma
     c.globalAlpha = 1;
   }
   drawFx(c, f, ox, rowY) {

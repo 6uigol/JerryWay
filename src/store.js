@@ -17,7 +17,7 @@ function sanitize(s) {
   o.coins = Math.max(0, Math.floor(+o.coins || 0)); o.best = Math.max(0, Math.floor(+o.best || 0));
   o.owned = [...new Set((Array.isArray(o.owned) ? o.owned : []).filter((id) => SKIN_BY_ID[id]).concat(DEFAULT_SKIN))];
   if (!o.owned.includes(o.skin)) o.skin = DEFAULT_SKIN;
-  o.name = String(o.name || '').slice(0, 16);
+  o.name = String(o.name || '').slice(0, 8);   // nome do jogador: até 8 letras (igual ao Song of Moonlight)
   return o;
 }
 function readLocal(id) { try { return JSON.parse(localStorage.getItem(KEY(id)) || 'null'); } catch (_) { return null; } }
@@ -104,7 +104,7 @@ export async function resumeGoogle() { try { const p = await pendingGoogleLogin(
 // ---------------------------------------------------------------- ranking
 export async function submitScore() {
   if (!cloud || !account || !account.verified || !save.best) return false;
-  const name = (save.name || account.email.split('@')[0]).replace(/[^\p{L}\p{N} _.-]/gu, '').slice(0, 16) || 'Jerry';
+  const name = (save.name || account.email.split('@')[0]).replace(/[^\p{L}\p{N} _.-]/gu, '').slice(0, 8) || 'Jerry';
   await api('score', { name, best: save.best, skin: save.skin });
   return true;
 }
