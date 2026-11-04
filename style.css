@@ -89,3 +89,5 @@ button.google span { color: #1a1226; }
 .col-info .muted { font-size: 7px; }
 .cell.sel { outline: 2px solid #ffcc3a; outline-offset: 1px; background: #4a3a8a; }
 .panel.wide .grid { max-height: 30vh; }
+/* controle: o botão escolhido no menu fica bem visível */
+body.pad #ui button:focus, body.pad #ui input:focus, body.pad #ui a:focus { outline: 3px solid #ffcc3a; outline-offset: 2px; }

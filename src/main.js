@@ -2,6 +2,7 @@
 import { Game, label } from './game.js';
 import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD } from './world.js';
 import { SKIN_BY_ID, missingMythics } from './skins.js';
+import { pollPad } from './gamepad.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { brandIntro } from './brand.js';
@@ -170,6 +171,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const visRows = LH / TILE;
+  pollPad({ game, showing, onPause: () => { game.state = 'pause'; show('pause'); } });   // controle: setinhas, joystick esquerdo, A, B e Start
   if (game.state !== 'pause') game.update(dt, visRows);
   if (game.over) finish();
   lctx.imageSmoothingEnabled = false;
@@ -231,7 +233,7 @@ function drawPanels() {
   });
   y = Math.max(y + 16 * u, Rp.y + Rp.h - 150 * u);
   ptext('Controles', x, y, 8, '#8aa8ff'); y += 18 * u;
-  for (const line of ['Setas ou WASD: pular', 'Espaço: pra frente', 'Esc: pausa', 'F11: tela cheia']) { ptext(line, x, y, 8, '#c8d0ff'); y += 16 * u; }
+  for (const line of ['Setas ou WASD: pular', 'Espaço: pra frente', 'Esc: pausa', 'Controle: direcional', 'ou analógico, A, Start']) { ptext(line, x, y, 8, '#c8d0ff'); y += 16 * u; }
 }
 function skinName() { const s = SKIN_BY_ID[save.skin]; return s ? s.name : ''; }
 requestAnimationFrame(frame);

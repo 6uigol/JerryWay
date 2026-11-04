@@ -29,6 +29,7 @@ let win = null;
 function createWindow() {
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 480, minHeight: 480, backgroundColor: '#1a1226', show: false, title: 'Jerry\'s Way',
+    fullscreen: true, frame: false,   // sempre em tela cheia, sem a barra com X, maximizar e minimizar (para sair: botão Sair do jogo)
     icon: path.join(ROOT, 'icons', process.platform === 'win32' ? 'app.ico' : 'icon-512.png'), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: DEV, spellcheck: false, backgroundThrottling: false },
   });
@@ -39,11 +40,13 @@ function createWindow() {
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://jogo/')) e.preventDefault(); });
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
-    if (input.key === 'F11') { win.setFullScreen(!win.isFullScreen()); e.preventDefault(); }
+    if (input.key === 'F11') e.preventDefault();   // a tela cheia é fixa
     else if (!DEV && (input.key === 'F12' || input.key === 'F5' || (input.control && /^[r]$/i.test(input.key)) || (input.control && input.shift && /^[ijc]$/i.test(input.key)))) e.preventDefault();
   });
+  win.on('leave-full-screen', () => { if (win) win.setFullScreen(true); });   // nada tira da tela cheia
   win.on('closed', () => { win = null; });
 }
+ipcMain.on('app:quit', () => app.quit());   // botão Sair do jogo
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });

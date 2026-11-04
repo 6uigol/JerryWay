@@ -3,5 +3,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('desktop', Object.freeze({
   isDesktop: true,
+  quit: () => ipcRenderer.send('app:quit'),   // botão Sair do jogo
   googleLogin: (cfg) => ipcRenderer.invoke('auth:google', JSON.parse(JSON.stringify(cfg))),   // { idToken, accessToken } do Google, login feito no navegador do sistema
 }));

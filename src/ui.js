@@ -1,5 +1,5 @@
 // Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
-import { save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
@@ -26,11 +26,15 @@ export function initUI(h) {
     if (go === 'play') hooks.play();
     else if (go === 'resume') hooks.resume();
     else if (go === 'quit') hooks.quit();
+    else if (go === 'quitapp') quitApp();
     else if (go === 'sound') { setMuted(!isMuted()); show(current); }
     else if (go === 'music') { setMusic(!musicEnabled()); show(current); }
     else show(go);
   });
 }
+// o nome (e o resto do progresso) chega da nuvem depois de entrar: a tela Conta se atualiza sozinha
+let lastName = null;
+onChange(() => { if (current === 'conta' && save.name !== lastName && document.activeElement?.id !== 'nm') { lastName = save.name; show('conta'); } });
 export const hide = () => { current = null; root.innerHTML = ''; root.hidden = true; };
 export const showing = () => current;
 
@@ -47,6 +51,13 @@ function thumb(skin, owned) {
   const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(fr, 0, 0, cv.width, cv.height);
   if (!owned) { c.globalCompositeOperation = 'source-in'; c.fillStyle = '#5a4a8a'; c.fillRect(0, 0, cv.width, cv.height); }
   cv.className = 'pix'; return cv;
+}
+// sair do jogo: no PC fecha o programa; no Android fecha o app
+const canQuit = () => !!(window.desktop && window.desktop.quit) || !!window.Capacitor?.isNativePlatform?.();
+function quitApp() {
+  if (window.desktop && window.desktop.quit) return window.desktop.quit();
+  const cap = window.Capacitor, plug = cap && (cap.Plugins?.AppExit || cap.registerPlugin?.('AppExit'));
+  if (plug) plug.exit().catch(() => {});
 }
 const coinsTag = () => `<span class="coins"><i class="coin"></i>${save.coins}</span>`;
 const soundBtns = () => `<div class="row small"><button class="ghost" data-go="sound">${isMuted() ? 'Som: desligado' : 'Som: ligado'}</button><button class="ghost" data-go="music">${musicEnabled() ? 'Música: ligada' : 'Música: desligada'}</button></div>`;
@@ -68,7 +79,8 @@ function title() {
     <div class="row"><button data-go="sorte">Sortear skin</button><button data-go="colecao">Coleção</button></div>
     <div class="row"><button data-go="ranking">Ranking</button><button data-go="conta">Conta</button></div>
     ${soundBtns()}
-    <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD.</p>
+    ${canQuit() ? '<button class="ghost" data-go="quitapp">Sair do jogo</button>' : ''}
+    <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD. No controle: direcional ou analógico.</p>
   </div>`;
   $('#pv').append(preview(skin), Object.assign(document.createElement('div'), { className: 'skinname', textContent: skin.name }));
 }
@@ -265,9 +277,9 @@ function conta() {
   }
   root.innerHTML = `<div class="panel"><h2>Conta</h2>
     <p class="muted">Conectado como <b>${esc(a.email)}</b>. Seu progresso fica salvo na nuvem.</p>
-    <label class="lbl">Nome no ranking (até 8 letras)</label>
-    <div class="row"><input id="nm" maxlength="8" value="${esc(save.name || a.email.split('@')[0].slice(0, 8))}"><button id="nm-ok">Salvar</button></div>
-    <p class="muted" id="nm-msg"></p>
+    <label class="lbl">${save.name ? 'Seu nome no ranking (para trocar, digite outro)' : 'Escolha seu nome no ranking (até 8 letras)'}</label>
+    <div class="row"><input id="nm" maxlength="8" value="${esc(save.name || '')}" placeholder="Seu nome"><button id="nm-ok">${save.name ? 'Trocar' : 'Salvar'}</button></div>
+    <p class="muted" id="nm-msg">${save.name ? 'Nome salvo na sua conta: vale em todos os aparelhos.' : ''}</p>
     <div class="row"><button id="out">Sair da conta</button><button data-go="title">Voltar</button></div>
     <p class="muted small">Também em <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://', '')}</a></p></div>`;
   $('#nm-ok').onclick = async () => {
