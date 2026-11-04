@@ -64,8 +64,11 @@ export class Game {
     const col = Math.round((j.x - T / 2) / T);
     if (L.coins.has(col)) { const v = L.coins.get(col); L.coins.delete(col); this.coins += v; (v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }
     if (L.type === 'river') {
-      const o = L.objs.find((o) => j.x >= o.x - 1 && j.x <= o.x + o.w + 1);
+      // margem de erro: se cair até 7 px fora do tronco (ou da vitória-régia), o Jerry escorrega para cima dele
+      const M = 7, o = L.objs.filter((o) => j.x >= o.x - M && j.x <= o.x + o.w + M)
+        .sort((a, b) => Math.max(0, a.x - j.x, j.x - a.x - a.w) - Math.max(0, b.x - j.x, j.x - b.x - b.w))[0];
       if (!o) return this.die('water');
+      j.x = Math.max(o.x + T / 2, Math.min(o.x + o.w - T / 2, j.x));
       j.on = o; j.onOff = j.x - o.x;
       // encaixa num pedaço inteiro do tronco (de 16 em 16): o Jerry fica sempre todo em cima, nunca metade para fora da ponta
       j.onOff = Math.max(T / 2, Math.min(o.w - T / 2, Math.round((j.onOff - T / 2) / T) * T + T / 2));

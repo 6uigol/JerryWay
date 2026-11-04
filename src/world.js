@@ -57,12 +57,12 @@ export class World {
     let dir = r() < 0.5 ? -1 : 1;
     for (let i = 0; i < n; i++) {
       const rw = this.next;
-      if (type === 'grass') this.addGrass(rw, 0.18 + d * 0.22);
+      if (type === 'grass') this.addGrass(rw, (0.18 + d * 0.22) * (this.lane(rw - 1)?.type === 'river' || i === n - 1 ? 0.45 : 1));   // margem do rio mais aberta
       else if (type === 'road') this.addRoad(rw, dir, d);
       else if (type === 'river') this.addRiver(rw, dir, d);
       else if (type === 'rail') this.addRail(rw, d);
       else this.addSlime(rw, dir, d);
-      dir = r() < 0.75 ? -dir : dir;
+      dir = type === 'river' || r() < 0.75 ? -dir : dir;   // rios seguidos sempre em sentidos contrários
     }
   }
   base(row, type) {
@@ -89,13 +89,13 @@ export class World {
     this.coins(L, row < 3 ? 0 : 0.3);
   }
   // objetos que andam na faixa: espaçados com folga, dando a volta pelos dois lados
-  movers(L, count, minW, maxW, gap) {
+  movers(L, count, minW, maxW, gap, even = false) {
     const total = MAXX - MINX;
     count = Math.max(1, Math.min(count, Math.floor(total / ((maxW + gap) * TILE))));
     const r = this.r, slot = total / count, off = r() * slot;
     for (let i = 0; i < count; i++) {   // cada um na sua fatia da volta, então nunca se encostam
       const w = (minW + Math.floor(r() * (maxW - minW + 1))) * TILE;
-      const x = MINX + ((off + i * slot + r() * Math.max(0, slot - w - gap * TILE)) % total);
+      const x = MINX + ((off + i * slot + r() * Math.max(0, even ? Math.min(TILE, slot - w - gap * TILE) : slot - w - gap * TILE)) % total);   // even: espalhados por igual (rios)
       L.objs.push({ x, w, kind: Math.floor(r() * 3) });
     }
   }
@@ -114,7 +114,9 @@ export class World {
       return;
     }
     L.dir = dir; L.speed = (16 + d * 30 + r() * 12);
-    this.movers(L, 3 + Math.floor(r() * 2), 2 + (d > 0.6 ? 0 : 1), 4 - (d > 0.6 ? 1 : 0), 1.5 + d * 1.5);
+    // troncos suficientes para sempre ter onde pular: o vão entre dois nunca passa de umas 4 casas
+    const minW = 2 + (d > 0.6 ? 0 : 1), maxW = 4 - (d > 0.6 ? 1 : 0), need = Math.ceil((MAXX - MINX) / ((minW + 4) * TILE));
+    this.movers(L, Math.max(need, 3 + Math.floor(r() * 2)), minW, maxW, 1.5 + d * 1.5, true);
   }
   addRail(row, d) {
     const r = this.r, L = this.base(row, 'rail');
