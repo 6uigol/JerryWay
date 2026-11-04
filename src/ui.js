@@ -2,6 +2,7 @@
 import { save, commit, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
+import { makeAcorn } from './acorn.js';
 import { sfx, isMuted, setMuted, initAudio } from './audio.js';
 import { musicEnabled, setMusic, startMusic } from './music.js';
 import { SITE_URL } from './config.js';
@@ -94,14 +95,17 @@ function sorte() {
   root.innerHTML = `<div class="panel">
     <h2>Sorte</h2>
     <div class="info">${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span></div>
-    <div id="gacha" class="gacha"><div class="nut"></div></div>
+    <div id="gacha" class="gacha"><canvas id="nutcv" class="pix" width="240" height="192"></canvas><div id="g-skin" class="g-skin"></div></div>
     <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma das ${SKINS.length} skins. Pode vir repetida (aí as moedas não voltam).</div>
     <button class="big" id="g-pull" ${save.coins < PULL_COST ? 'disabled' : ''}>TENTAR (${PULL_COST})</button>
     <div class="odds">${odds}</div>
     <div class="row"><button data-go="colecao">Coleção</button><button data-go="title">Voltar</button></div>
   </div>`;
   $('#g-pull').addEventListener('click', pull);
+  if (acorn) acorn.stop();
+  acorn = makeAcorn($('#nutcv'));
 }
+let acorn = null;
 let pulling = false;
 function pull() {
   if (pulling || save.coins < PULL_COST) return;
@@ -110,21 +114,19 @@ function pull() {
   const s = rollSkin(), dup = save.owned.includes(s.id);
   if (!dup) save.owned.push(s.id);
   commit();
-  const box = $('#gacha'), out = $('#g-out'), btn = $('#g-pull');
-  btn.disabled = true; out.textContent = 'Abrindo a noz...';
-  box.innerHTML = '<div class="nut shake"></div>';
-  let n = 0; const tick = setInterval(() => { sfx.tick(); if (++n > 14) clearInterval(tick); }, 80);
-  setTimeout(() => {
-    const rr = RARITIES[s.rarity], rank = Object.keys(RARITIES).indexOf(s.rarity);
-    box.innerHTML = ''; box.style.setProperty('--glow', rr.color); box.classList.add('open');
-    box.append(preview(s, 'front', 5));
+  const out = $('#g-out'), btn = $('#g-pull'), slot = $('#g-skin'), rr = RARITIES[s.rarity], rank = Object.keys(RARITIES).indexOf(s.rarity);
+  btn.disabled = true; out.textContent = 'Abrindo a noz...'; slot.innerHTML = ''; slot.classList.remove('show');
+  let n = 0; const tick = setInterval(() => { sfx.tick(); if (++n > 15) clearInterval(tick); }, 85);
+  // a noz treme, racha com a luz da raridade e estoura; a skin aparece no meio dos raios
+  acorn.open(rr.color, () => {
+    clearInterval(tick);
+    slot.append(preview(s, 'front', 5)); slot.style.setProperty('--glow', rr.color); slot.classList.add('show');
     (dup ? sfx.dup : () => sfx.reveal(rank))();
     out.innerHTML = `<b style="color:${rr.color}">${rr.name}</b><br>${esc(s.name)}<br>${dup ? '<span class="muted">Repetida! Você já tinha essa.</span>' : '<span class="new">NOVA!</span>'}`;
     if (!dup) { const u = document.createElement('button'); u.textContent = 'Usar agora'; u.className = 'use'; u.onclick = () => { save.skin = s.id; commit(); sfx.click(); u.disabled = true; u.textContent = 'Usando'; }; out.append(document.createElement('br'), u); }
     $('.info', root).innerHTML = `${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span>`;
-    btn.disabled = save.coins < PULL_COST; pulling = false;
-    setTimeout(() => box.classList.remove('open'), 900);
-  }, 1300);
+    btn.disabled = save.coins < PULL_COST; btn.textContent = `DE NOVO (${PULL_COST})`; pulling = false;
+  });
 }
 
 // ---------------------------------------------------------------- Coleção
