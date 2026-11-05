@@ -188,7 +188,7 @@ export function outline(cv, col = '#1a1226') {
 // um quadro pronto (com contorno) num canvas 28x28 com os pés em (14, 25); guardado em cache
 const cache = new Map();
 export function clearJerryCache() { cache.clear(); }
-// skin = { id, pal: {corOriginal: corNova}, shade(kind, cor, x, y, parte, cabeça), suit, acc: função ou lista (c, hx, hy, view, sgn) } (veja skins.js); small = reduzir para 17x17
+// skin = { id, pal: {corOriginal: corNova}, shade(kind, cor, x, y, parte, cabeça), suit, acc: função ou lista (c, hx, hy, view, sgn) } (veja skins.js); small = reduzir para 19x19
 export function jerryFrame(view, pose, f = 0, skin = null, small = true) {
   const suit = skin && skin.suit || null;
   const key = `${view}|${pose}|${f}|${skin ? skin.id : ''}|${small ? 1 : 0}`;
@@ -229,10 +229,10 @@ export function jerryFrame(view, pose, f = 0, skin = null, small = true) {
   cache.set(key, cv);
   return cv;
 }
-// O desenho é feito em 28x28 (com detalhe) e reduzido para 17x17 (60%), para o Jerry ficar pequeno ao lado do Lyon:
+// O desenho é feito em 28x28 (com detalhe) e reduzido para 19x19 (68%) no jogo:
 // a redução é suavizada e depois cada pixel volta para a cor mais próxima do próprio quadro (continua pixel art, sem borrão).
-// Pés em (8, 15) no quadro reduzido.
-export const JERRY_SIZE = 17, JERRY_FEET = [8, 15];
+// Pés em (9, 17) no quadro reduzido.
+export const JERRY_SIZE = 19, JERRY_FEET = [9, 17];   // 19x19 no jogo (era 17): mais espaço para as estampas e acessórios das skins
 function shrink(src) {
   const sd = src.getContext('2d').getImageData(0, 0, 28, 28).data, pal = new Map();
   for (let i = 0; i < sd.length; i += 4) if (sd[i + 3] > 200) pal.set((sd[i] << 16) | (sd[i + 1] << 8) | sd[i + 2], [sd[i], sd[i + 1], sd[i + 2]]);

@@ -218,7 +218,7 @@ export class Game {
     }
     if (e && e.kind === 'hit') {   // achatado no chão, com estrelinhas girando por cima
       // de lado, achatado e esticado: o rabo e o corpo para fora, a cabeça embaixo da roda (o slime fica em cima dele todo)
-      const fr = jerryFrame(e.dir > 0 ? 'side' : 'left', 'scared', 0, skin), k = Math.min(1, e.t / 0.08), h = Math.round(17 - 8 * k), w = Math.round(17 + 11 * k);
+      const fr = jerryFrame(e.dir > 0 ? 'side' : 'left', 'scared', 0, skin), k = Math.min(1, e.t / 0.08), h = Math.round(19 - 9 * k), w = Math.round(19 + 12 * k);
       c.drawImage(fr, Math.round(x) - Math.round(w / 2) - (e.slime ? 0 : e.dir > 0 ? 4 : -4), Math.round(y) + 13 - h, w, h);
       return;
     }
@@ -233,7 +233,7 @@ export class Game {
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / HOP : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
     if (skin.fx === 'ghost') c.globalAlpha *= 0.75;
-    c.drawImage(fr, Math.round(x) - 8, Math.round(y) - 1);
+    c.drawImage(fr, Math.round(x) - 9, Math.round(y) - 3);   // quadro 19x19 com os pés em (9, 17)
     c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y) + 6);
     if (edge) { const by = Math.round(y) - 9 + (Math.floor(this.t * 6) % 2); c.fillStyle = '#1a1226'; c.fillRect(Math.round(x) - 2, by - 1, 4, 9); c.fillStyle = '#ffe070'; c.fillRect(Math.round(x) - 1, by, 2, 5); c.fillRect(Math.round(x) - 1, by + 6, 2, 1); }
@@ -246,7 +246,7 @@ export class Game {
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round(y) + 12, 10, 2);
     const fr = running ? jerryFrame(m.dir > 0 ? 'side' : 'left', 'hop', 1, skin) : jerryFrame('front', 'idle', 0, skin);
     if (skin.fx === 'ghost') c.globalAlpha = 0.75;
-    c.drawImage(fr, Math.round(x) - 8, Math.round(y - 1 - hop)); c.globalAlpha = 1;
+    c.drawImage(fr, Math.round(x) - 9, Math.round(y - 3 - hop)); c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y - hop) + 6);
     if (!running && Math.sin(t * 4) > 0.6) { c.fillStyle = '#ffffff'; c.fillRect(Math.round(x) + 6, Math.round(y) - 6, 1, 3); c.fillRect(Math.round(x) + 5, Math.round(y) - 5, 3, 1); }
     if (running) { c.fillStyle = 'rgba(232,232,240,0.7)'; for (let i = 1; i < 4; i++) c.fillRect(Math.round(x - m.dir * (6 + i * 5)), Math.round(y) + 11 - (i % 2), 3, 2); }
@@ -270,7 +270,7 @@ export class Game {
     c.fillStyle = col;
     for (let k = -T * 8; k < COLS * T + T * 8; k += 6) c.fillRect(ox + k, y + T - (big ? 3 : 2), 3, big ? 2 : 1);
     c.globalAlpha = passed ? 0.2 : 0.5 + Math.sin(this.t * 3) * 0.1;
-    if (g.kind !== 'world' || g.who) c.drawImage(jerryFrame('front', 'idle', 0, skin), x - 8, y - 4 - Math.round(Math.abs(Math.sin(this.t * 2 + g.row)) * 2));
+    if (g.kind !== 'world' || g.who) c.drawImage(jerryFrame('front', 'idle', 0, skin), x - 9, y - 6 - Math.round(Math.abs(Math.sin(this.t * 2 + g.row)) * 2));
     c.globalAlpha = passed ? 0.4 : 1;
     // texto no chão, logo acima da faixa
     const text = g.kind === 'world' || g.kind === 'best' ? `${g.name} ${g.row}` : g.name;
