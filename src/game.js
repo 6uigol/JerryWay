@@ -41,7 +41,17 @@ export class Game {
     j.view = dy > 0 ? 'back' : dy < 0 ? 'front' : dx > 0 ? 'side' : 'left';
     const L = this.world.lane(row);
     if (L && L.type === 'grass' && L.block.has(col)) { j.bump = 0.12; sfx.bump(); return; }   // árvore ou pedra no caminho
-    j.hop = { fx: j.x, fr: j.row, tx: col * T + T / 2, tr: row, t: 0 };
+    if (j.on && dy === 0) {
+      // de lado em cima do tronco: o pulo é de 1 casa EM CIMA do tronco e acompanha o tronco no ar
+      // (antes ele mirava uma coluna fixa da tela e o tronco andava por baixo: parecia um pulo duplo, pior contra a corrente)
+      const o = j.on, to = j.onOff + dx * T, x = o.x + to;
+      if (x < T / 2 || x > COLS * T - T / 2) { j.view = dx > 0 ? 'side' : 'left'; j.bump = 0.12; sfx.bump(); return; }
+      j.hop = { fx: j.x, fr: j.row, tx: x, tr: row, t: 0, rel: o, fo: j.onOff, to };
+    } else {
+      // de um tronco direto para outro rio: sobe reto (sem puxar para a coluna); nas outras faixas, encaixa na coluna
+      const straight = j.on && L && L.type === 'river' && !L.lily;
+      j.hop = { fx: j.x, fr: j.row, tx: straight ? clamp(j.x, T / 2, COLS * T - T / 2) : col * T + T / 2, tr: row, t: 0 };
+    }
     j.on = null; this.started = true;
     sfx.hop();
   }
@@ -71,10 +81,9 @@ export class Game {
       const M = 7, o = L.objs.filter((o) => j.x >= o.x - M && j.x <= o.x + o.w + M)
         .sort((a, b) => Math.max(0, a.x - j.x, j.x - a.x - a.w) - Math.max(0, b.x - j.x, j.x - b.x - b.w))[0];
       if (!o) return this.die('water');
+      // fica onde caiu, só que sempre todo em cima (nunca metade para fora da ponta); sem "encaixar", que dava um segundo pulinho
       j.x = Math.max(o.x + T / 2, Math.min(o.x + o.w - T / 2, j.x));
       j.on = o; j.onOff = j.x - o.x;
-      // encaixa num pedaço inteiro do tronco (de 16 em 16): o Jerry fica sempre todo em cima, nunca metade para fora da ponta
-      j.onOff = Math.max(T / 2, Math.min(o.w - T / 2, Math.round((j.onOff - T / 2) / T) * T + T / 2));
     }
     if (this.queue) { const q = this.queue; this.queue = null; this.move(q[0], q[1]); }
   }
@@ -145,7 +154,10 @@ export class Game {
     if (this.state !== 'play') return;
 
     // pulo em andamento
-    if (j.hop) { j.hop.t += dt; if (j.hop.t >= HOP) this.land(); }
+    if (j.hop) {
+      if (j.hop.rel) { j.hop.fx = j.hop.rel.x + j.hop.fo; j.hop.tx = j.hop.rel.x + j.hop.to; }   // pulo de lado no tronco: anda junto com ele
+      j.hop.t += dt; if (j.hop.t >= HOP) this.land();
+    }
     // em cima de tronco: anda junto; se sair pela lateral, cai
     if (j.on && !j.hop) {
       j.x = j.on.x + j.onOff;
