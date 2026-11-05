@@ -239,7 +239,7 @@ const EPIC = [
   ['Pinguim', { fur: '#1a1a24', belly: '#ffffff', tail: '#1a1a24', boots: '#ff9a3a' }, ['gravata']],
   ['Explorador', { fur: '#c89868', outfit: ['camisa', '#c8b078', '#6a5a3a'], boots: '#6a4a2a' }, ['safari']],
   ['Esquiador', { fur: '#e8e8f0', outfit: ['moletom', '#3a7ad8'], boots: '#d83a3a' }, ['gorro', 'cachecol']],
-  ['Super-Herói', { fur: '#d4843a', outfit: ['regata', '#2a4ab8'], boots: '#d83a3a' }, ['mascara', 'capa']],
+  ['Super-Herói', { fur: '#d4843a', outfit: ['regata', '#2a4ab8'], boots: '#d83a3a', pat: [['pontaRabo', '#ffcc3a']] }, ['capa', 'medalha']],
   ['Príncipe', { fur: '#e0c070', outfit: ['casaco', '#3a5ad8', '#ffcc3a'] }, ['coroinha', 'capaRoxa']],
   ['Bruxa', { fur: '#7a8a4a', outfit: ['vestido', '#2a1a3a', '#7ad860'], boots: '#1a1a24' }, ['bruxa']],
   ['Palhaço', { fur: '#f0e0b0', outfit: ['listrada', '#ff5a5a', '#ffd84a'], boots: '#4aa8ff' }, ['perucaPalhaco', 'narizPalhaco']],
