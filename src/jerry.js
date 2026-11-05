@@ -7,15 +7,23 @@ const C = {
   acorn: '#c8843a', acornD: '#8a5424', cap: '#6a3a1a', tear: '#7ad0ff', blush: '#ff8fa8', mouth: '#7a2a2a',
 };
 // o rabo e o corpo são pintados em camadas separadas, cada uma com o próprio contorno (o rabo fica bem separado do corpo)
-let LAYER = 'all', PART = 'body', HEAD = false, SUIT = null, PAL = null;
+let LAYER = 'all', PART = 'body', HEAD = false, SUIT = null, PAL = null, SHADE = null;
+// nome de cada cor original (fur, belly, tail, eye...): a skin usa isso para pintar estampas e roupas pixel a pixel
+const KIND = Object.fromEntries(Object.entries(C).map(([k, v]) => [v, k]));
 const SUITS = {
   space: { [C.fur]: '#e8eef8', [C.furL]: '#ffffff', [C.furD]: '#9aa4b8', [C.belly]: '#ffffff', [C.bellyD]: '#c8d2e2', [C.tail]: '#e8eef8', [C.tailL]: '#ffffff', [C.tailD]: '#62b9d9' },
   dive: { [C.fur]: '#1f6478', [C.furL]: '#2f8ca2', [C.furD]: '#14465a', [C.belly]: '#2f8ca2', [C.bellyD]: '#1f6478', [C.tail]: '#1f6478', [C.tailL]: '#2f8ca2', [C.tailD]: '#f0c040' },
 };
 const R = (c, x, y, w, h, col) => {
   if (LAYER !== 'all' && LAYER !== PART) return;
-  if (SUIT && !HEAD) col = SUITS[SUIT][col] || col;   // o traje (espacial ou de mergulho) cobre o corpo, as patas e o rabo
-  else if (PAL) col = PAL[col] || col;                   // skin: troca as cores do pelo, da barriga e do rabo
+  const orig = col, suited = SUIT && !HEAD;
+  if (suited) col = SUITS[SUIT][col] || col;   // o traje (espacial ou de mergulho) cobre o corpo, as patas e o rabo
+  else if (PAL) col = PAL[col] || col;          // skin: troca as cores do pelo, da barriga e do rabo
+  const kind = SHADE && !suited ? KIND[orig] : null;
+  if (kind) {   // skin com estampa ou roupa: cada pixel pode mudar de cor conforme o lugar (x, y), a parte (corpo/rabo) e se é a cabeça
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { c.fillStyle = SHADE(kind, col, x + i, y + j, PART, HEAD) || col; c.fillRect(x + i, y + j, 1, 1); }
+    return;
+  }
   c.fillStyle = col; c.fillRect(x, y, w, h);
 };
 const H = (fn) => { HEAD = true; fn(); HEAD = false; };
@@ -180,7 +188,7 @@ export function outline(cv, col = '#1a1226') {
 // um quadro pronto (com contorno) num canvas 28x28 com os pés em (14, 25); guardado em cache
 const cache = new Map();
 export function clearJerryCache() { cache.clear(); }
-// skin = { id, pal: {corOriginal: corNova}, suit, acc(c, hx, hy, view, sgn) } (veja skins.js); small = reduzir para 17x17
+// skin = { id, pal: {corOriginal: corNova}, shade(kind, cor, x, y, parte, cabeça), suit, acc: função ou lista (c, hx, hy, view, sgn) } (veja skins.js); small = reduzir para 17x17
 export function jerryFrame(view, pose, f = 0, skin = null, small = true) {
   const suit = skin && skin.suit || null;
   const key = `${view}|${pose}|${f}|${skin ? skin.id : ''}|${small ? 1 : 0}`;
@@ -188,15 +196,17 @@ export function jerryFrame(view, pose, f = 0, skin = null, small = true) {
   if (cv) return cv;
   cv = document.createElement('canvas'); cv.width = 28; cv.height = 28;
   const c = cv.getContext('2d');
-  SUIT = suit; PAL = skin && skin.pal || null;
+  SUIT = suit; PAL = skin && skin.pal || null; SHADE = skin && skin.shade || null;
   const layer = (name) => { const l = document.createElement('canvas'); l.width = 28; l.height = 28; LAYER = name; drawJerry(l.getContext('2d'), 14, 25, view, pose, f); LAYER = 'all'; outline(l); return l; };
   const order = view === 'back' && !suit ? ['body', 'tail'] : ['tail', 'body'];   // de traje, o rabo fica atrás (o capacete não passa por cima dele)
   for (const n of order) c.drawImage(layer(n), 0, 0);
-  SUIT = null; PAL = null;
-  if (skin && skin.acc) {   // acessório da skin (chapéu, óculos, coroa...) desenhado por cima, na cabeça
+  SUIT = null; PAL = null; SHADE = null;
+  if (skin && skin.acc && pose !== 'sleep') {   // acessórios da skin (chapéu, óculos, coroa...) por cima, na cabeça, com o próprio contorno
     const side = view === 'side' || view === 'left', sgn = view === 'left' ? -1 : 1;
     const [ox, oy] = side ? (pose === 'hop' ? (f % 2 ? [4, 1] : [3, 3]) : [2, 0]) : [0, (pose === 'dig' ? 2 : 0) - (pose === 'hop' && f % 2 ? 2 : 0)];
-    skin.acc(c, 14 + ox * sgn, 25 - 12 + oy, view, sgn);
+    const l = document.createElement('canvas'); l.width = 28; l.height = 28; const lc = l.getContext('2d');
+    for (const a of [].concat(skin.acc)) a(lc, 14 + ox * sgn, 25 - 12 + oy, view, sgn);
+    outline(l); c.drawImage(l, 0, 0);
   }
   if (suit && pose !== 'sleep') {   // capacete de vidro em volta da cabeça (latão no mergulho) e, no espaço, mochila com antena
     const side = view === 'side' || view === 'left', sgn = view === 'left' ? -1 : 1;
