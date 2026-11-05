@@ -149,7 +149,14 @@ export class Game {
     // em cima de tronco: anda junto; se sair pela lateral, cai
     if (j.on && !j.hop) {
       j.x = j.on.x + j.onOff;
-      if (j.x < 2 || j.x > COLS * T - 2) return this.die('water');
+      // a borda da tela empurra o Jerry: ele escorrega pelo tronco (continua em cima) e só cai na água
+      // quando a ponta do tronco passa por baixo dele
+      const minX = T / 2, maxX = COLS * T - T / 2;
+      if (j.x < minX || j.x > maxX) {
+        j.x = Math.max(minX, Math.min(maxX, j.x));
+        j.onOff = j.x - j.on.x; j.pushed = 0.15;
+        if (j.onOff < -2 || j.onOff > j.on.w + 2) return this.die('water');
+      }
     }
     // batidas: carroças, slimes e o trem
     const row = j.hop ? (j.hop.t / HOP > 0.5 ? j.hop.tr : j.hop.fr) : j.row;
