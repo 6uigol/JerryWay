@@ -155,7 +155,12 @@ export class Game {
       if (j.x < minX || j.x > maxX) {
         j.x = Math.max(minX, Math.min(maxX, j.x));
         j.onOff = j.x - j.on.x; j.pushed = 0.15;
-        if (j.onOff < -2 || j.onOff > j.on.w + 2) return this.die('water');
+        if (j.onOff < -2 || j.onOff > j.on.w + 2) {
+          // acabou este tronco: se tiver outro (ou vitória-régia) logo ali do lado, o Jerry passa para ele; senão cai
+          const lane = this.world.lane(j.row), next = lane && lane.objs.find((o) => o !== j.on && j.x >= o.x - 3 && j.x <= o.x + o.w + 3);
+          if (!next) return this.die('water');
+          j.on = next; j.onOff = Math.max(0, Math.min(next.w, j.x - next.x));
+        }
       }
     }
     // batidas: carroças, slimes e o trem
