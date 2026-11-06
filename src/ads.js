@@ -12,7 +12,7 @@ import { SITE_URL } from './config.js';
 
 export const ADMOB = {
   rewarded: 'ca-app-pub-7937201194751357/5566163110',      // vídeo premiado "reviver" (real)
-  interstitial: 'ca-app-pub-3940256099942544/1033173712',  // tela cheia entre partidas (ainda o de TESTE do Google)
+  interstitial: 'ca-app-pub-7937201194751357/8972064817',  // tela cheia "Entre partidas" (real)
 };
 // bloco com o ID de teste do Google = modo teste; com o ID real = anúncio de verdade
 const isTest = (kind) => ADMOB[kind].includes('3940256099942544');
