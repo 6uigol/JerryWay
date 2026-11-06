@@ -3,8 +3,7 @@
 //    o ID do app fica em android/app/src/main/res/values/strings.xml.
 //  - PC (Windows/Linux): anúncio próprio, do Song of Moonlight, em tela cheia com contagem.
 // Limites (para não irritar e não dar erro de "muitos pedidos" no AdMob):
-//  - entre partidas: no máximo 1 a cada 3 mortes E nunca antes de 2 minutos desde o último anúncio; nunca nas 2 primeiras
-//    partidas do dia; no máximo 20 por dia;
+//  - entre partidas: 1 a cada 3 mortes (nunca antes de 1 minuto desde o último anúncio); no máximo 20 por dia;
 //  - o vídeo para reviver só aparece quando o jogador escolhe (1 vez por partida);
 //  - cada anúncio espera no máximo 8 s para carregar; se o AdMob não tiver anúncio (sem internet, sem estoque, erro),
 //    entra o anúncio próprio do Song of Moonlight (no reviver e entre partidas), então os dois sempre aparecem.
@@ -17,8 +16,8 @@ export const ADMOB = {
 // bloco com o ID de teste do Google = modo teste; com o ID real = anúncio de verdade
 const isTest = (kind) => ADMOB[kind].includes('3940256099942544');
 export const AD_EVERY = 3;                 // anúncio entre partidas a cada 3 mortes
-const MIN_GAP = 2 * 60 * 1000;             // e pelo menos 2 minutos desde o último anúncio
-const DAILY_MAX = 20, FREE_RUNS = 2, LOAD_MS = 8000;
+const MIN_GAP = 60 * 1000;                 // e pelo menos 1 minuto desde o último anúncio
+const DAILY_MAX = 20, LOAD_MS = 8000, NATIVE_MAX = 5000;   // o AdMob tem até 5 s para começar; senão entra o anúncio próprio
 
 const native = () => !!window.Capacitor?.isNativePlatform?.();
 const plugin = () => { const c = window.Capacitor; return c ? (c.Plugins?.AdMob || c.registerPlugin?.('AdMob')) : null; };
@@ -37,7 +36,7 @@ export function countDeath() { const s = state(); s.runs++; s.deaths++; keep(s);
 // está na hora do anúncio entre partidas?
 export function interstitialDue() {
   const s = state();
-  return s.runs > FREE_RUNS && s.deaths >= AD_EVERY && Date.now() - s.last >= MIN_GAP && s.shown < DAILY_MAX;
+  return s.deaths >= AD_EVERY && Date.now() - s.last >= MIN_GAP && s.shown < DAILY_MAX;
 }
 function markShown() { const s = state(); s.deaths = 0; s.last = Date.now(); s.shown++; keep(s); }
 
@@ -122,15 +121,18 @@ export async function maybeInterstitial(noAds) {
   if (noAds() || !interstitialDue()) return;
   markShown();
   if (native()) {
-    const p = await admob();
-    if (p && (loaded.interstitial || await preload('interstitial'))) {
+    // AdMob: carregar e abrir precisa começar em até 5 s; depois espera o jogador fechar o anúncio
+    const shown = await wait((async () => {
+      const p = await admob();
+      if (!p || !(loaded.interstitial || await preload('interstitial'))) return null;
       loaded.interstitial = false;
-      const res = once(p, [['interstitialAdDismissed', 1], ['interstitialAdFailedToShow', 0]], 60000);
-      const ok = await wait(p.showInterstitial(), 15000).then(() => true).catch(() => false);
-      const r = ok ? await res : 0;
-      preload('interstitial');
-      if (ok && r !== 0) return;
-    }
+      const res = once(p, [['interstitialAdDismissed', 1], ['interstitialAdFailedToShow', 0]], 120000);
+      await p.showInterstitial();
+      return res;
+    })(), NATIVE_MAX).catch(() => null);
+    const r = shown ? await shown : 0;
+    preload('interstitial');
+    if (r === 1) return;
     // o AdMob não tinha anúncio agora (app novo, fora da Play Store, sem internet...): mostra o anúncio próprio
   }
   return houseAd(5, { rewarded: false, buy: true });
