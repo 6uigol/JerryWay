@@ -324,7 +324,7 @@ function revive(d) {
 
 // ---------------------------------------------------------------- Loja (a compra é feita no site, com a mesma conta)
 const SHOP = [
-  { id: 'pacote-lua', name: 'Pacote Lua Cheia', price: 'R$ 47,90', badge: 'Melhor oferta', desc: 'Song of Moonlight: O Mistério do Castelo Silencioso + 500 moedas + Multiplicador de moedas.', big: true },
+  { id: 'pacote-lua', name: 'Pacote Lua Cheia', price: 'R$ 47,90', badge: 'Melhor oferta', desc: 'Song of Moonlight: O Mistério do Castelo Silencioso + 500 moedas + Multiplicador de moedas.', big: true, own: () => coinMult() > 1 },
   { id: 'jerry-way-x2', name: 'Multiplicador de moedas', price: 'R$ 7,90', badge: 'x2', desc: 'Todas as moedas das suas partidas valem o dobro, para sempre.', own: () => coinMult() > 1 },
   { id: 'jerry-way-coins150', name: '150 moedas', price: 'R$ 12,00', badge: '+150', desc: 'Entram sozinhas no jogo. Pode comprar quantas vezes quiser.' },
   { id: 'jerry-way-allskins', name: 'Todas as skins', price: 'R$ 239,90', badge: 'Tudo', desc: 'Todas as skins do Jerry, inclusive as míticas.', own: () => SKINS.every((k) => save.owned.includes(k.id)) },
@@ -336,7 +336,7 @@ function loja() {
     <p class="muted small">A compra é feita no site (Pix ou cartão), com a mesma conta do jogo. ${me && me.verified ? `Conta: ${esc(me.email)}` : '<b>Entre na sua conta antes</b> para receber o que comprar.'}</p>
     <div class="shop">${SHOP.map((x) => { const have = x.own && x.own();
       return `<div class="shop-item${x.big ? ' big' : ''}"><span class="badge">${esc(x.badge)}</span><b>${esc(x.name)}</b><span class="muted">${esc(x.desc)}</span>
-        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já é seu</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
+        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já adquirido</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
     <p class="muted" id="sh-msg"></p>
     <div class="row">${me && me.verified ? '<button id="sh-check">Já comprei</button>' : '<button data-go="conta">Entrar na conta</button>'}<button data-go="title">Voltar</button></div></div>`;
   root.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => { sfx.click(); openSite('/#/comprar/' + b.dataset.buy); $('#sh-msg').textContent = 'Depois de pagar no site, volte aqui: o jogo confere sozinho (ou toque em "Já comprei").'; }));
