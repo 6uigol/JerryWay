@@ -7,9 +7,9 @@ export const TILE = 16, COLS = 9;            // 9 colunas jogáveis
 export const MYTH_RUN_CHANCE = 0.0000014, MYTH_ROW = 200, MYTH_SPREAD = 400;
 // depois da fileira 1000 (tentáculos) o jogo sorteia de novo, com 3x a chance (no máximo uma mítica por partida)
 export const MYTH_HARD_BOOST = 3;
-// a partir da fileira 1000 o caminho fica mais difícil (sem aviso): um monstro persegue o Jerry, não dá para reviver
-// e cai 3,2% mais moeda
-export const HARD_ROW = 1000, HARD_COINS = 1.032;
+// a partir da fileira 1000 o caminho fica mais difícil (sem aviso): tentáculos perseguem o Jerry, não dá para reviver
+// e aparecem 3,2 vezes mais moedas que no caminho normal
+export const HARD_ROW = 1000, HARD_COINS = 3.2;
 export const SPAN = 9 * TILE;                // objetos andam também fora da área jogável (aparecem nas laterais da tela)
 const MINX = -SPAN, MAXX = COLS * TILE + SPAN;
 
@@ -108,7 +108,7 @@ export class World {
   }
   coins(L, chance) {
     const r = this.r;
-    if (L.row >= HARD_ROW) chance *= HARD_COINS;
+    if (L.row >= HARD_ROW) chance = Math.min(0.85, chance * HARD_COINS);
     if (r() < chance) { let c; for (let t = 0; t < 6; t++) { c = Math.floor(r() * COLS); if (!L.block.has(c)) break; } if (!L.block.has(c)) L.coins.set(c, r() < this.bigChance ? 5 : 1); }
   }
   addGrass(row, density) {
@@ -123,7 +123,7 @@ export class World {
     for (let c = -9; c < 0; c++) if (r() < 0.55) L.deco.push(c);
     for (let c = COLS; c < COLS + 9; c++) if (r() < 0.55) L.deco.push(c);
     L.variant = Math.floor(r() * 4);
-    this.coins(L, row < 3 ? 0 : 0.3);
+    this.coins(L, row < 3 ? 0 : 0.13);
     // esquilo mítico: só nas partidas sorteadas (e se faltar mítica), na fileira marcada, no máximo um por partida
     if (this.mythOn && !this.mythDone && row >= this.mythAt) { L.myth = this.pathCol; L.coins.delete(this.pathCol); this.mythDone = true; }
     // portal dourado da dimensão bônus (na coluna livre, então sempre dá para chegar nele)
@@ -204,7 +204,7 @@ export class World {
     L.dir = dir; L.speed = (24 + d * 46 + r() * 18) * (0.85 + r() * 0.3);
     const big = r() < 0.35;
     this.movers(L, 2 + Math.floor(r() * (1.5 + d * 2)), big ? 3 : 2, big ? 3 : 2, 3);
-    this.coins(L, 0.22);
+    this.coins(L, 0.1);
   }
   addRiver(row, dir, d) {
     const r = this.r, L = this.base(row, 'river');
@@ -222,14 +222,14 @@ export class World {
     const r = this.r, L = this.base(row, 'rail');
     L.dir = r() < 0.5 ? -1 : 1; L.speed = 420 + d * 120;
     L.timer = 1.5 + r() * 4; L.train = null;
-    this.coins(L, 0.18);
+    this.coins(L, 0.08);
   }
   addSlime(row, dir, d) {
     const r = this.r, L = this.base(row, 'slime');
     L.dir = dir; L.speed = 18 + d * 26;
     this.movers(L, 3 + Math.floor(d * 3), 1, 1, 2);
     for (const o of L.objs) o.ph = r() * 6;
-    this.coins(L, 0.35);
+    this.coins(L, 0.15);
   }
 
   update(dt, rnd) {

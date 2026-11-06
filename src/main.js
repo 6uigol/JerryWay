@@ -146,7 +146,7 @@ function died() {
     skip: finish,
   });
 }
-// jogar de novo: a cada 3 mortes (e no máximo 1 a cada 2 minutos) aparece um anúncio antes, para quem não tirou os anúncios
+// começar uma partida (de qualquer tela): a cada 3 mortes (e no máximo 1 a cada 2 minutos) aparece um anúncio antes, para quem não tirou os anúncios
 let adBusy = false;
 async function playAgain() {
   if (adBusy) return;
@@ -172,7 +172,7 @@ function finish() {
 async function refreshTop() { try { topList = (await top10()) || []; } catch (_) { /* sem ranking agora */ } }
 
 initUI({
-  play: () => (game.state === 'over' ? playAgain() : play()),
+  play: () => playAgain(),   // de qualquer lugar (Jogar de novo ou o JOGAR do menu): confere se está na hora do anúncio
   resume: () => { hide(); game.state = 'play'; last = performance.now(); },
   quit: () => { game.state = 'play'; game.die('portal'); hide(); },
 });
@@ -189,7 +189,7 @@ window.addEventListener('keydown', (e) => {
   const ad = document.querySelector('.housead');   // anúncio na tela: Enter/Espaço fecham quando a contagem acaba
   if (ad) { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); const c = ad.querySelector('.ha-close'); if (c && !c.disabled) c.click(); } return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { if (game.state === 'play') { game.state = 'pause'; show('pause'); } else if (game.state === 'pause') { hide(); game.state = 'play'; } return; }
-  if ((e.code === 'Enter' || e.code === 'Space') && (showing() === 'title' || showing() === 'result')) { e.preventDefault(); if (showing() === 'result') playAgain(); else play(); return; }
+  if ((e.code === 'Enter' || e.code === 'Space') && (showing() === 'title' || showing() === 'result')) { e.preventDefault(); playAgain(); return; }
   const k = keys[e.code];
   if (k && game.state === 'play') { e.preventDefault(); if (!e.repeat) game.move(k[0], k[1]); }
 });
