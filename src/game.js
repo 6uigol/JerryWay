@@ -25,7 +25,7 @@ export class Game {
     this.score = 0; this.coins = 0; this.queue = null;
     this.fx = []; this.toasts = []; this.end = null; this.zone = zoneAt(0).id; this.zoneBanner = { name: zoneAt(0).name, t: 0 };
     this.ghosts = []; this.passed = new Set(); this.worldBest = 0; this.worldName = ''; this.beatWorld = false;
-    this.revived = false; this.shield = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
+    this.revived = false; this.shield = 0; this.blink = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
     this.hard = false;   // passou da fileira 1000: o monstro começa a perseguir (sem aviso)
     this.bonus = null; this.stash = null; this.used = {};   // dimensão bônus em andamento; habilidades de 1 vez por partida já usadas
     this.preview = null; this.powerCd = 0; this.freezeT = 0; this.turboT = 0; this.magnetT = 0; this.waterT = 0; this.slowT = 0; this.recordPaid = false;
@@ -117,7 +117,7 @@ export class Game {
   // reviver (vídeo ou 70 moedas, 1 vez por partida): o Jerry volta na grama segura mais perto de onde caiu,
   // a tela desce um pouco para ele ter espaço e ele fica piscando 2,5 s sem poder ser atropelado
   revive() {
-    this.placeSafe(); this.end = null; this.queue = null; this.state = 'play'; this.revived = true; this.shield = 2.5;
+    this.placeSafe(); this.end = null; this.queue = null; this.state = 'play'; this.revived = true; this.shield = 2.5; this.blink = 2.5;
   }
   // põe o Jerry na grama livre mais perto (reviver, Nadador e a volta da dimensão bônus)
   placeSafe() {
@@ -403,6 +403,7 @@ export class Game {
     }
     if (this.state !== 'play') return;
     if (this.shield > 0) this.shield -= dt;
+    if (this.blink > 0) this.blink -= dt;
 
     // pulo em andamento
     if (j.hop) {
@@ -594,10 +595,14 @@ export class Game {
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / (j.hop.dur || this.hopT) : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
     if (skin.fx === 'ghost') c.globalAlpha *= 0.75;
-    if (this.shield > 0 && Math.floor(this.t * 10) % 2) c.globalAlpha *= 0.35;   // acabou de reviver: piscando
+    if (this.blink > 0 && Math.floor(this.t * 10) % 2) c.globalAlpha *= 0.35;   // piscando SÓ depois de reviver (outras proteções mostram o escudo, sem piscar)
     c.drawImage(fr, Math.round(x) - 9, Math.round(y) - 3);   // quadro 19x19 com os pés em (9, 17)
     c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y) + 6);
+    if (this.shield > 0 && !(this.blink > 0) && this.shield > 0.5) {   // proteção (Largada Segura, Escudo, volta do bônus...): bolha de luz em volta, sem piscar
+      c.save(); c.globalAlpha = 0.28 + 0.12 * Math.sin(this.t * 8); c.strokeStyle = '#9fe8ff'; c.lineWidth = 1;
+      c.beginPath(); c.arc(Math.round(x), Math.round(y) + 7, 11, 0, Math.PI * 2); c.stroke(); c.restore();
+    }
     if (edge) { const by = Math.round(y) - 9 + (Math.floor(this.t * 6) % 2); c.fillStyle = '#1a1226'; c.fillRect(Math.round(x) - 2, by - 1, 4, 9); c.fillStyle = '#ffe070'; c.fillRect(Math.round(x) - 1, by, 2, 5); c.fillRect(Math.round(x) - 1, by + 6, 2, 1); }
   }
   // o esquilo mítico parado no caminho (com o brilho da skin) ou fugindo

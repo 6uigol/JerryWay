@@ -318,11 +318,15 @@ function revive(d) {
     <p class="muted small">Você tem ${d.coins} <i class="coin"></i></p>
     <div class="rv-bar"><i id="rv-time"></i></div>
     <button class="ghost" id="rv-skip">Não, obrigado</button></div>`;
-  const T0 = Date.now(), MS = 7000; let done = false;
+  const T0 = Date.now(), MS = 7000, ARM = 900; let done = false;   // nos primeiros 0,9 s nada é aceito: o toque/espaço do pulo que matou o Jerry não pode reviver sozinho
   const end = (fn) => { if (done) return; done = true; clearInterval(timer); fn(); };
+  const armed = () => Date.now() - T0 >= ARM;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  const btns = [$('#rv-coins'), $('#rv-skip')]; btns.forEach((b) => { b.disabled = true; });
+  setTimeout(() => btns.forEach((b) => { b.disabled = false; }), ARM);
   const timer = setInterval(() => { const k = 1 - (Date.now() - T0) / MS; $('#rv-time').style.width = Math.max(0, k * 100) + '%'; if (k <= 0) end(d.skip); }, 50);
-  $('#rv-coins').onclick = () => { sfx.click(); end(d.pay); };
-  $('#rv-skip').onclick = () => { sfx.click(); end(d.skip); };
+  $('#rv-coins').onclick = (e) => { if (!armed()) return; sfx.click(); end(d.pay); };
+  $('#rv-skip').onclick = (e) => { if (!armed()) return; sfx.click(); end(d.skip); };
 }
 
 // ---------------------------------------------------------------- Loja (a compra é feita no site, com a mesma conta)
