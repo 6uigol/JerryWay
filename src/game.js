@@ -6,6 +6,8 @@ import { jerryFrame } from './jerry.js';
 import { SKIN_BY_ID, DEFAULT_SKIN } from './skins.js';
 const GOLD_SQUIRREL = 's162';   // o esquilo da Caça ao Esquilo Dourado usa o desenho da skin Dourado
 import { sfx } from './audio.js';
+// ritmo da tela subindo sozinha: 10% mais rápido que antes (no ritmo do Crossy Road)
+const CAM_PACE = 1.1;
 
 const T = TILE;
 const HOP = 0.12;
@@ -440,7 +442,7 @@ export class Game {
     if (this.bonus && (this.bonus.t -= dt) <= 0) return this.exitBonus(false);   // acabou o tempo da dimensão bônus
     if (this.bonus) { this.cam = -1; return this.bonusTick(dt); }   // dimensão bônus: a tela fica parada (labirinto numa tela só)
     if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; if (this.onHard) this.onHard(); }   // começa do nada (e o jogo sorteia de novo o esquilo mítico, com 3x a chance)
-    if (this.started && !(this.freezeT > 0)) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 1 - this.pv / 100 : 1) * (this.hard ? 1.15 : 1) * (this.slowT > 0 ? 0.5 : 1) * dt;
+    if (this.started && !(this.freezeT > 0)) this.cam += (0.38 + d * 0.62) * CAM_PACE * (this.ability === 'calmo' ? 1 - this.pv / 100 : 1) * (this.hard ? 1.15 : 1) * (this.slowT > 0 ? 0.5 : 1) * dt;
     const target = j.row - visRows * 0.42;
     if (target > this.cam) this.cam += (target - this.cam) * Math.min(1, dt * 4);
     // depois da fileira 1000 o monstro vem por baixo da tela: se alcançar o Jerry, acabou (sem reviver)
