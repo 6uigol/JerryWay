@@ -1,6 +1,6 @@
 // Anúncios do Jerry's Way.
-//  - Android: AdMob (vídeo premiado para reviver + anúncio entre partidas). Os IDs abaixo são os de TESTE do Google:
-//    troque pelos seus (AdMob → Apps → Blocos de anúncios) e mude `testing` para false antes de publicar.
+//  - Android: AdMob (vídeo premiado para reviver + anúncio entre partidas). IDs dos blocos em ADMOB (AdMob → Apps → Blocos de anúncios);
+//    o ID do app fica em android/app/src/main/res/values/strings.xml.
 //  - PC (Windows/Linux): anúncio próprio, do Song of Moonlight, em tela cheia com contagem.
 // Limites (para não irritar e não dar erro de "muitos pedidos" no AdMob):
 //  - entre partidas: no máximo 1 a cada 3 mortes E nunca antes de 2 minutos desde o último anúncio; nunca nas 2 primeiras
@@ -11,10 +11,11 @@
 import { SITE_URL } from './config.js';
 
 export const ADMOB = {
-  testing: true,
-  rewarded: 'ca-app-pub-3940256099942544/5224354917',      // vídeo premiado (teste)
-  interstitial: 'ca-app-pub-3940256099942544/1033173712',  // tela cheia entre partidas (teste)
+  rewarded: 'ca-app-pub-7937201194751357/5566163110',      // vídeo premiado "reviver" (real)
+  interstitial: 'ca-app-pub-3940256099942544/1033173712',  // tela cheia entre partidas (ainda o de TESTE do Google)
 };
+// bloco com o ID de teste do Google = modo teste; com o ID real = anúncio de verdade
+const isTest = (kind) => ADMOB[kind].includes('3940256099942544');
 export const AD_EVERY = 3;                 // anúncio entre partidas a cada 3 mortes
 const MIN_GAP = 2 * 60 * 1000;             // e pelo menos 2 minutos desde o último anúncio
 const DAILY_MAX = 20, FREE_RUNS = 2, LOAD_MS = 8000;
@@ -44,7 +45,7 @@ function markShown() { const s = state(); s.deaths = 0; s.last = Date.now(); s.s
 let ready = null, loaded = { rewarded: false, interstitial: false }, loading = {};
 async function admob() {
   const p = plugin(); if (!p) return null;
-  if (!ready) ready = wait(p.initialize({ initializeForTesting: ADMOB.testing }), LOAD_MS).then(() => p).catch(() => { ready = null; return null; });
+  if (!ready) ready = wait(p.initialize({ initializeForTesting: false }), LOAD_MS).then(() => p).catch(() => { ready = null; return null; });
   return ready;
 }
 // carrega antes, para o anúncio abrir na hora (no máximo um pedido por vez de cada tipo)
@@ -52,7 +53,7 @@ function preload(kind) {
   if (loaded[kind] || loading[kind]) return loading[kind];
   loading[kind] = (async () => {
     const p = await admob(); if (!p) return false;
-    const opts = { adId: ADMOB[kind], isTesting: ADMOB.testing };
+    const opts = { adId: ADMOB[kind], isTesting: isTest(kind) };
     await wait(kind === 'rewarded' ? p.prepareRewardVideoAd(opts) : p.prepareInterstitial(opts), LOAD_MS);
     loaded[kind] = true; return true;
   })().catch(() => false).finally(() => { loading[kind] = null; });
