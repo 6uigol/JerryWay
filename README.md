@@ -26,16 +26,10 @@ npm test                 # confere que o caminho gerado nunca fecha
 Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.js` (arte em pixel art),
 `src/jerry.js` (o Jerry, o mesmo desenho do Song of Moonlight), `src/skins.js` (as 180 skins), `src/ui.js` (menus).
 
-## Anúncios e "Sem anúncios"
+## Reviver e chaves
 
-- **Android:** AdMob (`@capacitor-community/admob`). O jogo está com os IDs de **teste** do Google. Para receber de verdade:
-  1. Crie a conta em admob.google.com, adicione o app Android `com.jerryway.game` e crie dois blocos: **Premiado** (reviver) e **Intersticial** (entre partidas).
-  2. Troque o ID do app em `android/app/src/main/res/values/strings.xml` (`admob_app_id`, formato `ca-app-pub-XXXX~YYYY`).
-  3. Troque os IDs dos blocos em `src/ads.js` (`ADMOB.rewarded` e `ADMOB.interstitial`); bloco com ID de teste do Google roda em modo teste.
-- **PC (Windows/Linux):** anúncio próprio do Song of Moonlight (`icons/som-ad.jpg`), sem rede de anúncios.
-- **Limites:** anúncio entre partidas a cada 3 mortes, nunca antes de 1 minuto do anterior e no máximo 20 por dia. Se o AdMob não abrir um anúncio em até 5 s, entra o anúncio próprio do Song of Moonlight. Cada anúncio espera no máximo 8 s para carregar; sem anúncio disponível, o jogo segue (o vídeo de reviver usa o anúncio próprio).
-- **Reviver:** 1 vez por partida, vendo vídeo (sempre disponível, mesmo para quem tirou os anúncios) ou por 70 moedas (40 com a habilidade Pechincheiro).
-- **Sem anúncios (R$ 9,90):** comprado no site com a conta (`#/comprar/jerry-way-noads`) ou por chave de resgate (Admin → Chaves de resgate → "Para que serve: Sem anúncios"; usar em songofmoonlight.online/#/chaves). O jogo confere em `/api/jerry?op=ent`.
+- **Sem anúncios:** o jogo não tem anúncio nenhum (nem AdMob nem anúncio próprio).
+- **Reviver:** 1 vez por partida, por 70 moedas (40 com a habilidade Pechincheiro). Sem moedas suficientes, vai direto para o fim. Depois da fileira 1000 não dá para reviver.
 
 ## Dimensões bônus e habilidades
 

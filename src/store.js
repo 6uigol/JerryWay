@@ -51,14 +51,13 @@ async function api(op, payload) {
 async function pushCloud() { try { await api('save', { data: JSON.parse(JSON.stringify(save)) }); } catch (e) { console.warn('nuvem', e && e.code); } }
 
 // ---------------------------------------------------------------- conta
-// compras extras da conta ("Sem anúncios"): vêm do servidor; ficam guardadas no aparelho para valer sem internet
+// extras da conta liberados por chave ("Todas as skins"): vêm do servidor; ficam guardados no aparelho para valer sem internet
 const ENT = (id) => 'jerryway.ent.' + id;
-let ent = { noAds: false };
-export const noAds = () => !!(ent.noAds && account && account.verified);
-function readEnt(id) { try { return JSON.parse(localStorage.getItem(ENT(id)) || 'null') || { noAds: false }; } catch (_) { return { noAds: false }; } }
+let ent = { allSkins: false };
+function readEnt(id) { try { return JSON.parse(localStorage.getItem(ENT(id)) || 'null') || { allSkins: false }; } catch (_) { return { allSkins: false }; } }
 export async function refreshEnt() {
   if (!cloud || !account || !account.verified) return ent;
-  try { const r = await api('ent'); ent = { noAds: !!r.noAds, allSkins: !!r.allSkins }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
+  try { const r = await api('ent'); ent = { allSkins: !!r.allSkins }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
   unlockAll();
   return ent;
 }
@@ -82,7 +81,7 @@ export async function initCloud() {
 }
 // ao entrar: junta o que estava no aparelho (sem conta) com o que está na nuvem (o recorde maior, todas as skins)
 async function attach(u) {
-  if (!u) { uid = null; ent = { noAds: false }; load(readLocal(null)); emit(); return; }
+  if (!u) { uid = null; ent = { allSkins: false }; load(readLocal(null)); emit(); return; }
   uid = u.uid; ent = readEnt(u.uid);
   const local = readLocal(uid) || readLocal(null) || {};
   load(local);
