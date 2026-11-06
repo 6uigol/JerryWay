@@ -32,7 +32,7 @@
 
         </activity>
 
-        <!-- AdMob: ID do app. Este é o ID de TESTE do Google; troque pelo seu (AdMob → Apps → Configurações do app) -->
+        <!-- AdMob: ID do app (fica em res/values/strings.xml, admob_app_id) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id" />

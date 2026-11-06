@@ -4,6 +4,6 @@
     <string name="title_activity_main">Jerry\'s Way</string>
     <string name="package_name">com.jerryway.game</string>
     <string name="custom_url_scheme">com.jerryway.game</string>
-    <!-- AdMob: ID de TESTE do Google. Troque pelo ID do seu app no AdMob (formato ca-app-pub-XXXX~YYYY) -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- AdMob: ID do app Jerry's Way (AdMob → Apps → Configurações do app) -->
+    <string name="admob_app_id">ca-app-pub-7937201194751357~1653858326</string>
 </resources>
