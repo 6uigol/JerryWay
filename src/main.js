@@ -214,7 +214,7 @@ function frame(now) {
   if (game.state === 'play' || game.state === 'dying') hud();
   const showPause = game.state === 'play' && !showing(); if (pauseBtn.hidden === showPause) pauseBtn.hidden = !showPause;
   const showPower = showPause && game.pw && game.pw.active; if (powerBtn.hidden === showPower) powerBtn.hidden = !showPower;
-  if (showPower) { const k = game.pw.cd ? Math.min(1, game.powerCd / game.pw.cd) : 0; powerBtn.style.setProperty('--cd', k); powerBtn.classList.toggle('ready', k <= 0); powerBtn.firstChild.textContent = k > 0 ? Math.ceil(game.powerCd) : '★'; }
+  if (showPower) { const k = game.pw.cd ? Math.min(1, game.powerCd / game.pw.cd) : 0; powerBtn.style.setProperty('--cd', k); powerBtn.classList.toggle('ready', k <= 0); powerBtn.firstChild.textContent = k > 0 ? Math.ceil(game.powerCd) : game.preview ? 'IR' : '★'; powerBtn.classList.toggle('confirm', !!game.preview); }
   ctx.imageSmoothingEnabled = false;
   if (frameCv) ctx.drawImage(frameCv, 0, 0);
   // depois da fileira 1000 a tela treme de leve o tempo todo

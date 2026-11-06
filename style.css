@@ -132,3 +132,4 @@ button.shop-btn { background: #8a5a10; border-color: #ffcc3a; color: #fff2c8; fo
 /* links legais */
 .legal { font-size: 7px; line-height: 1.8; margin: 4px 0 0; }
 .legal a { color: #c8b8ff; }
+#powerbtn.confirm { background: #c8901a; border-color: #ffe070; }

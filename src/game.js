@@ -26,7 +26,7 @@ export class Game {
     this.revived = false; this.shield = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
     this.hard = false;   // passou da fileira 1000: o monstro começa a perseguir (sem aviso)
     this.bonus = null; this.stash = null; this.used = {};   // dimensão bônus em andamento; habilidades de 1 vez por partida já usadas
-    this.powerCd = 0; this.freezeT = 0; this.turboT = 0; this.magnetT = 0; this.waterT = 0; this.slowT = 0; this.recordPaid = false;
+    this.preview = null; this.powerCd = 0; this.freezeT = 0; this.turboT = 0; this.magnetT = 0; this.waterT = 0; this.slowT = 0; this.recordPaid = false;
     this.setPower(this.pw || null);
   }
   // poder da skin (ver POWER_TYPES em skins.js): os passivos ajustam o jogo; os ativos usam o botão PODER
@@ -43,6 +43,31 @@ export class Game {
     if (this.ability === 'moedaInicial') this.coins = this.pv;
     if (this.ability === 'escudoInicio') this.shield = this.pv;
   }
+  // a casa (fileira r, coluna c) é segura para chegar daqui a `dur` segundos? (grama livre, tronco embaixo, sem carroça/slime/trem chegando)
+  isSafe(r, c, dur) {
+    const L = this.world.lane(r); if (!L || c < 0 || c >= COLS || r < Math.floor(this.cam) + 1) return false;
+    const x = c * T + T / 2, at = (o, t) => o.x + (L.frozen || this.freezeT > 0 ? 0 : L.dir * L.speed * t * (this.slowT > 0 ? 0.5 : 1));
+    if (L.type === 'grass') return !L.block.has(c);
+    if (L.type === 'river') return L.objs.some((o) => { const ox = at(o, dur); return x >= ox + 3 && x <= ox + o.w - 3; }) && L.objs.some((o) => { const ox = at(o, dur + 0.8); return x >= ox + 1 && x <= ox + o.w - 1; });
+    if (L.type === 'rail') return !L.train && !this.world.warning(L) && !(L.timer < dur + 1.5);
+    for (const t of [dur, dur + 0.3, dur + 0.6, dur + 0.9, dur + 1.2]) if (L.objs.some((o) => { const ox = at(o, t); return x + 9 > ox && x - 9 < ox + o.w; })) return false;   // estrada e slimes
+    return true;
+  }
+  // destino do Teleporte, do Voo ou da Investida: o mais longe possível até o alcance do poder, sempre num lugar seguro
+  powerTarget() {
+    const pw = this.pw, j = this.j; if (!pw || !pw.active) return null;
+    const a = Array.isArray(pw.v) ? pw.v[0] : pw.v, col = Math.round((j.x - T / 2) / T);
+    if (pw.type === 'dash') {
+      const dir = j.view === 'left' ? -1 : 1;
+      for (let k = a; k >= 1; k--) { const c = col + dir * k; if (this.isSafe(j.row, c, 0.15)) return { row: j.row, col: c }; }
+      return null;
+    }
+    for (let d = a; d >= 1; d--) {
+      const r = j.row + d, dur = pw.type === 'voo' ? 0.2 * d : 0.15;
+      for (let k = 0; k < COLS; k++) for (const c of k ? [col - k, col + k] : [col]) if (this.isSafe(r, c, dur)) return { row: r, col: c };
+    }
+    return null;
+  }
   // botão PODER: usa o poder ativo da skin (se já tiver passado o tempo de espera)
   usePower() {
     const pw = this.pw, j = this.j;
@@ -52,9 +77,18 @@ export class Game {
     const [a, b] = Array.isArray(pw.v) ? pw.v : [pw.v, 0], col = Math.round((j.x - T / 2) / T);
     const freeCol = (row, want) => { const L = this.world.lane(row); if (!L || L.type !== 'grass') return want; for (let d = 0; d < COLS; d++) for (const c of [want - d, want + d]) if (c >= 0 && c < COLS && !L.block.has(c)) return c; return want; };
     switch (pw.type) {
-      case 'teleporte': { const r = j.row + a, c = freeCol(r, col); this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: r, t: 0, dur: 0.1, tp: true }; this.shield = Math.max(this.shield, 0.4 + b); sfx.portal(); break; }
-      case 'voo': { const r = j.row + a, c = freeCol(r, col), dur = 0.2 * a; j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: r, t: 0, dur, h: 8 + a * 4 }; j.view = 'back'; this.shield = Math.max(this.shield, dur + b); sfx.hop(); break; }
-      case 'dash': { const dir = j.view === 'left' ? -1 : 1, c = freeCol(j.row, Math.max(0, Math.min(COLS - 1, col + dir * a))); if (c === col) return false; j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: j.row, t: 0, dur: 0.1 }; this.shield = Math.max(this.shield, 0.2 + b); sfx.hop(); break; }
+      case 'teleporte': case 'voo': case 'dash': {
+        // 1º toque: mostra onde vai parar (4 s); 2º toque: vai. O destino é sempre um lugar seguro.
+        const tg = this.powerTarget();
+        if (!tg) { this.preview = null; this.toast('Nenhum lugar seguro agora', '#ff9a7a'); sfx.bump(); return false; }
+        if (!this.preview) { this.preview = { t: 4 }; this.toast('Toque de novo para ir', '#ffe070'); sfx.pass(); return false; }
+        this.preview = null;
+        const { row: r, col: c } = tg, tx = c * T + T / 2;
+        if (pw.type === 'teleporte') { this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); j.hop = { fx: j.x, fr: j.row, tx, tr: r, t: 0, dur: 0.1, tp: true }; this.shield = Math.max(this.shield, 0.4 + b); sfx.portal(); }
+        else if (pw.type === 'voo') { const dur = 0.2 * (r - j.row); j.hop = { fx: j.x, fr: j.row, tx, tr: r, t: 0, dur, h: 8 + (r - j.row) * 4 }; j.view = 'back'; this.shield = Math.max(this.shield, dur + b); sfx.hop(); }
+        else { j.hop = { fx: j.x, fr: j.row, tx, tr: r, t: 0, dur: 0.1 }; this.shield = Math.max(this.shield, 0.2 + b); sfx.hop(); }
+        j.on = null; break;
+      }
       case 'tempo': this.freezeT = a; sfx.portal(); break;
       case 'escudo': this.shield = Math.max(this.shield, a); sfx.record(); break;
       case 'turbo': this.turboT = a; sfx.pass(); break;
@@ -340,7 +374,8 @@ export class Game {
     W.ensure(Math.floor(this.cam + visRows + 12));
     W.prune(Math.floor(this.cam) - 6);
     for (const k of ['powerCd', 'freezeT', 'turboT', 'magnetT', 'slowT']) if (this[k] > 0) this[k] = Math.max(0, this[k] - dt);
-    if (this.waterT > 0) { this.waterT -= dt; if (this.waterT <= 0) { const L = W.lane(j.row); if (L && L.type === 'river' && !j.on && !j.hop && this.state === 'play') this.die('water'); } }   // acabou o Andar na Água em cima da água
+    if (this.preview && (this.preview.t -= dt) <= 0) this.preview = null;   // a prévia do destino some em 4 s
+    if (this.waterT > 0) { this.waterT -= dt; if (this.waterT <= 0) { const L = W.lane(j.row); if (L && L.type === 'river' && !j.on && !j.hop && this.state === 'play') { this.placeSafe(); this.shield = Math.max(this.shield, 1); this.toast('Acabou o Andar na Água: voltou para a margem', '#7af0ff'); } } }   // acabou o Andar na Água em cima da água
     const wdt = this.freezeT > 0 ? 0 : dt * (this.ability === 'reflexo' ? 1 - this.pv / 100 : 1) * (this.slowT > 0 ? 0.5 : 1);
     W.update(wdt, this.rnd);
     if (this.mythRun) { const m = this.mythRun; m.t += dt; m.x += m.dir * (60 + m.t * 220) * dt; if (m.x < -60 || m.x > COLS * T + 60) this.mythRun = null; }
@@ -440,6 +475,17 @@ export class Game {
     }
     for (const f of this.fx) this.drawFx(c, f, ox, rowY);
     if (this.bonus) this.drawBonus(c, ox, rowY, LW);
+    if (this.preview && this.state === 'play') {   // prévia: onde o Teleporte, o Voo ou a Investida vão deixar o Jerry
+      const tg = this.powerTarget();
+      if (tg) {
+        const x = ox + tg.col * T + T / 2, y = rowY(tg.row), k = 0.5 + Math.sin(t * 8) * 0.25;
+        c.globalAlpha = 0.35 + k * 0.3; c.drawImage(jerryFrame('front', 'idle', 0, SKIN_BY_ID[this.skinId || DEFAULT_SKIN]), Math.round(x) - 9, y - 3); c.globalAlpha = 1;
+        c.strokeStyle = '#ffe070'; c.lineWidth = 1; c.beginPath(); c.ellipse(x, y + 13, 7 + k * 2, 2.5 + k, 0, 0, 7); c.stroke();
+        const jp = this.jerryPos(ox, rowY); c.fillStyle = 'rgba(255,224,112,0.7)';
+        for (let i = 1; i < 6; i++) { const f = i / 6; c.fillRect(Math.round(jp.x + (x - jp.x) * f), Math.round(jp.y + 6 + (y + 6 - jp.y - 6) * f), 1, 1); }
+        label(c, String(Math.ceil(this.preview.t)), x, y - 6, '#ffe070', 8);
+      }
+    }
     if (this.end && this.end.kind === 'hit') {   // estrelinhas de tonto por cima de tudo (até do que atropelou)
       const { x, y } = this.jerryPos(ox, rowY);
       for (let i = 0; i < 4; i++) { const a = t * 6 + i * 1.57, sx = Math.round(x + Math.cos(a) * 8), sy = Math.round(y + 2 + Math.sin(a) * 2.5); c.fillStyle = '#1a1226'; c.fillRect(sx - 1, sy - 1, 4, 4); c.fillStyle = i % 2 ? '#ffe070' : '#ffffff'; c.fillRect(sx, sy, 2, 2); }
