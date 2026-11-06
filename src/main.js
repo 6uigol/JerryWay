@@ -1,7 +1,8 @@
 // Jerry's Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
 import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD } from './world.js';
-import { SKIN_BY_ID, missingMythics } from './skins.js';
+import { SKIN_BY_ID, missingMythics, ABILITIES } from './skins.js';
+import { BONUS } from './world.js';
 import { pollPad } from './gamepad.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange, noAds, refreshEnt } from './store.js';
 import { initAds, showRewarded, maybeInterstitial, countDeath } from './ads.js';
@@ -100,6 +101,7 @@ function play() {
   initAudio(); startMusic(); hide();
   game.reset((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
   game.skinId = save.skin;
+  game.setAbility((SKIN_BY_ID[save.skin] || {}).ability || null);   // habilidade passiva da skin escolhida
   // esquilo mítico da partida: uma das míticas que ainda faltam (se não faltar nenhuma, ele não aparece)
   const left = missingMythics(save.owned), myth = left.length ? left[Math.floor(Math.random() * left.length)] : null;
   // um sorteio só, no começo da partida: 0,00014% de chance de o esquilo mítico aparecer nela
@@ -114,14 +116,15 @@ function play() {
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();
 }
-// morreu: antes do fim, oferece reviver (1 vez por partida) vendo um vídeo ou por 100 moedas
+const reviveCost = () => (game.ability === 'pechincha' ? 40 : REVIVE_COST);   // Pechincheiro: reviver mais barato
+// morreu: antes do fim, oferece reviver (1 vez por partida) vendo um vídeo ou por 70 moedas
 function died() {
   const g = game;
   if (g.revived) return finish();
   g.state = 'ask';   // a partida fica parada (sem contar como fim) enquanto o jogador escolhe
   const back = () => { hide(); g.revive(); last = performance.now(); };
   show('revive', {
-    score: g.score, coins: save.coins + g.coins,
+    score: g.score, coins: save.coins + g.coins, cost: reviveCost(),
     video: async () => {
       hide(); setBackground(true);   // o som do jogo para durante o vídeo
       let ok = false; try { ok = await showRewarded(); } catch (_) { ok = false; }
@@ -130,7 +133,7 @@ function died() {
     },
     pay: () => {
       // paga primeiro com as moedas guardadas; o que faltar sai das moedas desta partida
-      const fromSave = Math.min(save.coins, REVIVE_COST); save.coins -= fromSave; g.coins -= REVIVE_COST - fromSave; commit();
+      const cost = reviveCost(), fromSave = Math.min(save.coins, cost); save.coins -= fromSave; g.coins -= cost - fromSave; commit();
       back();
     },
     skip: finish,
@@ -231,6 +234,7 @@ function hud() {
   label(c, String(save.coins + game.coins), LW - 8 - String(save.coins + game.coins).length * 4, 15, '#ffe070');
 
   }
+  if (game.bonus && game.state === 'play') label(c, `Bônus ${Math.max(0, Math.ceil(game.bonus.t))}s${game.bonus.kind === 'caca' ? ` · ${game.bonus.caught} esquilo${game.bonus.caught === 1 ? '' : 's'}` : ''}`, LW / 2, LH - 14, '#ffe070');
   const b = game.zoneBanner;
   if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, 44, '#ffe9a8'); c.globalAlpha = 1; }
   game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, 60 + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
@@ -256,8 +260,10 @@ function drawPanels() {
   ptext('Recorde mundial', x, y, 8, '#8aa8ff'); ptext(String(beat ? game.score : wb || '-'), x, y + 14 * u, 16, beat ? '#ffcc3a' : '#9ad0ff');
   ptext(fit(beat ? 'é seu agora!' : topList[0] ? 'de ' + topList[0].name : 'ninguém ainda', cols), x, y + 36 * u, 8, beat ? '#ffcc3a' : '#c8d0ff'); y += 60 * u;
   row('Moedas', save.coins + (playing ? game.coins : 0), '#ffcc3a');
-  ptext('Lugar', x, y, 8, '#8aa8ff'); ptext(fit(ZONE_NAMES[game.zone] || '', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
+  ptext('Lugar', x, y, 8, '#8aa8ff'); ptext(fit(game.bonus ? BONUS[game.bonus.kind].name : ZONE_NAMES[game.zone] || '', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
   ptext('Skin', x, y, 8, '#8aa8ff'); ptext(fit(skinName(), cols), x, y + 14 * u, 9, '#ffffff');
+  const ab = ABILITIES[(SKIN_BY_ID[save.skin] || {}).ability]; y += 40 * u;
+  if (ab) { ptext('Habilidade', x, y, 8, '#8aa8ff'); ptext(fit(ab.name, cols), x, y + 14 * u, 9, '#7aff9a'); }
   // direita: ranking e controles
   x = Rp.x + 18 * u; y = Rp.y + 22 * u;
   ptext('Ranking', Rp.x + Rp.w / 2, y, 12, '#ffcc3a', 'center'); y += 30 * u;

@@ -285,6 +285,31 @@ const MYTH = [
 ];
 MYTH.forEach(([n, o]) => add('mitica', n, o));
 
+// ---------------------------------------------------------------- habilidades passivas
+// Toda skin tem uma. A raridade NÃO deixa a habilidade mais forte: cada habilidade aparece em todas as raridades,
+// e todas foram pensadas para valer o mesmo (metade ajuda a sobreviver, metade ajuda a ganhar moedas).
+// O jogador escolhe a skin pelo jeito de jogar.
+export const ABILITIES = {
+  ima:        { name: 'Magnético', desc: 'Pega também as moedas das casas do lado quando pousa.' },
+  sorte:      { name: 'Sortudo', desc: '1 em cada 4 moedas vale o dobro.' },
+  faro:       { name: 'Faro de Tesouro', desc: 'Moedas grandes (valem 5) aparecem bem mais.' },
+  explorador: { name: 'Explorador', desc: 'Portais de dimensão bônus aparecem com mais frequência.' },
+  caminhante: { name: 'Caminhante', desc: 'Ganha 1 moeda a cada 10 fileiras de distância.' },
+  pechincha:  { name: 'Pechincheiro', desc: 'Reviver custa 40 moedas em vez de 70.' },
+  casco:      { name: 'Casco Duro', desc: '1 vez por partida, aguenta uma batida sem cair.' },
+  nadador:    { name: 'Nadador', desc: '1 vez por partida, se cair na água, nada até a margem.' },
+  calmo:      { name: 'Sangue-Frio', desc: 'A tela sobe 12% mais devagar.' },
+  equilibrio: { name: 'Pés Firmes', desc: 'Mais margem de erro para pousar e ficar nos troncos.' },
+  reflexo:    { name: 'Reflexo', desc: 'Carroças, slimes e trens andam 10% mais devagar.' },
+  ligeiro:    { name: 'Ligeiro', desc: 'Pula 25% mais rápido.' },
+};
+const ORDER = Object.keys(ABILITIES);
+// algumas skins combinam com uma habilidade; as outras se revezam na ordem (cada raridade tem de todas)
+const THEMED = { Pirata: 'faro', Ninja: 'ligeiro', Cavaleiro: 'casco', Samurai: 'reflexo', Marinheiro: 'nadador', Mergulhador: 'nadador', Surfista: 'equilibrio',
+  Explorador: 'explorador', Astronauta: 'caminhante', Dourado: 'sorte', Gelo: 'calmo', Detetive: 'faro', Fazendeiro: 'pechincha', 'Prata Lunar': 'ima', Breu: 'reflexo' };
+SKINS.forEach((s, i) => { s.ability = THEMED[s.name] || ORDER[i % ORDER.length]; });
+export const abilityOf = (id) => ABILITIES[(SKINS.find((s) => s.id === id) || SKINS[0]).ability];
+
 export const SKIN_BY_ID = Object.fromEntries(SKINS.map((s) => [s.id, s]));
 export const DEFAULT_SKIN = 's000';
 { const want = { comum: 70, rara: 55, epica: 35, lendaria: 15, mitica: 5 }; for (const [r, n] of Object.entries(want)) if (SKINS.filter((s) => s.rarity === r).length !== n) console.warn('skins:', r); if (SKINS.length !== 180) console.warn('skins:', SKINS.length); }

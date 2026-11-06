@@ -1,9 +1,10 @@
 // A partida: o Jerry pula de faixa em faixa (toque = pra frente; arrastar = para os lados ou para trás).
 // A tela sobe sozinha, devagar e cada vez mais rápido. Se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
-import { World, TILE, COLS, zoneAt } from './world.js';
+import { World, TILE, COLS, zoneAt, BONUS, BONUS_TIME, BONUS_MAX, ARENA_ROWS } from './world.js';
 import { drawGround, drawFloaters, drawUpright, drawCoin, drawPortal, drawWeather } from './draw.js';
 import { jerryFrame } from './jerry.js';
 import { SKIN_BY_ID, DEFAULT_SKIN } from './skins.js';
+const GOLD_SQUIRREL = 's162';   // o esquilo da Caça ao Esquilo Dourado usa o desenho da skin Dourado
 import { sfx } from './audio.js';
 
 const T = TILE;
@@ -23,15 +24,29 @@ export class Game {
     this.fx = []; this.toasts = []; this.end = null; this.zone = zoneAt(0).id; this.zoneBanner = { name: zoneAt(0).name, t: 0 };
     this.ghosts = []; this.passed = new Set(); this.worldBest = 0; this.worldName = ''; this.beatWorld = false;
     this.revived = false; this.shield = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
+    this.bonus = null; this.stash = null; this.used = {};   // dimensão bônus em andamento; habilidades de 1 vez por partida já usadas
+    this.setAbility(this.ability || null);
+  }
+  // habilidade passiva da skin (ver ABILITIES em skins.js): ajusta o mundo e o pulo
+  setAbility(id) {
+    this.ability = id;
+    this.hopT = id === 'ligeiro' ? HOP * 0.75 : HOP;
+    this.world.bigChance = id === 'faro' ? 0.28 : 0.1;
+    this.world.bonusRate = id === 'explorador' ? 1.45 : 1;
+    if (id === 'explorador') this.world.nextBonus = Math.round(this.world.nextBonus * 0.7);
   }
   // fantasmas dos recordes: o seu, o da última partida e os 10 maiores do ranking, parados onde cada um chegou
   setGhosts(list) {
     this.ghosts = list.filter((g) => g.row > 2).map((g, i) => ({ ...g, col: [0, 1, 7, 8][Math.abs(g.row * 7 + i * 3) % 4] }));
   }
   start() { this.state = 'play'; }
-  // reviver (vídeo ou 100 moedas, 1 vez por partida): o Jerry volta na grama segura mais perto de onde caiu,
+  // reviver (vídeo ou 70 moedas, 1 vez por partida): o Jerry volta na grama segura mais perto de onde caiu,
   // a tela desce um pouco para ele ter espaço e ele fica piscando 2,5 s sem poder ser atropelado
   revive() {
+    this.placeSafe(); this.end = null; this.queue = null; this.state = 'play'; this.revived = true; this.shield = 2.5;
+  }
+  // põe o Jerry na grama livre mais perto (reviver, Nadador e a volta da dimensão bônus)
+  placeSafe() {
     const j = this.j, W = this.world;
     let row = null;
     for (let d = 0; d <= 16 && row === null; d++) for (const r of [j.row - d, j.row + d]) { const L = W.lane(r); if (r >= 0 && L && L.type === 'grass' && row === null) row = r; }
@@ -42,7 +57,6 @@ export class Game {
     for (let r = Math.floor(this.cam) - 2; r < this.cam + 30; r++) { const l = W.lane(r); if (l) l.frozen = false; }   // o que atropelou volta a andar
     Object.assign(j, { row, x: col * T + T / 2, hop: null, on: null, view: 'back', bump: 0 });
     this.cam = Math.min(this.cam, row - 3);
-    this.end = null; this.queue = null; this.state = 'play'; this.revived = true; this.shield = 2.5;
     this.fx.push({ k: 'spark', x: j.x, row, t: 0 });
   }
 
@@ -55,6 +69,8 @@ export class Game {
     if (dx && col === Math.round((j.x - T / 2) / T) && !j.on) { j.view = dx > 0 ? 'side' : 'left'; j.bump = 0.12; sfx.bump(); return; }
     const row = j.row + dy;
     if (row < Math.floor(this.cam) - 1) { j.bump = 0.1; sfx.bump(); return; }
+    if (this.bonus && this.bonus.arena && (row < 0 || row >= ARENA_ROWS)) { j.bump = 0.1; sfx.bump(); return; }   // borda da arena
+    if (this.bonus && this.bonus.kind === 'gelo') return this.slide(dx, dy);
     j.view = dy > 0 ? 'back' : dy < 0 ? 'front' : dx > 0 ? 'side' : 'left';
     const L = this.world.lane(row);
     if (L && L.type === 'grass' && L.block.has(col)) { j.bump = 0.12; sfx.bump(); return; }   // árvore ou pedra no caminho
@@ -76,8 +92,10 @@ export class Game {
     const j = this.j, h = j.hop;
     j.x = h.tx; j.row = h.tr; j.hop = null;
     const L = this.world.lane(j.row);
+    if (this.bonus) return this.landBonus(L);
     if (j.row > this.score) {
       this.score = j.row;
+      if (this.ability === 'caminhante' && this.score % 10 === 0) { this.coins++; this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }   // Caminhante: 1 moeda a cada 10 fileiras
       // passou o recorde mundial (o 1º do ranking): aviso grande, som e chuva de estrelas
       if (this.worldBest > 0 && !this.beatWorld && this.score > this.worldBest) {
         this.beatWorld = true; this.toast('NOVO RECORDE MUNDIAL!', '#ffcc3a'); sfx.record(); setTimeout(() => sfx.bigcoin(), 450);
@@ -92,10 +110,11 @@ export class Game {
     if (L.myth !== undefined && L.myth === col) { delete L.myth; this.findMyth(j); }
     // passou da fileira do esquilo mítico sem pegar: ele sai correndo para o lado e some
     for (let r = j.row - 3; r < j.row; r++) { const M = this.world.lane(r); if (M && M.myth !== undefined) this.mythFlee(M); }
-    if (L.coins.has(col)) { const v = L.coins.get(col); L.coins.delete(col); this.coins += v; (v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }
+    this.grab(L, col);
+    if (L.bonus === col) return this.enterBonus(L, col);   // portal dourado: vai para a dimensão bônus
     if (L.type === 'river') {
       // margem de erro: se cair até 7 px fora do tronco (ou da vitória-régia), o Jerry escorrega para cima dele
-      const M = 7, o = L.objs.filter((o) => j.x >= o.x - M && j.x <= o.x + o.w + M)
+      const M = this.ability === 'equilibrio' ? 11 : 7, o = L.objs.filter((o) => j.x >= o.x - M && j.x <= o.x + o.w + M)
         .sort((a, b) => Math.max(0, a.x - j.x, j.x - a.x - a.w) - Math.max(0, b.x - j.x, j.x - b.x - b.w))[0];
       if (!o) return this.die('water');
       // fica onde caiu, só que sempre todo em cima (nunca metade para fora da ponta); sem "encaixar", que dava um segundo pulinho
@@ -104,8 +123,129 @@ export class Game {
     }
     if (this.queue) { const q = this.queue; this.queue = null; this.move(q[0], q[1]); }
   }
+  // pega a moeda da casa (Ímã: também as das casas do lado; Sortudo: 1 em 4 vale o dobro)
+  grab(L, col) {
+    const j = this.j;
+    for (const c of this.ability === 'ima' ? [col, col - 1, col + 1] : [col]) {
+      if (!L.coins.has(c)) continue;
+      let v = L.coins.get(c); L.coins.delete(c);
+      if (this.ability === 'sorte' && Math.random() < 0.25) { v *= 2; this.fx.push({ k: 'star', x: c * T + T / 2, row: j.row, t: 0, c: 0 }); }
+      this.coins += v; (v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: c * T + T / 2, row: j.row, t: 0 });
+    }
+  }
+  // ---------------------------------------------------------------- dimensão bônus
+  enterBonus(L, col) {
+    const j = this.j, kinds = Object.keys(BONUS).filter((k) => k !== this.lastBonus), kind = kinds[Math.floor(Math.random() * kinds.length)], B = BONUS[kind];
+    delete L.bonus; this.lastBonus = kind;   // nunca a mesma dimensão duas vezes seguidas
+    this.stash = { world: this.world, cam: this.cam, row: L.row, col };
+    this.world = new World((Math.random() * 1e9) | 0, kind);
+    const [sc, sr] = B.start || [4, 0];
+    Object.assign(j, { row: sr, x: sc * T + T / 2, hop: null, on: null, view: 'back', bump: 0 });
+    this.cam = B.arena ? -1 : -2; this.queue = null;
+    this.bonus = { kind, arena: !!B.arena, t: BONUS_TIME, coins0: this.coins, left: { ...BONUS_MAX }, drops: [], spawn: 0, gust: 1.6, wind: Math.random() < 0.5 ? -1 : 1, caught: 0 };
+    if (kind === 'caca') this.bonus.sq = this.squirrelSpot();
+    this.zoneBanner = { name: B.name, t: 0 }; this.toast(B.hint, '#ffe070');
+    sfx.portal(); sfx.record();
+  }
+  // o que acontece sozinho em cada dimensão (a cada quadro)
+  bonusTick(dt) {
+    const b = this.bonus, j = this.j, jc = Math.round((j.x - T / 2) / T), jr = j.hop ? j.hop.tr : j.row;
+    if (b.kind === 'chuva') {
+      // moedas (no limite da dimensão) e meteoros caem do céu; pegar moeda = ficar embaixo; meteoro = volta antes
+      if ((b.spawn -= dt) <= 0) {
+        b.spawn = 0.32;
+        const rock = Math.random() < 0.3 || (b.left.small <= 0 && b.left.big <= 0);
+        let v = 0; if (!rock) { if (b.left.big > 0 && Math.random() < 0.2) { b.left.big--; v = 5; } else if (b.left.small > 0) { b.left.small--; v = 1; } }
+        b.drops.push({ col: Math.floor(Math.random() * COLS), row: ARENA_ROWS + 1, sp: 4 + Math.random() * 2.5, v });
+      }
+      for (const d of b.drops) {
+        d.row -= d.sp * dt;
+        if (!d.done && d.col === jc && Math.abs(d.row - jr) < 0.5) {
+          d.done = true;
+          if (d.v) { this.coins += d.v; (d.v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: jr, t: 0 }); }
+          else if (!(this.shield > 0)) { sfx.hit(); return this.exitBonus(true); }
+        }
+      }
+      b.drops = b.drops.filter((d) => !d.done && d.row > -1.5);
+    } else if (b.kind === 'caca') {
+      // o esquilo dourado foge (de casa em casa, para longe do Jerry); pegar = moeda de 5 e ele aparece em outro lugar
+      const q = b.sq; q.t = (q.t || 0) + dt;
+      if (q.t > 0.5) { q.t = 0; const nx = this.squirrelStep(q, jc, jr); q.c = nx[0]; q.r = nx[1]; }
+      if (q.c === jc && q.r === jr && !j.hop) this.catchSquirrel();
+    } else if (b.kind === 'vento') {
+      // rajadas: de tempos em tempos o vento empurra o Jerry uma casa (e muda de lado de vez em quando)
+      if ((b.gust -= dt) <= 0 && !j.hop) {
+        b.gust = 1.8; if (Math.random() < 0.35) b.wind = -b.wind;
+        const L = this.world.lane(j.row), to = jc + b.wind;
+        if (to >= 0 && to < COLS && !(L && L.block.has(to)) && (!L || L.type === 'grass')) { j.hop = { fx: j.x, fr: j.row, tx: to * T + T / 2, tr: j.row, t: 0 }; j.view = b.wind > 0 ? 'side' : 'left'; sfx.bump(); }
+      }
+    }
+  }
+  squirrelSpot() {
+    const j = this.j, jc = Math.round((j.x - T / 2) / T);
+    for (let k = 0; k < 60; k++) { const c = Math.floor(Math.random() * COLS), r = 2 + Math.floor(Math.random() * (ARENA_ROWS - 2)); const L = this.world.lane(r); if (L && !L.block.has(c) && Math.abs(c - jc) + Math.abs(r - j.row) > 4) return { c, r, t: 0 }; }
+    return { c: 8, r: 8, t: 0 };
+  }
+  squirrelStep(q, jc, jr) {
+    const opts = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [q.c + dx, q.r + dy])
+      .filter(([c, r]) => c >= 0 && c < COLS && r >= 0 && r < ARENA_ROWS && !(this.world.lane(r) && this.world.lane(r).block.has(c)));
+    opts.sort((a, b) => (Math.abs(b[0] - jc) + Math.abs(b[1] - jr) + Math.random() * 1.5) - (Math.abs(a[0] - jc) + Math.abs(a[1] - jr) + Math.random() * 1.5));
+    return opts[0] || [q.c, q.r];
+  }
+  catchSquirrel() {
+    const b = this.bonus, j = this.j; b.caught++;
+    if (b.left.big > 0) { b.left.big--; this.coins += 5; }
+    sfx.bigcoin(); this.toast(`Pegou o esquilo dourado! (${b.caught})`, '#ffcc3a');
+    for (let i = 0; i < 6; i++) this.fx.push({ k: 'star', x: j.x + (Math.random() - 0.5) * 30, row: j.row + Math.random(), t: -Math.random() * 0.3, c: i % 3 });
+    if (b.left.big <= 0) return this.exitBonus(false);
+    b.sq = this.squirrelSpot();
+  }
+  // Lago Congelado: escorrega até bater numa pedra ou na borda (pega as moedas do caminho)
+  slide(dx, dy) {
+    const j = this.j; let c = Math.round((j.x - T / 2) / T), r = j.row, n = 0;
+    for (;;) {
+      const nc = c + dx, nr = r + dy, L = this.world.lane(nr);
+      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ARENA_ROWS || !L || L.block.has(nc)) break;
+      c = nc; r = nr; n++;
+      if (n > 1) { const P = this.world.lane(r - dy); const pc = c - dx; if (P) this.grab(P, pc); }
+    }
+    j.view = dy > 0 ? 'back' : dy < 0 ? 'front' : dx > 0 ? 'side' : 'left';
+    if (!n) { j.bump = 0.12; sfx.bump(); return; }
+    j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: r, t: 0, dur: this.hopT * (0.7 + n * 0.35) };
+    this.started = true; sfx.hop();
+  }
+  landBonus(L) {
+    const j = this.j, col = Math.round((j.x - T / 2) / T);
+    if (!L) return;
+    this.grab(L, col);
+    if (L.exit !== undefined && (L.exit === col || !this.bonus.arena)) return this.exitBonus(false);
+    if (this.bonus.kind === 'caca' && this.bonus.sq.c === col && this.bonus.sq.r === j.row) this.catchSquirrel();
+    if (!this.bonus) return;
+    if (L.type === 'river') {
+      const o = L.objs.find((o) => j.x >= o.x - 7 && j.x <= o.x + o.w + 7);
+      if (!o) { sfx.splash(); return this.exitBonus(true); }
+      j.x = o.x + T / 2; j.on = o; j.onOff = T / 2;
+    }
+    if (this.queue) { const q = this.queue; this.queue = null; this.move(q[0], q[1]); }
+  }
+  // volta para o mesmo lugar da corrida, com 2 s de proteção (fail: caiu, bateu ou a tela passou)
+  exitBonus(fail) {
+    const s = this.stash, j = this.j, got = this.coins - this.bonus.coins0;
+    this.world = s.world; this.cam = s.cam; this.bonus = null; this.stash = null;
+    Object.assign(j, { row: s.row, x: s.col * T + T / 2, hop: null, on: null, view: 'back', bump: 0 });
+    this.placeSafe();
+    this.shield = 2; this.queue = null;
+    this.toast(fail ? `Voltou da dimensão: +${got} moedas` : `Dimensão completa! +${got} moedas`, '#ffe070');
+    this.zoneBanner = null; sfx.portal();
+  }
   die(kind) {
     if (this.state !== 'play') return;
+    if (this.bonus) return this.exitBonus(true);   // na dimensão bônus ninguém morre: só volta antes
+    // Nadador: 1 vez por partida, sai da água e volta para a margem
+    if (kind === 'water' && this.ability === 'nadador' && !this.used.nadador) {
+      this.used.nadador = true; sfx.splash(); this.fx.push({ k: 'splash', x: this.j.x, row: this.j.row, t: 0 });
+      this.placeSafe(); this.shield = 1.5; this.toast('Nadador: nadou até a margem!', '#7af0ff'); return;
+    }
     this.state = 'dying'; this.end = { kind, t: 0 };
     if (kind === 'water') { sfx.splash(); this.fx.push({ k: 'splash', x: this.j.x, row: this.j.row, t: 0 }); }
     else if (kind === 'hit') sfx.hit();
@@ -114,6 +254,10 @@ export class Game {
   // atropelado: o Jerry fica achatado no chão e o que o atropelou para em cima dele
   squash(L, o, jx, row) {
     const j = this.j;
+    if (this.bonus) return this.exitBonus(true);
+    if (this.ability === 'casco' && !this.used.casco) {   // Casco Duro: a primeira batida da partida não derruba
+      this.used.casco = true; this.shield = 2; sfx.bump(); this.toast('Casco Duro aguentou a batida!', '#7aff9a'); return;
+    }
     if (j.hop) { j.x = jx; j.row = row; j.hop = null; }
     L.frozen = true;
     // o que atropelou para com a traseira (a roda de trás) em cima dele: metade do Jerry achatado fica embaixo
@@ -146,7 +290,7 @@ export class Game {
     const W = this.world, j = this.j;
     W.ensure(Math.floor(this.cam + visRows + 12));
     W.prune(Math.floor(this.cam) - 6);
-    W.update(dt, this.rnd);
+    W.update(this.ability === 'reflexo' ? dt * 0.9 : dt, this.rnd);
     if (this.mythRun) { const m = this.mythRun; m.t += dt; m.x += m.dir * (60 + m.t * 220) * dt; if (m.x < -60 || m.x > COLS * T + 60) this.mythRun = null; }
     for (const L of W.lanes.values()) {
       if (L.type === 'rail') {
@@ -174,7 +318,7 @@ export class Game {
     // pulo em andamento
     if (j.hop) {
       if (j.hop.rel) { j.hop.fx = j.hop.rel.x + j.hop.fo; j.hop.tx = j.hop.rel.x + j.hop.to; }   // pulo de lado no tronco: anda junto com ele
-      j.hop.t += dt; if (j.hop.t >= HOP) this.land();
+      j.hop.t += dt; if (j.hop.t >= (j.hop.dur || this.hopT)) this.land();
     }
     // em cima de tronco: anda junto; se sair pela lateral, cai
     if (j.on && !j.hop) {
@@ -187,15 +331,15 @@ export class Game {
         j.onOff = j.x - j.on.x; j.pushed = 0.15;
         if (j.onOff < -2 || j.onOff > j.on.w + 2) {
           // acabou este tronco: se tiver outro (ou vitória-régia) logo ali do lado, o Jerry passa para ele; senão cai
-          const lane = this.world.lane(j.row), next = lane && lane.objs.find((o) => o !== j.on && j.x >= o.x - 3 && j.x <= o.x + o.w + 3);
+          const lane = this.world.lane(j.row), next = lane && lane.objs.find((o) => o !== j.on && j.x >= o.x - (this.ability === 'equilibrio' ? 6 : 3) && j.x <= o.x + o.w + (this.ability === 'equilibrio' ? 6 : 3));
           if (!next) return this.die('water');
           j.on = next; j.onOff = Math.max(0, Math.min(next.w, j.x - next.x));
         }
       }
     }
     // batidas: carroças, slimes e o trem
-    const row = j.hop ? (j.hop.t / HOP > 0.5 ? j.hop.tr : j.hop.fr) : j.row;
-    const jx = j.hop ? j.hop.fx + (j.hop.tx - j.hop.fx) * (j.hop.t / HOP) : j.x;
+    const row = j.hop ? (j.hop.t / (j.hop.dur || this.hopT) > 0.5 ? j.hop.tr : j.hop.fr) : j.row;
+    const jx = j.hop ? j.hop.fx + (j.hop.tx - j.hop.fx) * (j.hop.t / (j.hop.dur || this.hopT)) : j.x;
     const L = W.lane(row);
     if (L && !(this.shield > 0)) {
       const hit = (x, w, pad = 3) => jx + 4 > x + pad && jx - 4 < x + w - pad;
@@ -205,9 +349,12 @@ export class Game {
     }
     // câmera: sobe sozinha (cada vez mais rápido) e acompanha o Jerry quando ele avança
     const d = Math.min(1, this.score / 700);
-    if (this.started) this.cam += (0.38 + d * 0.62) * dt;
+    if (this.bonus && (this.bonus.t -= dt) <= 0) return this.exitBonus(false);   // acabou o tempo da dimensão bônus
+    if (this.bonus && this.bonus.arena) { this.cam = -1; return this.bonusTick(dt); }   // arena: a tela fica parada
+    if (this.started) this.cam += (this.bonus ? 0.7 : (0.38 + d * 0.62) * (this.ability === 'calmo' ? 0.88 : 1)) * dt;
     const target = j.row - visRows * 0.42;
     if (target > this.cam) this.cam += (target - this.cam) * Math.min(1, dt * 4);
+    if (this.bonus) this.bonusTick(dt);
     // a tela passou do Jerry: ele abre um portal para Lacrímora e vai embora
     if (j.row < this.cam - 0.1 && !j.hop) this.die('portal');
   }
@@ -223,27 +370,59 @@ export class Game {
     for (let r = r1; r >= r0; r--) { const L = W.lane(r); if (L) drawGround(c, L, x0, x1, ox, rowY(r), t, W.lane(r + 1), W.lane(r - 1)); }
     for (let r = r1; r >= r0; r--) { const L = W.lane(r); if (L) drawFloaters(c, L, ox, rowY(r), t); }
     // fantasmas dos recordes (no chão da fileira, transparentes, com o nome)
-    for (const g of this.ghosts) if (g.row >= r0 && g.row <= r1) this.drawGhost(c, g, ox, rowY(g.row));
+    if (!this.bonus) for (const g of this.ghosts) if (g.row >= r0 && g.row <= r1) this.drawGhost(c, g, ox, rowY(g.row));
     for (let r = r1; r >= r0; r--) {
       const L = this.world.lane(r), y = rowY(r);
       const jr = this.j.hop ? Math.max(this.j.hop.fr, this.j.hop.tr) : this.j.row, flat = this.end && this.end.kind === 'hit';
       if (L) for (const [col, v] of L.coins) drawCoin(c, ox + col * T, y, v, t);
       if (L && L.myth !== undefined) this.drawMyth(c, ox + L.myth * T + T / 2, y, t, false);
+      const pc = L ? (L.bonus !== undefined ? L.bonus : L.exit) : undefined;   // portal dourado (entrada ou saída da dimensão bônus)
+      if (pc !== undefined) drawPortal(c, ox + pc * T + T / 2, y + 8, 0.56 + Math.sin(t * 3) * 0.04, t, true);
       if (this.mythRun && this.mythRun.row === r) this.drawMyth(c, ox + this.mythRun.x, y, t, true);
       if (r === jr && flat) this.drawJerry(c, ox, rowY);   // achatado: fica embaixo do que o atropelou
       if (L) drawUpright(c, L, x0, x1, ox, y, t);
       if (r === jr && !flat) this.drawJerry(c, ox, rowY);
     }
     for (const f of this.fx) this.drawFx(c, f, ox, rowY);
+    if (this.bonus) this.drawBonus(c, ox, rowY, LW);
     if (this.end && this.end.kind === 'hit') {   // estrelinhas de tonto por cima de tudo (até do que atropelou)
       const { x, y } = this.jerryPos(ox, rowY);
       for (let i = 0; i < 4; i++) { const a = t * 6 + i * 1.57, sx = Math.round(x + Math.cos(a) * 8), sy = Math.round(y + 2 + Math.sin(a) * 2.5); c.fillStyle = '#1a1226'; c.fillRect(sx - 1, sy - 1, 4, 4); c.fillStyle = i % 2 ? '#ffe070' : '#ffffff'; c.fillRect(sx, sy, 2, 2); }
     }
-    drawWeather(c, zoneAt(Math.floor(cam + LH / T / 2)).id, LW, LH, t, cam * T);
+    drawWeather(c, this.bonus ? BONUS[this.bonus.kind].zone : zoneAt(Math.floor(cam + LH / T / 2)).id, LW, LH, t, cam * T);
+    if (this.bonus) {   // dimensão bônus: brilho dourado nas bordas
+      c.fillStyle = 'rgba(255,204,58,0.10)'; c.fillRect(0, 0, LW, LH);
+      for (let i = 0; i < 14; i++) { const k = (t * 0.4 + i / 14) % 1, x = (i * 37 % LW), yy = LH - k * LH; c.globalAlpha = Math.sin(k * Math.PI); c.fillStyle = i % 2 ? '#ffe070' : '#ffffff'; c.fillRect(x, Math.round(yy), 1, 1); }
+      c.globalAlpha = 1;
+    }
+  }
+  // coisas próprias das dimensões: o que cai do céu, o esquilo dourado e as setas do vento
+  drawBonus(c, ox, rowY, LW) {
+    const b = this.bonus, t = this.t;
+    if (b.kind === 'chuva') for (const d of b.drops) {
+      const x = ox + d.col * T, y = Math.round(rowY(d.row));
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x + 4, rowY(Math.max(d.row - 0.01, -1)) + 12, 8, 2);
+      if (d.v) drawCoin(c, x, y, d.v, t);
+      else {   // meteoro: pedra com rastro de fogo
+        c.fillStyle = '#ff8a3a'; c.fillRect(x + 6, y - 10, 4, 10); c.fillStyle = '#ffe070'; c.fillRect(x + 7, y - 6, 2, 6);
+        c.fillStyle = '#3a2a3a'; c.fillRect(x + 3, y, 10, 9); c.fillStyle = '#6a5a6a'; c.fillRect(x + 4, y + 1, 8, 7); c.fillStyle = '#9a8a9a'; c.fillRect(x + 5, y + 2, 3, 2);
+      }
+    }
+    if (b.kind === 'caca' && b.sq) {
+      const q = b.sq, x = ox + q.c * T + T / 2, y = rowY(q.r), hop = Math.abs(Math.sin(t * 10)) * 3;
+      const fr = jerryFrame(Math.floor(t * 2) % 2 ? 'side' : 'left', 'hop', 1, SKIN_BY_ID[GOLD_SQUIRREL]);
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, y + 12, 10, 2);
+      c.drawImage(fr, Math.round(x) - 9, Math.round(y - 3 - hop));
+      if (Math.floor(t * 6) % 2) { c.fillStyle = '#fff2a0'; c.fillRect(Math.round(x) + 6, Math.round(y - 4 - hop), 1, 1); c.fillRect(Math.round(x) - 7, Math.round(y + 2 - hop), 1, 1); }
+    }
+    if (b.kind === 'vento') {   // faixas de vento atravessando a tela no sentido da rajada
+      c.fillStyle = 'rgba(255,240,200,0.55)';
+      for (let i = 0; i < 9; i++) { const k = ((t * 1.6 + i * 0.37) % 1), x = b.wind > 0 ? k * LW : LW - k * LW, y = rowY(Math.floor(this.cam) + 1 + i * 1.3) + 6; c.fillRect(Math.round(x), Math.round(y), 10, 1); }
+    }
   }
   jerryPos(ox, rowY) {
     const j = this.j;
-    if (j.hop) { const p = Math.min(1, j.hop.t / HOP); const y0 = rowY(j.hop.fr), y1 = rowY(j.hop.tr); return { x: ox + j.hop.fx + (j.hop.tx - j.hop.fx) * p, y: y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 6, air: true }; }
+    if (j.hop) { const p = Math.min(1, j.hop.t / (j.hop.dur || this.hopT)); const y0 = rowY(j.hop.fr), y1 = rowY(j.hop.tr); return { x: ox + j.hop.fx + (j.hop.tx - j.hop.fx) * p, y: y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 6, air: true }; }
     const by = j.bump > 0 ? Math.round(Math.sin(j.bump * 50) * 1) : 0;
     return { x: ox + j.x + by, y: rowY(j.row), air: false };
   }
@@ -273,7 +452,7 @@ export class Game {
     }
     const pose = air ? 'hop' : edge ? 'scared' : 'idle';
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
-    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / HOP : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
+    c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / (j.hop.dur || this.hopT) : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
     if (skin.fx === 'ghost') c.globalAlpha *= 0.75;
     if (this.shield > 0 && Math.floor(this.t * 10) % 2) c.globalAlpha *= 0.35;   // acabou de reviver: piscando
     c.drawImage(fr, Math.round(x) - 9, Math.round(y) - 3);   // quadro 19x19 com os pés em (9, 17)

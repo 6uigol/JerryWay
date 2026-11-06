@@ -577,11 +577,14 @@ export function drawCoin(c, x, y, v, t) {
   if (rx > 2) R(c, cx, cy - 2, 1, 4, big ? '#e8fff4' : d);
   if (Math.sin(t * 5 + x) > 0.85) { R(c, cx + 3, cy - r - 1, 1, 3, '#ffffff'); R(c, cx + 2, cy - r, 3, 1, '#ffffff'); }
 }
-export function drawPortal(c, x, y, k, t) {
+// portal dourado das dimensões bônus: as mesmas formas, com as cores trocadas
+const GOLD = { '#c47bff': '#ffb83a', '#f6d4ff': '#fff6c8', '#f0b5ff': '#fff2a0', '#d77bff': '#ffd65a', '#b653e8': '#f0a82a', '#913bc6': '#c87a1a', '#69239c': '#8a4a10' };
+export function drawPortal(c, x, y, k, t, gold = false) {
   // o mesmo portal violeta de Lacrímora do Song of Moonlight: disco com redemoinho e aro luminoso (32x32), abrindo com k
   if (k <= 0) return;
   const C = 7.5, ox = Math.round(x) - 16, oy = Math.round(y) - 16;
-  c.globalAlpha = 0.25 * k; c.fillStyle = '#c47bff'; c.beginPath(); c.arc(x, y, 20 * k, 0, 7); c.fill(); c.globalAlpha = 1;
+  const P = (col) => (gold ? GOLD[col] || col : col);
+  c.globalAlpha = 0.25 * k; c.fillStyle = P('#c47bff'); c.beginPath(); c.arc(x, y, 20 * k, 0, 7); c.fill(); c.globalAlpha = 1;
   for (let yy = 0; yy < 16; yy++) for (let xx = 0; xx < 16; xx++) {
     const dx = xx - C, dy = yy - C, d = Math.hypot(dx, dy) / k;
     if (d > 7.9) continue;
@@ -591,7 +594,7 @@ export function drawPortal(c, x, y, k, t) {
       const ang = Math.atan2(dy, dx), wave = Math.sin(ang * 3 + d * 1.1 - t * 3.2) + Math.cos(d * 1.6 - t * 1.7);
       color = d < 1.8 ? '#f0b5ff' : wave > 1.0 ? '#d77bff' : wave > 0.2 ? '#b653e8' : wave > -0.7 ? '#913bc6' : '#69239c';
     }
-    R(c, ox + xx * 2, oy + yy * 2, 2, 2, color);
+    R(c, ox + xx * 2, oy + yy * 2, 2, 2, P(color));
   }
   for (let i = 0; i < 6; i++) { const a = t * 1.4 + i * 1.05, r = (5 + (i % 3) * 3) * k; R(c, x + Math.round(Math.cos(a) * r), y + Math.round(Math.sin(a) * r), 1, 1, '#ffffff'); }
 }

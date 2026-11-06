@@ -108,3 +108,7 @@ button.noads-btn { background: #6a3aa8; border-color: #b08aff; font-size: 9px; p
 .ha-more { background: #2a8a4a; border-color: #5ad07a; }
 .ha-buy { background: #6a3aa8; border-color: #b08aff; }
 .ha-close { position: absolute; right: 8px; top: 8px; flex: none; min-width: 34px; padding: 6px 8px; font-size: 9px; background: #05081e; }
+
+/* habilidade passiva da skin */
+.ability { display: block; font-size: 8px; line-height: 1.6; color: var(--muted); margin: 4px auto 0; max-width: 300px; }
+.ability b { color: #7aff9a; font-weight: normal; }

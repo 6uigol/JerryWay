@@ -1,7 +1,7 @@
 // Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
 import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore, noAds, refreshEnt } from './store.js';
 import { openLink } from './ads.js';
-import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
+import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin, ABILITIES } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
 import { sfx, isMuted, setMuted, initAudio } from './audio.js';
@@ -60,6 +60,8 @@ function quitApp() {
   const cap = window.Capacitor, plug = cap && (cap.Plugins?.AppExit || cap.registerPlugin?.('AppExit'));
   if (plug) plug.exit().catch(() => {});
 }
+// habilidade passiva da skin (nome e o que faz)
+const abilityTag = (s) => { const a = ABILITIES[s.ability]; return a ? `<span class="ability">Habilidade: <b>${esc(a.name)}</b><br>${esc(a.desc)}</span>` : ''; };
 const coinsTag = () => `<span class="coins"><i class="coin"></i>${save.coins}</span>`;
 const soundBtns = () => `<div class="row small"><button class="ghost" data-go="sound">${isMuted() ? 'Som: desligado' : 'Som: ligado'}</button><button class="ghost" data-go="music">${musicEnabled() ? 'Música: ligada' : 'Música: desligada'}</button></div>`;
 
@@ -85,6 +87,7 @@ function title() {
     <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD. No controle: direcional ou analógico.</p>
   </div>`;
   $('#pv').append(preview(skin), Object.assign(document.createElement('div'), { className: 'skinname', textContent: skin.name }));
+  $('#pv').insertAdjacentHTML('beforeend', abilityTag(skin));
 }
 
 const END_TEXT = { portal: 'A tela passou do Jerry... ele abriu um portal para Lacrímora e foi embora!', water: 'O Jerry caiu na água!', hit: 'O Jerry foi atropelado!' };
@@ -143,7 +146,7 @@ function pull() {
     clearInterval(tick);
     slot.append(preview(s, 'front', 5)); slot.style.setProperty('--glow', rr.color); slot.classList.add('show');
     (dup ? sfx.dup : () => sfx.reveal(rank))();
-    out.innerHTML = `<b style="color:${rr.color}">${rr.name}</b><br>${esc(s.name)}<br>${dup ? '<span class="muted">Repetida! Você já tinha essa.</span>' : '<span class="new">NOVA!</span>'}`;
+    out.innerHTML = `<b style="color:${rr.color}">${rr.name}</b><br>${esc(s.name)}<br>${abilityTag(s)}${dup ? '<span class="muted">Repetida! Você já tinha essa.</span>' : '<span class="new">NOVA!</span>'}`;
     if (!dup) { const u = document.createElement('button'); u.textContent = 'Usar agora'; u.className = 'use'; u.onclick = () => { save.skin = s.id; commit(); sfx.click(); u.disabled = true; u.textContent = 'Usando'; }; out.append(document.createElement('br'), u); }
     $('.info', root).innerHTML = `${coinsTag()}<span>${save.owned.length}/${SKINS.length} skins</span>`;
     btn.disabled = save.coins < PULL_COST; btn.textContent = `DE NOVO (${PULL_COST})`; pulling = false;
@@ -186,7 +189,7 @@ function colecao() {
     const box = $('#cv-big'); box.innerHTML = ''; box.style.setProperty('--glow', rr.color); box.append(big);
     if (hidden) { const q = document.createElement('b'); q.className = 'q'; q.textContent = '?'; box.append(q); }
     const i = list.findIndex((x) => x.id === id);
-    $('#cv-info').innerHTML = `<b style="color:${rr.color}">${rr.name}</b> <span class="muted">${i + 1}/${list.length}</span><br>${hidden ? '???' : esc(s.name)}<br>`
+    $('#cv-info').innerHTML = `<b style="color:${rr.color}">${rr.name}</b> <span class="muted">${i + 1}/${list.length}</span><br>${hidden ? '???' : esc(s.name)}<br>${hidden ? '' : abilityTag(s)}`
       + (own ? (s.id === save.skin ? '<button class="use" disabled>Usando</button>' : '<button class="use" id="cv-use">Usar esta skin</button>')
         : `<span class="muted">${s.rarity === 'mitica' ? MYTH_HINT : 'Ainda não tem: sai no Sortear skin.'}</span>`);
     const u = $('#cv-use'); if (u) u.onclick = () => { save.skin = s.id; commit(); sfx.click(); cells.forEach((c, k) => c.classList.toggle('on', k === s.id)); show(s.id); };
@@ -301,15 +304,15 @@ function pause() {
     <button data-go="quit">Desistir</button></div>`;
 }
 
-// morreu: reviver uma vez por partida, vendo um vídeo (sempre disponível, mesmo sem anúncios) ou por 100 moedas
-export const REVIVE_COST = 100;
+// morreu: reviver uma vez por partida, vendo um vídeo (sempre disponível, mesmo sem anúncios) ou por 70 moedas
+export const REVIVE_COST = 70;
 function revive(d) {
-  const can = d.coins >= REVIVE_COST;
+  const cost = d.cost || REVIVE_COST, can = d.coins >= cost;
   root.innerHTML = `<div class="panel revive"><h2>Reviver?</h2>
     <p class="muted">Continue de onde parou. Só dá para reviver uma vez por partida.</p>
     <div class="score">${d.score}</div>
     <button class="big" id="rv-video">▶ Ver vídeo e reviver</button>
-    <button id="rv-coins" ${can ? '' : 'disabled'}>Reviver por ${REVIVE_COST} <i class="coin"></i>${can ? '' : ` (você tem ${d.coins})`}</button>
+    <button id="rv-coins" ${can ? '' : 'disabled'}>Reviver por ${cost} <i class="coin"></i>${can ? '' : ` (você tem ${d.coins})`}</button>
     <div class="rv-bar"><i id="rv-time"></i></div>
     <button class="ghost" id="rv-skip">Não, obrigado</button></div>`;
   const T0 = Date.now(), MS = 7000; let done = false;
