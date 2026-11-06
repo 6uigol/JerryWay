@@ -10,7 +10,7 @@ import { REVIVE_COST } from './ui.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { brandIntro } from './brand.js';
 import { initAudio, setBackground, onResume } from './audio.js';
-import { startMusic, resyncMusic } from './music.js';
+import { startMusic, resyncMusic, setHardMusic } from './music.js';
 
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // tela lógica em pixel art, ampliada para a tela real
@@ -98,7 +98,7 @@ function ghostsFor() {
   return list;
 }
 function play() {
-  initAudio(); startMusic(); hide();
+  initAudio(); setHardMusic(false); startMusic(); hide();
   game.reset((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
   game.skinId = save.skin;
   game.setAbility((SKIN_BY_ID[save.skin] || {}).ability || null);   // habilidade passiva da skin escolhida
@@ -112,6 +112,7 @@ function play() {
     if (!myth || save.owned.includes(myth.id)) return null;
     save.owned.push(myth.id); commit(); return myth;
   };
+  game.onHard = () => setHardMusic(true);   // passou da fileira 1000: playlist tensa
   game.setGhosts(ghostsFor());
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();
@@ -221,7 +222,9 @@ function frame(now) {
   const showPause = game.state === 'play' && !showing(); if (pauseBtn.hidden === showPause) pauseBtn.hidden = !showPause;
   ctx.imageSmoothingEnabled = false;
   if (frameCv) ctx.drawImage(frameCv, 0, 0);
-  ctx.drawImage(lc, 0, 0, LW, LH, VP.x, VP.y, VP.w, VP.h);
+  // depois da fileira 1000 a tela treme de leve o tempo todo
+  const shake = game.hard && !game.bonus && (game.state === 'play' || game.state === 'dying') ? dpr * 1.3 : 0;
+  ctx.drawImage(lc, 0, 0, LW, LH, VP.x + Math.sin(now * 0.037) * shake, VP.y + Math.cos(now * 0.029) * shake, VP.w, VP.h);
   if (panels) drawPanels();
 requestAnimationFrame(frame);
 }

@@ -358,7 +358,7 @@ export class Game {
     const d = Math.min(1, this.score / 700);
     if (this.bonus && (this.bonus.t -= dt) <= 0) return this.exitBonus(false);   // acabou o tempo da dimensão bônus
     if (this.bonus) { this.cam = -1; return this.bonusTick(dt); }   // dimensão bônus: a tela fica parada (labirinto numa tela só)
-    if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; }   // começa do nada
+    if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; if (this.onHard) this.onHard(); }   // começa do nada
     if (this.started) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 0.88 : 1) * (this.hard ? 1.15 : 1) * dt;
     const target = j.row - visRows * 0.42;
     if (target > this.cam) this.cam += (target - this.cam) * Math.min(1, dt * 4);

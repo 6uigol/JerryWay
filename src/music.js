@@ -20,6 +20,14 @@ export const SONGS = [
   { name: 'Sorte Grande', bpm: 116, root: 65, mode: 'major', lead: 'square', feel: 'bounce', seed: 1414 },
   { name: 'Rabo de Esquilo', bpm: 128, root: 59, mode: 'dorian', lead: 'pulse25', feel: 'march', seed: 1515 },
 ];
+// depois da fileira 1000 (tentáculos): 5 músicas mais tensas e aventurescas, em tom menor e andamento rápido
+export const HARD_SONGS = [
+  { name: 'Algo Sob a Tela', bpm: 146, root: 57, mode: 'minor', lead: 'square', feel: 'drive', seed: 2101 },
+  { name: 'Corra, Jerry', bpm: 152, root: 55, mode: 'phrygianDom', lead: 'pulse25', feel: 'drive', seed: 2202 },
+  { name: 'Tentáculos da Escuridão', bpm: 138, root: 52, mode: 'minor', lead: 'sawtooth', feel: 'march', seed: 2303 },
+  { name: 'Além do Milésimo Passo', bpm: 144, root: 59, mode: 'dorian', lead: 'square', feel: 'drive', seed: 2404 },
+  { name: 'Fuga para a Lua', bpm: 156, root: 54, mode: 'phrygianDom', lead: 'pulse25', feel: 'march', seed: 2505 },
+];
 const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], mixolydian: [0, 2, 4, 5, 7, 9, 10], lydian: [0, 2, 4, 6, 7, 9, 11], phrygianDom: [0, 1, 4, 5, 7, 8, 10] };
 const PROGS = {
   bright: [[0, 4, 5, 3], [0, 5, 3, 4], [5, 3, 0, 4], [0, 3, 4, 4], [3, 4, 2, 5], [0, 2, 3, 4], [3, 0, 4, 5], [5, 4, 3, 4]],
@@ -92,7 +100,9 @@ export function compose(song) {
 }
 
 // ---------------------------------------------------------------- tocador (agenda as notas um pouco à frente)
-let on = true, timer = null, playlist = [], cur = null, onSong = null;
+let on = true, timer = null, playlist = [], cur = null, onSong = null, hard = false;
+// troca na hora para a playlist tensa (true) ou volta para a normal (false); a nota que já estava tocando termina
+export function setHardMusic(v) { if (hard === v) return; hard = v; playlist = []; cur = null; }
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 let pulse = null;
 function voice(type) {
@@ -125,8 +135,9 @@ function play(e, t, stepDur) {
   o.connect(g); out.connect(bus); o.start(t); o.stop(t + dur + 0.35);
 }
 function nextSong() {
-  if (!playlist.length) { playlist = SONGS.map((_, i) => i).sort(() => Math.random() - 0.5); if (cur && playlist[0] === cur.idx) playlist.push(playlist.shift()); }
-  const idx = playlist.shift(), song = SONGS[idx], c = compose(song);
+  const LIST = hard ? HARD_SONGS : SONGS;
+  if (!playlist.length) { playlist = LIST.map((_, i) => i).sort(() => Math.random() - 0.5); if (cur && playlist[0] === cur.idx) playlist.push(playlist.shift()); }
+  const idx = playlist.shift(), song = LIST[idx], c = compose(song);
   cur = { idx, song, ...c, i: 0, t0: audioCtx().currentTime + 0.3 };
   if (onSong) onSong(song.name);
 }
