@@ -336,7 +336,7 @@ function loja() {
     <p class="muted small">A compra é feita no site (Pix ou cartão), com a mesma conta do jogo. ${me && me.verified ? `Conta: ${esc(me.email)}` : '<b>Entre na sua conta antes</b> para receber o que comprar.'}</p>
     <div class="shop">${SHOP.map((x) => { const have = x.own && x.own(), part = !have && x.part && x.part();   // "Já é seu" só no que foi comprado; pacote com parte já comprada: não vende
       return `<div class="shop-item${x.big ? ' big' : ''}"><span class="badge">${esc(x.badge)}</span><b>${esc(x.name)}</b><span class="muted">${esc(x.desc)}</span>
-        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já é seu</span>' : part ? '<span class="own">Você já tem parte dele</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
+        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já é seu</span>' : part ? '<span class="own">Você já tem o Multiplicador</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
     <p class="muted" id="sh-msg"></p>
     <div class="row">${me && me.verified ? '<button id="sh-check">Já comprei</button>' : '<button data-go="conta">Entrar na conta</button>'}<button data-go="title">Voltar</button></div></div>`;
   root.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => { sfx.click(); openSite('/#/comprar/' + b.dataset.buy); $('#sh-msg').textContent = 'Depois de pagar no site, volte aqui: o jogo confere sozinho (ou toque em "Já comprei").'; }));
