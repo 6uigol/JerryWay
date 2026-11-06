@@ -90,7 +90,7 @@ function title() {
   $('#pv').insertAdjacentHTML('beforeend', abilityTag(skin));
 }
 
-const END_TEXT = { portal: 'A tela passou do Jerry... ele abriu um portal para Lacrímora e foi embora!', water: 'O Jerry caiu na água!', hit: 'O Jerry foi atropelado!' };
+const END_TEXT = { portal: 'A tela passou do Jerry... ele abriu um portal para Lacrímora e foi embora!', water: 'O Jerry caiu na água!', hit: 'O Jerry foi atropelado!', monstro: 'Algo saiu da escuridão e pegou o Jerry...' };
 function result(r) {
   const top = (r.top || []).map((t, i) => `<li><span class="pos">${i + 1}</span><span class="nm">${esc(t.name)}</span><b>${t.best}</b></li>`).join('');
   root.innerHTML = `<div class="panel">

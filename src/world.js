@@ -5,6 +5,9 @@ export const TILE = 16, COLS = 9;            // 9 colunas jogáveis
 // esquilo mítico: um sorteio só por partida (não acumula por fileira): 0,00014% de chance de a partida ter um.
 // Se tiver, ele aparece uma vez só, numa fileira de grama entre a 200 e a 600.
 export const MYTH_RUN_CHANCE = 0.0000014, MYTH_ROW = 200, MYTH_SPREAD = 400;
+// a partir da fileira 1000 o caminho fica mais difícil (sem aviso): um monstro persegue o Jerry, não dá para reviver
+// e cai 3,2% mais moeda
+export const HARD_ROW = 1000, HARD_COINS = 1.032;
 export const SPAN = 9 * TILE;                // objetos andam também fora da área jogável (aparecem nas laterais da tela)
 const MINX = -SPAN, MAXX = COLS * TILE + SPAN;
 
@@ -103,6 +106,7 @@ export class World {
   }
   coins(L, chance) {
     const r = this.r;
+    if (L.row >= HARD_ROW) chance *= HARD_COINS;
     if (r() < chance) { let c; for (let t = 0; t < 6; t++) { c = Math.floor(r() * COLS); if (!L.block.has(c)) break; } if (!L.block.has(c)) L.coins.set(c, r() < this.bigChance ? 5 : 1); }
   }
   addGrass(row, density) {

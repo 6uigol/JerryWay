@@ -1,6 +1,6 @@
 // A partida: o Jerry pula de faixa em faixa (toque = pra frente; arrastar = para os lados ou para trás).
 // A tela sobe sozinha, devagar e cada vez mais rápido. Se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
-import { World, TILE, COLS, zoneAt, BONUS, BONUS_TIME, BONUS_MAX, ARENA_ROWS, BONUS_START, BONUS_FINISH } from './world.js';
+import { World, TILE, COLS, HARD_ROW, zoneAt, BONUS, BONUS_TIME, BONUS_MAX, ARENA_ROWS, BONUS_START, BONUS_FINISH } from './world.js';
 import { drawGround, drawFloaters, drawUpright, drawCoin, drawPortal, drawWeather } from './draw.js';
 import { jerryFrame } from './jerry.js';
 import { SKIN_BY_ID, DEFAULT_SKIN } from './skins.js';
@@ -24,6 +24,7 @@ export class Game {
     this.fx = []; this.toasts = []; this.end = null; this.zone = zoneAt(0).id; this.zoneBanner = { name: zoneAt(0).name, t: 0 };
     this.ghosts = []; this.passed = new Set(); this.worldBest = 0; this.worldName = ''; this.beatWorld = false;
     this.revived = false; this.shield = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
+    this.hard = false;   // passou da fileira 1000: o monstro começa a perseguir (sem aviso)
     this.bonus = null; this.stash = null; this.used = {};   // dimensão bônus em andamento; habilidades de 1 vez por partida já usadas
     this.setAbility(this.ability || null);
   }
@@ -357,9 +358,12 @@ export class Game {
     const d = Math.min(1, this.score / 700);
     if (this.bonus && (this.bonus.t -= dt) <= 0) return this.exitBonus(false);   // acabou o tempo da dimensão bônus
     if (this.bonus) { this.cam = -1; return this.bonusTick(dt); }   // dimensão bônus: a tela fica parada (labirinto numa tela só)
-    if (this.started) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 0.88 : 1) * dt;
+    if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; }   // começa do nada
+    if (this.started) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 0.88 : 1) * (this.hard ? 1.15 : 1) * dt;
     const target = j.row - visRows * 0.42;
     if (target > this.cam) this.cam += (target - this.cam) * Math.min(1, dt * 4);
+    // depois da fileira 1000 o monstro vem por baixo da tela: se alcançar o Jerry, acabou (sem reviver)
+    if (this.hard && j.row < this.cam + 0.35 && !j.hop) return this.die('monstro');
     // a tela passou do Jerry: ele abre um portal para Lacrímora e vai embora
     if (j.row < this.cam - 0.1 && !j.hop) this.die('portal');
   }
@@ -395,6 +399,7 @@ export class Game {
       for (let i = 0; i < 4; i++) { const a = t * 6 + i * 1.57, sx = Math.round(x + Math.cos(a) * 8), sy = Math.round(y + 2 + Math.sin(a) * 2.5); c.fillStyle = '#1a1226'; c.fillRect(sx - 1, sy - 1, 4, 4); c.fillStyle = i % 2 ? '#ffe070' : '#ffffff'; c.fillRect(sx, sy, 2, 2); }
     }
     drawWeather(c, this.bonus ? BONUS[this.bonus.kind].zone : zoneAt(Math.floor(cam + LH / T / 2)).id, LW, LH, t, cam * T);
+    if (this.hard && !this.bonus) this.drawMonster(c, ox, LW, LH);
     if (this.bonus) {   // dimensão bônus: brilho dourado nas bordas
       c.fillStyle = 'rgba(255,204,58,0.10)'; c.fillRect(0, 0, LW, LH);
       for (let i = 0; i < 14; i++) { const k = (t * 0.4 + i / 14) % 1, x = (i * 37 % LW), yy = LH - k * LH; c.globalAlpha = Math.sin(k * Math.PI); c.fillStyle = i % 2 ? '#ffe070' : '#ffffff'; c.fillRect(x, Math.round(yy), 1, 1); }
@@ -433,6 +438,32 @@ export class Game {
       for (let i = 0; i < 9; i++) { const k = ((t * 1.6 + i * 0.37) % 1), x = b.wind > 0 ? k * LW : LW - k * LW, y = rowY(i * 1.1) + 6; c.fillRect(Math.round(x), Math.round(y), 10, 1); }
     }
   }
+  // o que persegue o Jerry depois da fileira 1000: tentáculos pretos subindo pela borda de baixo da tela,
+  // balançando; o do meio segue o Jerry de lado (e é ele que pega o Jerry)
+  drawMonster(c, ox, LW, LH) {
+    const t = this.t, e = this.end, eat = e && e.kind === 'monstro', jp = this.jerryPos(ox, (r) => LH - (r - this.cam + 1) * T);
+    this.mx = this.mx === undefined ? jp.x : this.mx + (jp.x - this.mx) * 0.08;
+    const base = LH + 4;
+    const g = c.createLinearGradient(0, LH - 70, 0, LH); g.addColorStop(0, 'rgba(4,2,10,0)'); g.addColorStop(0.5, 'rgba(4,2,10,0.75)'); g.addColorStop(1, 'rgba(2,1,6,0.98)');
+    c.fillStyle = g; c.fillRect(0, LH - 70, LW, 70);
+    const tentacle = (bx, h, w0, ph, amp) => {
+      const n = Math.max(4, Math.round(h / 2));
+      for (let k = 0; k < n; k++) {
+        const f = k / n, x = bx + Math.sin(f * 4.2 + t * 3 + ph) * amp * f, w = Math.max(1, Math.round(w0 * (1 - f * 0.85))), y = Math.round(base - k * 2);
+        c.fillStyle = '#050208'; c.fillRect(Math.round(x - w / 2), y - 2, w, 3);
+        if (w > 3) { c.fillStyle = '#1c0f2a'; c.fillRect(Math.round(x - w / 2), y - 2, 1, 3); }   // brilho na borda
+        if (k % 5 === 2 && w > 4) { c.fillStyle = '#4a2a5a'; c.fillRect(Math.round(x + w / 2 - 2), y - 1, 1, 1); }   // ventosas
+      }
+    };
+    const W = Math.ceil(LW / 18);
+    for (let i = 0; i <= W; i++) {   // fileira de tentáculos de fundo
+      const bx = i * 18 + Math.sin(i * 2.1) * 6, h = 30 + Math.sin(t * 1.7 + i * 1.3) * 10 + (i % 3) * 7;
+      tentacle(bx, h, 11, i * 1.9, 8);
+    }
+    // o tentáculo que caça o Jerry: sobe mais alto e vai atrás dele (e o agarra quando pega)
+    const reach = eat ? Math.max(0, base - jp.y - 6) * Math.min(1, e.t * 4) : 48 + Math.sin(t * 2.4) * 8;
+    tentacle(this.mx, Math.max(48, reach), 14, 0.7, eat ? 2 : 10);
+  }
   jerryPos(ox, rowY) {
     const j = this.j;
     if (j.hop) { const p = Math.min(1, j.hop.t / (j.hop.dur || this.hopT)); const y0 = rowY(j.hop.fr), y1 = rowY(j.hop.tr); return { x: ox + j.hop.fx + (j.hop.tx - j.hop.fx) * p, y: y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 6, air: true }; }
@@ -443,6 +474,7 @@ export class Game {
     const skin = SKIN_BY_ID[this.skinId || DEFAULT_SKIN], j = this.j, e = this.end;
     let { x, y, air } = this.jerryPos(ox, rowY);
     if (e && e.kind === 'water') return;
+    if (e && e.kind === 'monstro') { if (e.t > 0.3) return; j.view = 'front'; }   // o monstro pegou: some na escuridão
     if (e && e.kind === 'portal') {   // o portal abre ao lado; ele olha, pula para dentro e o portal fecha
       const px = x + (x < ox + COLS * T / 2 ? 22 : -22), py = y + 5, k = e.t < 0.45 ? e.t / 0.45 : e.t < 1.25 ? 1 : Math.max(0, 1 - (e.t - 1.25) / 0.35);
       drawPortal(c, px, py, k, this.t);

@@ -120,7 +120,7 @@ const reviveCost = () => (game.ability === 'pechincha' ? 40 : REVIVE_COST);   //
 // morreu: antes do fim, oferece reviver (1 vez por partida) vendo um vídeo ou por 70 moedas
 function died() {
   const g = game;
-  if (g.revived) return finish();
+  if (g.revived || g.hard) return finish();   // depois da fileira 1000 não dá para reviver
   g.state = 'ask';   // a partida fica parada (sem contar como fim) enquanto o jogador escolhe
   const back = () => { hide(); g.revive(); last = performance.now(); };
   show('revive', {

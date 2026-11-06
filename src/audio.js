@@ -34,6 +34,7 @@ export const sfx = {
   bigcoin: () => { [988, 1319, 1568, 1976].forEach((f, i) => tone(f, 0.09, 'square', 0.13, 0, i * 0.05)); },
   splash: () => { noise(0.45, 0.4, 900); tone(300, 0.3, 'sine', 0.2, -200); },
   hit: () => { noise(0.25, 0.45, 500); tone(110, 0.3, 'square', 0.25, -60); },
+  roar: () => { noise(0.9, 0.4, 260); tone(70, 0.9, 'sawtooth', 0.22, -30); tone(55, 1.1, 'square', 0.12, -20, 0.1); },   // o monstro chegou
   ding: () => { tone(1760, 0.18, 'triangle', 0.12); tone(1760, 0.18, 'triangle', 0.12, 0, 0.25); },
   horn: () => { tone(330, 0.5, 'sawtooth', 0.12); tone(415, 0.5, 'sawtooth', 0.1); },
   portal: () => { for (let i = 0; i < 8; i++) tone(300 + i * 90, 0.25, 'sine', 0.12, 400, i * 0.07); },
