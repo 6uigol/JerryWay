@@ -85,7 +85,9 @@ button.google span { color: #1a1226; }
 .col-big canvas.dim { filter: grayscale(0.35) brightness(0.75) drop-shadow(0 0 6px var(--glow, transparent)); }
 .col-big .q { position: absolute; font-size: 40px; color: #ff8ab0; text-shadow: 3px 3px 0 #0a0618; font-weight: normal; }
 @keyframes col-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-.col-info { font-size: 9px; min-height: 58px; }
+.col-info { font-size: 9px; min-height: 58px; flex: none; }
+.col-view, .col-info .use { flex: none; }
+.col-info .use { margin-top: 8px; }
 .col-info .muted { font-size: 7px; }
 .cell.sel { outline: 2px solid #ffcc3a; outline-offset: 1px; background: #4a3a8a; }
 .panel.wide .grid { max-height: 30vh; }
