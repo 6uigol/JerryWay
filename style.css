@@ -91,3 +91,20 @@ button.google span { color: #1a1226; }
 .panel.wide .grid { max-height: 30vh; }
 /* controle: o botão escolhido no menu fica bem visível */
 body.pad #ui button:focus, body.pad #ui input:focus, body.pad #ui a:focus { outline: 3px solid #ffcc3a; outline-offset: 2px; }
+
+/* reviver */
+.revive .rv-bar { height: 6px; background: #1a1226; border: 2px solid var(--line); }
+.revive .rv-bar i { display: block; height: 100%; width: 100%; background: var(--gold); }
+button.noads-btn { background: #6a3aa8; border-color: #b08aff; font-size: 9px; padding: 8px; }
+
+/* anúncio próprio (PC, ou quando o AdMob não tem anúncio) */
+.housead { position: fixed; inset: 0; z-index: 50; background: rgba(5, 4, 16, 0.94); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.ha-box { position: relative; width: min(560px, 100%); background: #120c28; border: 3px solid #7a9aff; box-shadow: 0 0 0 3px #05081e, 0 0 40px rgba(122,154,255,.35); padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.ha-box img { width: 100%; height: auto; image-rendering: pixelated; border: 2px solid #2a3aa8; }
+.ha-box h2 { color: #ffcc3a; font-size: 14px; margin: 4px 0 0; }
+.ha-box p { margin: 0; font-size: 9px; line-height: 1.7; color: #c8d0ff; }
+.ha-tag { position: absolute; left: 8px; top: 8px; z-index: 1; font-size: 7px; background: #ffcc3a; color: #1a1226; padding: 3px 5px; }
+.ha-row { display: flex; gap: 8px; }
+.ha-more { background: #2a8a4a; border-color: #5ad07a; }
+.ha-buy { background: #6a3aa8; border-color: #b08aff; }
+.ha-close { position: absolute; right: 8px; top: 8px; flex: none; min-width: 34px; padding: 6px 8px; font-size: 9px; background: #05081e; }

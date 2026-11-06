@@ -63,6 +63,9 @@ export function pollPad({ game, showing, onPause }) {
   // abertura da marca: qualquer botão pula (corta o som junto)
   if (document.getElementById('brand-intro')) { key('Escape'); return; }
 
+  // anúncio próprio na tela: A fecha quando a contagem acaba (ou abre o botão em foco)
+  const ad = document.querySelector('.housead');
+  if (ad) { if (hit('a') || hit('start')) { const c = ad.querySelector('.ha-close'); if (c && !c.disabled) c.click(); } return; }
   const menu = showing();
   if (menu) {
     if (dir) moveFocus(dir);

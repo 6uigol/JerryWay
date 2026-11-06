@@ -22,12 +22,29 @@ export class Game {
     this.score = 0; this.coins = 0; this.queue = null;
     this.fx = []; this.toasts = []; this.end = null; this.zone = zoneAt(0).id; this.zoneBanner = { name: zoneAt(0).name, t: 0 };
     this.ghosts = []; this.passed = new Set(); this.worldBest = 0; this.worldName = ''; this.beatWorld = false;
+    this.revived = false; this.shield = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
   }
   // fantasmas dos recordes: o seu, o da última partida e os 10 maiores do ranking, parados onde cada um chegou
   setGhosts(list) {
     this.ghosts = list.filter((g) => g.row > 2).map((g, i) => ({ ...g, col: [0, 1, 7, 8][Math.abs(g.row * 7 + i * 3) % 4] }));
   }
   start() { this.state = 'play'; }
+  // reviver (vídeo ou 100 moedas, 1 vez por partida): o Jerry volta na grama segura mais perto de onde caiu,
+  // a tela desce um pouco para ele ter espaço e ele fica piscando 2,5 s sem poder ser atropelado
+  revive() {
+    const j = this.j, W = this.world;
+    let row = null;
+    for (let d = 0; d <= 16 && row === null; d++) for (const r of [j.row - d, j.row + d]) { const L = W.lane(r); if (r >= 0 && L && L.type === 'grass' && row === null) row = r; }
+    if (row === null) row = Math.max(0, j.row);
+    const L = W.lane(row), want = clamp(Math.round((j.x - T / 2) / T), 0, COLS - 1);
+    let col = want;
+    for (let d = 0; d < COLS; d++) { const a = clamp(want - d, 0, COLS - 1), b = clamp(want + d, 0, COLS - 1); if (!L || !L.block || !L.block.has(a)) { col = a; break; } if (!L.block.has(b)) { col = b; break; } }
+    for (let r = Math.floor(this.cam) - 2; r < this.cam + 30; r++) { const l = W.lane(r); if (l) l.frozen = false; }   // o que atropelou volta a andar
+    Object.assign(j, { row, x: col * T + T / 2, hop: null, on: null, view: 'back', bump: 0 });
+    this.cam = Math.min(this.cam, row - 3);
+    this.end = null; this.queue = null; this.state = 'play'; this.revived = true; this.shield = 2.5;
+    this.fx.push({ k: 'spark', x: j.x, row, t: 0 });
+  }
 
   // ---------------------------------------------------------------- movimento
   move(dx, dy) {
@@ -152,6 +169,7 @@ export class Game {
       return;
     }
     if (this.state !== 'play') return;
+    if (this.shield > 0) this.shield -= dt;
 
     // pulo em andamento
     if (j.hop) {
@@ -179,7 +197,7 @@ export class Game {
     const row = j.hop ? (j.hop.t / HOP > 0.5 ? j.hop.tr : j.hop.fr) : j.row;
     const jx = j.hop ? j.hop.fx + (j.hop.tx - j.hop.fx) * (j.hop.t / HOP) : j.x;
     const L = W.lane(row);
-    if (L) {
+    if (L && !(this.shield > 0)) {
       const hit = (x, w, pad = 3) => jx + 4 > x + pad && jx - 4 < x + w - pad;
       const by = (L.type === 'road' || L.type === 'slime') && L.objs.find((o) => hit(o.x, o.w));
       if (by) return this.squash(L, by, jx, row);
@@ -257,6 +275,7 @@ export class Game {
     const fr = jerryFrame(j.view, pose, air ? 1 : Math.floor(this.t * 2) % 2 && pose === 'idle' ? 0 : 0, skin);
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(Math.round(x) - 5, Math.round((air ? y + Math.sin(Math.min(1, j.hop ? j.hop.t / HOP : 0) * Math.PI) * 6 : y)) + 12, 10, 2);
     if (skin.fx === 'ghost') c.globalAlpha *= 0.75;
+    if (this.shield > 0 && Math.floor(this.t * 10) % 2) c.globalAlpha *= 0.35;   // acabou de reviver: piscando
     c.drawImage(fr, Math.round(x) - 9, Math.round(y) - 3);   // quadro 19x19 com os pés em (9, 17)
     c.globalAlpha = 1;
     if (skin.fx) this.drawAura(c, skin.fx, Math.round(x), Math.round(y) + 6);

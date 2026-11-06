@@ -1,5 +1,6 @@
 // Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
-import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore, noAds, refreshEnt } from './store.js';
+import { openLink } from './ads.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
@@ -64,7 +65,7 @@ const soundBtns = () => `<div class="row small"><button class="ghost" data-go="s
 
 export function show(name, data) {
   current = name; root.hidden = false;
-  const screens = { title, result, sorte, colecao, ranking, conta, pause };
+  const screens = { title, result, sorte, colecao, ranking, conta, pause, revive, noads };
   root.innerHTML = '';
   screens[name](data);
 }
@@ -78,6 +79,7 @@ function title() {
     <button class="big" data-go="play">JOGAR</button>
     <div class="row"><button data-go="sorte">Sortear skin</button><button data-go="colecao">Coleção</button></div>
     <div class="row"><button data-go="ranking">Ranking</button><button data-go="conta">Conta</button></div>
+    ${noAds() ? '' : '<button class="noads-btn" data-go="noads">Tirar anúncios</button>'}
     ${soundBtns()}
     ${canQuit() ? '<button class="ghost" data-go="quitapp">Sair do jogo</button>' : ''}
     <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD. No controle: direcional ou analógico.</p>
@@ -99,6 +101,7 @@ function result(r) {
     <p class="muted" id="rk-msg">${r.rankMsg || ''}</p>
     <button class="big" data-go="play">JOGAR DE NOVO</button>
     <div class="row"><button data-go="ranking">Ranking</button><button data-go="sorte">Sortear</button><button data-go="title">Menu</button></div>
+    ${noAds() ? '' : '<button class="noads-btn" data-go="noads">Cansou dos anúncios? Tirar anúncios</button>'}
   </div>`;
   if (r.myth) {
     $('#myth-pv').append(preview(r.myth, 'front', 4));
@@ -296,4 +299,43 @@ function pause() {
     <button class="big" data-go="resume">CONTINUAR</button>
     ${soundBtns()}
     <button data-go="quit">Desistir</button></div>`;
+}
+
+// morreu: reviver uma vez por partida, vendo um vídeo (sempre disponível, mesmo sem anúncios) ou por 100 moedas
+export const REVIVE_COST = 100;
+function revive(d) {
+  const can = d.coins >= REVIVE_COST;
+  root.innerHTML = `<div class="panel revive"><h2>Reviver?</h2>
+    <p class="muted">Continue de onde parou. Só dá para reviver uma vez por partida.</p>
+    <div class="score">${d.score}</div>
+    <button class="big" id="rv-video">▶ Ver vídeo e reviver</button>
+    <button id="rv-coins" ${can ? '' : 'disabled'}>Reviver por ${REVIVE_COST} <i class="coin"></i>${can ? '' : ` (você tem ${d.coins})`}</button>
+    <div class="rv-bar"><i id="rv-time"></i></div>
+    <button class="ghost" id="rv-skip">Não, obrigado</button></div>`;
+  const T0 = Date.now(), MS = 7000; let done = false;
+  const end = (fn) => { if (done) return; done = true; clearInterval(timer); fn(); };
+  const timer = setInterval(() => { const k = 1 - (Date.now() - T0) / MS; $('#rv-time').style.width = Math.max(0, k * 100) + '%'; if (k <= 0) end(d.skip); }, 50);
+  $('#rv-video').onclick = () => { sfx.click(); end(d.video); };
+  $('#rv-coins').onclick = () => { if (!can) return; sfx.click(); end(d.pay); };
+  $('#rv-skip').onclick = () => { sfx.click(); end(d.skip); };
+}
+// "Sem anúncios": compra única no site, ligada à conta (precisa estar na conta para comprar)
+const NOADS_URL = SITE_URL + '/#/comprar/jerry-way-noads', KEY_URL = SITE_URL + '/#/resgatar';
+function noads() {
+  const me = currentAccount();
+  let body;
+  if (noAds()) body = '<p><b>✓ Esta conta já está sem anúncios.</b></p><p class="muted">Reviver vendo vídeo continua disponível, se você quiser.</p>';
+  else if (!me || !me.verified) body = `<p>Para comprar, <b>entre na sua conta primeiro</b>. A compra fica ligada a ela e vale no celular e no PC.</p><button class="big" data-go="conta">Entrar na conta</button>`;
+  else body = `<p>Jogue <b>sem anúncios entre as partidas</b>, para sempre, nesta conta (${esc(me.email)}), em todas as plataformas.</p>
+    <div class="score" style="font-size:22px">R$ 9,90</div><p class="muted small">Compra única, paga no site com Pix ou cartão. Reviver vendo vídeo continua disponível, se você quiser.</p>
+    <button class="big" id="na-buy">Comprar no site</button>
+    <div class="row"><button id="na-key">Tenho uma chave</button><button id="na-check">Já comprei</button></div><p class="muted" id="na-msg"></p>`;
+  root.innerHTML = `<div class="panel"><h2>Tirar anúncios</h2>${body}<button class="ghost" data-go="title">Voltar</button></div>`;
+  $('#na-buy')?.addEventListener('click', () => { openLink(NOADS_URL); $('#na-msg').textContent = 'Depois de pagar, volte aqui e toque em "Já comprei".'; });
+  $('#na-key')?.addEventListener('click', () => { openLink(KEY_URL); $('#na-msg').textContent = 'Use a chave no site com esta mesma conta e depois toque em "Já comprei".'; });
+  $('#na-check')?.addEventListener('click', async (e) => {
+    e.target.disabled = true; const stop = connecting($('#na-msg'));
+    try { await refreshEnt(); } finally { stop(); e.target.disabled = false; }
+    if (noAds()) show('noads'); else $('#na-msg').textContent = 'Ainda não apareceu a compra nesta conta. Se pagou com Pix, espere um pouco e tente de novo.';
+  });
 }

@@ -45,12 +45,22 @@ async function api(op, payload) {
   let r;
   try { r = await connect(payload ? fetch(API_URL, { method: 'POST', headers, body: JSON.stringify({ op, ...payload }) }) : fetch(API_URL + '?op=' + op, { headers, cache: 'no-store' })); }
   catch (e) { throw Object.assign(new Error('offline'), { code: 'offline' }); }
-  if (!r.ok) { const d = await r.json().catch(() => ({})); throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : r.status === 409 ? 'name-taken' : d.code === 'name-bad' ? 'name-bad' : 'network' }); }
+  if (!r.ok) { const d = await r.json().catch(() => ({})); throw Object.assign(new Error('servidor'), { code: r.status === 401 ? 'permission-denied' : r.status === 409 ? 'name-taken' : d.code === 'name-bad' ? 'name-bad' : d.code === 'name-needed' ? 'name-needed' : 'network' }); }
   return r.json();
 }
 async function pushCloud() { try { await api('save', { data: JSON.parse(JSON.stringify(save)) }); } catch (e) { console.warn('nuvem', e && e.code); } }
 
 // ---------------------------------------------------------------- conta
+// compras extras da conta ("Sem anúncios"): vêm do servidor; ficam guardadas no aparelho para valer sem internet
+const ENT = (id) => 'jerryway.ent.' + id;
+let ent = { noAds: false };
+export const noAds = () => !!(ent.noAds && account && account.verified);
+function readEnt(id) { try { return JSON.parse(localStorage.getItem(ENT(id)) || 'null') || { noAds: false }; } catch (_) { return { noAds: false }; } }
+export async function refreshEnt() {
+  if (!cloud || !account || !account.verified) return ent;
+  try { const r = await api('ent'); ent = { noAds: !!r.noAds }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
+  return ent;
+}
 export const cloudReady = () => !!cloud;
 export const currentAccount = () => account;
 export async function initCloud() {
@@ -64,8 +74,8 @@ export async function initCloud() {
 }
 // ao entrar: junta o que estava no aparelho (sem conta) com o que está na nuvem (o recorde maior, todas as skins)
 async function attach(u) {
-  if (!u) { uid = null; load(readLocal(null)); emit(); return; }
-  uid = u.uid;
+  if (!u) { uid = null; ent = { noAds: false }; load(readLocal(null)); emit(); return; }
+  uid = u.uid; ent = readEnt(u.uid);
   const local = readLocal(uid) || readLocal(null) || {};
   load(local);
   emit();
@@ -86,6 +96,7 @@ async function attach(u) {
     // o progresso jogado sem conta passa para a conta uma única vez
     try { localStorage.removeItem(KEY(null)); } catch (_) { /* ok */ }
     commit();
+    refreshEnt();
     submitScore().catch(() => {});   // o recorde do aparelho entra no ranking ao entrar na conta
   } catch (e) { console.warn('nuvem', e && e.code); }
 }
@@ -111,13 +122,15 @@ export async function setName(name) {
   if (isBadName(n)) throw Object.assign(new Error('nome'), { code: 'name-bad' });   // o servidor também recusa
   const r = await api('name', { name: n });
   save.name = r.name; commit();
+  submitScore().catch(() => {});   // com o nome registrado, o recorde entra (ou é atualizado) no ranking
   return r.name;
 }
 // ---------------------------------------------------------------- ranking
 export async function submitScore() {
   if (!cloud || !account || !account.verified || !save.best) return false;
-  const name = (save.name || account.email.split('@')[0]).replace(/[^\p{L}\p{N} _.-]/gu, '').slice(0, 8) || 'Jerry';
-  await api('score', { name, best: save.best, skin: save.skin });
+  // o ranking usa sempre o nome registrado da conta; sem nome, o recorde não entra (o servidor também confere)
+  if (!save.name) throw Object.assign(new Error('nome'), { code: 'name-needed' });
+  await api('score', { best: save.best, skin: save.skin });
   return true;
 }
 // o ranking é público: aparece mesmo sem conta
@@ -135,6 +148,7 @@ export function friendly(e) {
   if (c.includes('account-exists-with-different-credential')) return 'Esse e-mail já tem conta com senha. Entre com e-mail e senha.';
   if (c === 'name-taken') return 'Esse nome já é de outra conta. Escolha outro.';
   if (c === 'name-bad') return 'Esse nome não é permitido. Escolha outro.';
+  if (c === 'name-needed') return 'Escolha um nome em Conta para aparecer no ranking.';
   if (c.includes('permission-denied')) return 'O servidor recusou (confirme seu e-mail ou tente mais tarde).';
   return 'Não deu certo agora. Tente de novo.';
 }

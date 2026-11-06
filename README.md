@@ -25,3 +25,14 @@ npm test                 # confere que o caminho gerado nunca fecha
 
 Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.js` (arte em pixel art),
 `src/jerry.js` (o Jerry, o mesmo desenho do Song of Moonlight), `src/skins.js` (as 180 skins), `src/ui.js` (menus).
+
+## Anúncios e "Sem anúncios"
+
+- **Android:** AdMob (`@capacitor-community/admob`). O jogo está com os IDs de **teste** do Google. Para receber de verdade:
+  1. Crie a conta em admob.google.com, adicione o app Android `com.jerryway.game` e crie dois blocos: **Premiado** (reviver) e **Intersticial** (entre partidas).
+  2. Troque o ID do app em `android/app/src/main/res/values/strings.xml` (`admob_app_id`, formato `ca-app-pub-XXXX~YYYY`).
+  3. Troque os IDs dos blocos em `src/ads.js` (`ADMOB.rewarded` e `ADMOB.interstitial`) e mude `testing` para `false`.
+- **PC (Windows/Linux):** anúncio próprio do Song of Moonlight (`icons/som-ad.jpg`), sem rede de anúncios.
+- **Limites:** anúncio entre partidas só a cada 3 mortes, nunca antes de 2 minutos do anterior, nunca nas 2 primeiras partidas do dia e no máximo 20 por dia. Cada anúncio espera no máximo 8 s para carregar; sem anúncio disponível, o jogo segue (o vídeo de reviver usa o anúncio próprio).
+- **Reviver:** 1 vez por partida, vendo vídeo (sempre disponível, mesmo para quem tirou os anúncios) ou por 100 moedas.
+- **Sem anúncios (R$ 9,90):** comprado no site com a conta (`#/comprar/jerry-way-noads`) ou por chave de resgate (Admin → Chaves → "Jerry's Way · Sem anúncios"). O jogo confere em `/api/jerry?op=ent`.

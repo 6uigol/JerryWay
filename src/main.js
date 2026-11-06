@@ -3,7 +3,9 @@ import { Game, label } from './game.js';
 import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD } from './world.js';
 import { SKIN_BY_ID, missingMythics } from './skins.js';
 import { pollPad } from './gamepad.js';
-import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange } from './store.js';
+import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange, noAds, refreshEnt } from './store.js';
+import { initAds, showRewarded, maybeInterstitial, countDeath } from './ads.js';
+import { REVIVE_COST } from './ui.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { brandIntro } from './brand.js';
 import { initAudio, setBackground, onResume } from './audio.js';
@@ -112,8 +114,41 @@ function play() {
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();
 }
+// morreu: antes do fim, oferece reviver (1 vez por partida) vendo um vídeo ou por 100 moedas
+function died() {
+  const g = game;
+  if (g.revived) return finish();
+  g.state = 'ask';   // a partida fica parada (sem contar como fim) enquanto o jogador escolhe
+  const back = () => { hide(); g.revive(); last = performance.now(); };
+  show('revive', {
+    score: g.score, coins: save.coins + g.coins,
+    video: async () => {
+      hide(); setBackground(true);   // o som do jogo para durante o vídeo
+      let ok = false; try { ok = await showRewarded(); } catch (_) { ok = false; }
+      setBackground(document.hidden);
+      if (ok) back(); else finish();
+    },
+    pay: () => {
+      // paga primeiro com as moedas guardadas; o que faltar sai das moedas desta partida
+      const fromSave = Math.min(save.coins, REVIVE_COST); save.coins -= fromSave; g.coins -= REVIVE_COST - fromSave; commit();
+      back();
+    },
+    skip: finish,
+  });
+}
+// jogar de novo: a cada 3 mortes (e no máximo 1 a cada 2 minutos) aparece um anúncio antes, para quem não tirou os anúncios
+let adBusy = false;
+async function playAgain() {
+  if (adBusy) return;
+  adBusy = true; hide();
+  let r = null;
+  try { setBackground(true); r = await maybeInterstitial(noAds); } catch (_) { /* sem anúncio: segue */ } finally { setBackground(document.hidden); adBusy = false; }
+  if (r === 'buy') return show('noads');
+  play();
+}
 function finish() {
   const g = game, record = g.score > save.best;
+  countDeath();
   save.coins += g.coins; save.runs++; save.last = g.score;
   if (record) save.best = g.score;
   commit();
@@ -127,21 +162,24 @@ function finish() {
 async function refreshTop() { try { topList = (await top10()) || []; } catch (_) { /* sem ranking agora */ } }
 
 initUI({
-  play,
+  play: () => (game.state === 'over' ? playAgain() : play()),
   resume: () => { hide(); game.state = 'play'; last = performance.now(); },
   quit: () => { game.state = 'play'; game.die('portal'); hide(); },
 });
 show('title');
 brandIntro();   // abertura da marca Song of Moonlight por cima da tela inicial
 initCloud().then(refreshTop);
+initAds(noAds);
 setInterval(refreshTop, 60000);   // ranking das laterais sempre atualizado
 
 // ---------------------------------------------------------------- controles
 const keys = { ArrowUp: [0, 1], KeyW: [0, 1], Space: [0, 1], ArrowDown: [0, -1], KeyS: [0, -1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 window.addEventListener('keydown', (e) => {
   if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  const ad = document.querySelector('.housead');   // anúncio na tela: Enter/Espaço fecham quando a contagem acaba
+  if (ad) { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); const c = ad.querySelector('.ha-close'); if (c && !c.disabled) c.click(); } return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { if (game.state === 'play') { game.state = 'pause'; show('pause'); } else if (game.state === 'pause') { hide(); game.state = 'play'; } return; }
-  if ((e.code === 'Enter' || e.code === 'Space') && (showing() === 'title' || showing() === 'result')) { e.preventDefault(); play(); return; }
+  if ((e.code === 'Enter' || e.code === 'Space') && (showing() === 'title' || showing() === 'result')) { e.preventDefault(); if (showing() === 'result') playAgain(); else play(); return; }
   const k = keys[e.code];
   if (k && game.state === 'play') { e.preventDefault(); if (!e.repeat) game.move(k[0], k[1]); }
 });
@@ -160,7 +198,7 @@ function background(hidden) {
   setBackground(hidden);
   if (hidden && game.state === 'play') { game.state = 'pause'; show('pause'); }
 }
-document.addEventListener('visibilitychange', () => background(document.hidden));
+document.addEventListener('visibilitychange', () => { background(document.hidden); if (!document.hidden) refreshEnt(); });   // voltou do site (comprou "Sem anúncios"): confere na hora
 window.addEventListener('pagehide', () => background(true));
 window.addEventListener('jerry-app-background', () => background(true));   // Android (MainActivity)
 window.addEventListener('jerry-app-foreground', () => { if (!document.hidden) background(false); });
@@ -173,7 +211,7 @@ function frame(now) {
   const visRows = LH / TILE;
   pollPad({ game, showing, onPause: () => { game.state = 'pause'; show('pause'); } });   // controle: setinhas, joystick esquerdo, A, B e Start
   if (game.state !== 'pause') game.update(dt, visRows);
-  if (game.over) finish();
+  if (game.over) died();
   lctx.imageSmoothingEnabled = false;
   game.draw(lctx, LW, LH);
   if (game.state === 'play' || game.state === 'dying') hud();

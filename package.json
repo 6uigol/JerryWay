@@ -21,6 +21,7 @@
     "test": "node tests/world.test.mjs"
   },
   "devDependencies": {
+    "@capacitor-community/admob": "7.2.0",
     "@capacitor/android": "^7.6.9",
     "@capacitor/cli": "^7.6.9",
     "@capacitor/core": "^7.6.9",
@@ -94,6 +95,5 @@
     ],
     "compression": "maximum",
     "afterPack": "scripts/after-pack.cjs"
-  },
-  "dependencies": {}
+  }
 }
