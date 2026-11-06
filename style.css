@@ -126,3 +126,7 @@ button.shop-btn { background: #8a5a10; border-color: #ffcc3a; color: #fff2c8; fo
 #powerbtn span { font-size: 7px; color: #e8ffe8; margin-bottom: 8px; }
 #powerbtn[hidden] { display: none; }
 @keyframes pw { 50% { box-shadow: 0 4px 0 #0a0618, 0 0 26px rgba(122, 255, 154, 0.8); } }
+
+/* links legais */
+.legal { font-size: 7px; line-height: 1.8; margin: 4px 0 0; }
+.legal a { color: #c8b8ff; }

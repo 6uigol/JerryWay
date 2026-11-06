@@ -83,7 +83,8 @@ function title() {
     <button class="shop-btn" data-go="loja">Loja: moedas, Multiplicador e pacotes</button>
     ${soundBtns()}
     ${canQuit() ? '<button class="ghost" data-go="quitapp">Sair do jogo</button>' : ''}
-    <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD. No controle: direcional ou analógico.</p>
+    <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD. No controle: direcional ou analógico. Poder: botão na tela, E/Shift ou X/Y.</p>
+    <p class="legal">${['termos|Termos de Uso', 'privacidade|Privacidade', 'compras|Compras e Reembolsos'].map((x) => { const [k, n] = x.split('|'); return `<a href="${SITE_URL}/#/${k}" target="_blank" rel="noopener">${n}</a>`; }).join(' · ')}</p>
   </div>`;
   $('#pv').append(preview(skin), Object.assign(document.createElement('div'), { className: 'skinname', textContent: skin.name }));
   $('#pv').insertAdjacentHTML('beforeend', abilityTag(skin));
@@ -287,7 +288,9 @@ function conta() {
     <div class="row"><input id="nm" maxlength="8" value="${esc(save.name || '')}" placeholder="Seu nome"><button id="nm-ok">${save.name ? 'Trocar' : 'Salvar'}</button></div>
     <p class="muted" id="nm-msg">${save.name ? 'Nome salvo na sua conta: vale em todos os aparelhos.' : ''}</p>
     <div class="row"><button id="out">Sair da conta</button><button data-go="title">Voltar</button></div>
-    <p class="muted small">Também em <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://', '')}</a></p></div>`;
+    <p class="muted small">Também em <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://', '')}</a></p>
+    <p class="muted small">Ao usar a conta você concorda com os Termos de Uso e a Política de Privacidade (LGPD). Para apagar sua conta e seus dados, escreva para contato@songofmoonlight.online.</p>
+    <p class="legal">${['termos|Termos de Uso', 'privacidade|Privacidade', 'compras|Compras e Reembolsos'].map((x) => { const [k, n] = x.split('|'); return `<a href="${SITE_URL}/#/${k}" target="_blank" rel="noopener">${n}</a>`; }).join(' · ')}</p></div>`;
   $('#nm-ok').onclick = async () => {
     const nm = $('#nm').value.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 8);
     if (!nm) { $('#nm-msg').textContent = 'Escolha um nome.'; return; }
