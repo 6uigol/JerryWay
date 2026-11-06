@@ -1,5 +1,5 @@
 // Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
-import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore } from './store.js';
+import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore, coinMult, refreshEnt } from './store.js';
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin, ABILITIES } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
@@ -66,7 +66,7 @@ const soundBtns = () => `<div class="row small"><button class="ghost" data-go="s
 
 export function show(name, data) {
   current = name; root.hidden = false;
-  const screens = { title, result, sorte, colecao, ranking, conta, pause, revive };
+  const screens = { title, result, sorte, colecao, ranking, conta, pause, revive, loja };
   root.innerHTML = '';
   screens[name](data);
 }
@@ -80,6 +80,7 @@ function title() {
     <button class="big" data-go="play">JOGAR</button>
     <div class="row"><button data-go="sorte">Sortear skin</button><button data-go="colecao">Coleção</button></div>
     <div class="row"><button data-go="ranking">Ranking</button><button data-go="conta">Conta</button></div>
+    <button class="shop-btn" data-go="loja">Loja: moedas, Multiplicador e pacotes</button>
     ${soundBtns()}
     ${canQuit() ? '<button class="ghost" data-go="quitapp">Sair do jogo</button>' : ''}
     <p class="hint">Toque para pular para frente. Arraste para os lados ou para trás.<br>No PC: setas ou WASD. No controle: direcional ou analógico.</p>
@@ -97,7 +98,8 @@ function result(r) {
     <div class="score">${r.score}</div>
     ${r.myth ? `<div class="myth-won"><b>Skin Mítica desbloqueada!</b><div class="pv" id="myth-pv"></div><span>${esc(r.myth.name)}</span><button class="use" id="myth-use">Usar agora</button></div>` : ''}
     <div class="info"><span>Pessoal <b>${save.best}</b></span><span>Mundial <b>${r.world ? r.score : r.worldBest || '-'}</b></span></div>
-    <div class="info"><span>+${r.coins} <i class="coin"></i></span>${coinsTag()}</div>
+    <div class="info"><span>+${r.coins} <i class="coin"></i>${r.mult > 1 ? ' <b class="x2">x2</b>' : ''}</span>${coinsTag()}</div>
+    ${r.mult > 1 || !r.base ? '' : `<button class="shop-btn" data-go="loja">Com o Multiplicador você levaria +${r.base} moedas a mais</button>`}
     ${top ? `<ol class="rank small-rank">${top}</ol>` : ''}
     <p class="muted" id="rk-msg">${r.rankMsg || ''}</p>
     <button class="big" data-go="play">JOGAR DE NOVO</button>
@@ -119,6 +121,7 @@ function sorte() {
     <div id="gacha" class="gacha"><canvas id="nutcv" class="pix" width="320" height="256"></canvas><div id="g-skin" class="g-skin"></div></div>
     <div id="g-out" class="g-out">Cada tentativa custa ${PULL_COST} moedas e sorteia uma skin. Pode vir repetida (aí as moedas não voltam). As míticas não saem aqui: só pegando o esquilo mítico no caminho.</div>
     <button class="big" id="g-pull" ${save.coins < PULL_COST ? 'disabled' : ''}>TENTAR (${PULL_COST})</button>
+    ${save.coins < PULL_COST ? '<button class="shop-btn" data-go="loja">Faltam moedas? Comprar moedas</button>' : ''}
     <div class="odds">${odds}</div>
     <div class="row"><button data-go="colecao">Coleção</button><button data-go="title">Voltar</button></div>
   </div>`;
@@ -317,4 +320,29 @@ function revive(d) {
   const timer = setInterval(() => { const k = 1 - (Date.now() - T0) / MS; $('#rv-time').style.width = Math.max(0, k * 100) + '%'; if (k <= 0) end(d.skip); }, 50);
   $('#rv-coins').onclick = () => { sfx.click(); end(d.pay); };
   $('#rv-skip').onclick = () => { sfx.click(); end(d.skip); };
+}
+
+// ---------------------------------------------------------------- Loja (a compra é feita no site, com a mesma conta)
+const SHOP = [
+  { id: 'pacote-lua', name: 'Pacote Lua Cheia', price: 'R$ 47,90', badge: 'Melhor oferta', desc: 'Song of Moonlight: O Mistério do Castelo Silencioso + 500 moedas + Multiplicador de moedas.', big: true },
+  { id: 'jerry-way-x2', name: 'Multiplicador de moedas', price: 'R$ 7,90', badge: 'x2', desc: 'Todas as moedas das suas partidas valem o dobro, para sempre.', own: () => coinMult() > 1 },
+  { id: 'jerry-way-coins150', name: '150 moedas', price: 'R$ 12,00', badge: '+150', desc: 'Entram sozinhas no jogo. Pode comprar quantas vezes quiser.' },
+  { id: 'jerry-way-allskins', name: 'Todas as skins', price: 'R$ 239,90', badge: 'Tudo', desc: 'Todas as skins do Jerry, inclusive as míticas.', own: () => SKINS.every((k) => save.owned.includes(k.id)) },
+];
+function openSite(path) { const a = document.createElement('a'); a.href = SITE_URL + path; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+function loja() {
+  const me = currentAccount();
+  root.innerHTML = `<div class="panel wide"><h2>Loja</h2>
+    <p class="muted small">A compra é feita no site (Pix ou cartão), com a mesma conta do jogo. ${me && me.verified ? `Conta: ${esc(me.email)}` : '<b>Entre na sua conta antes</b> para receber o que comprar.'}</p>
+    <div class="shop">${SHOP.map((x) => { const have = x.own && x.own();
+      return `<div class="shop-item${x.big ? ' big' : ''}"><span class="badge">${esc(x.badge)}</span><b>${esc(x.name)}</b><span class="muted">${esc(x.desc)}</span>
+        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já é seu</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
+    <p class="muted" id="sh-msg"></p>
+    <div class="row">${me && me.verified ? '<button id="sh-check">Já comprei</button>' : '<button data-go="conta">Entrar na conta</button>'}<button data-go="title">Voltar</button></div></div>`;
+  root.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => { sfx.click(); openSite('/#/comprar/' + b.dataset.buy); $('#sh-msg').textContent = 'Depois de pagar no site, volte aqui: o jogo confere sozinho (ou toque em "Já comprei").'; }));
+  $('#sh-check')?.addEventListener('click', async (e) => {
+    e.target.disabled = true; const stop = connecting($('#sh-msg'));
+    try { await refreshEnt(); } finally { stop(); e.target.disabled = false; }
+    if (current === 'loja') { show('loja'); $('#sh-msg').textContent = 'Conferido! O que você comprou já está no jogo.'; }
+  });
 }

@@ -39,3 +39,11 @@ Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.j
 - **Habilidades passivas:** toda skin tem uma (`ABILITIES` em `src/skins.js`). A raridade não deixa a habilidade mais forte; cada habilidade existe em todas as raridades.
 - **Chave "Todas as skins":** criada no Admin (Chaves de resgate → Para que serve: Todas as skins) e usada na aba **Chaves** do site com a conta. O jogo confere em `/api/jerry?op=ent` e libera todas as skins do Jerry's Way, inclusive as míticas.
 - **Depois da fileira 1000 (sem aviso):** tentáculos pretos sobem pela borda de baixo e perseguem o Jerry (a tela sobe 15% mais rápido); se alcançarem, acabou, e não dá para reviver. Aparecem 3,2 vezes mais moedas que no caminho normal (`HARD_ROW` e `HARD_COINS` em `src/world.js`). A tela treme de leve e toca uma playlist de 5 músicas tensas (`HARD_SONGS` em `src/music.js`). Ao entrar nessa fase, o jogo sorteia de novo o esquilo mítico com 3x a chance (`MYTH_HARD_BOOST`), mantendo no máximo uma mítica por partida.
+
+## Loja (no site)
+
+- **Multiplicador de moedas (R$ 7,90):** as moedas de cada partida valem o dobro (`coinMult` em `src/store.js`).
+- **150 moedas (R$ 12,00):** pode comprar várias vezes; o servidor guarda e o jogo busca em `/api/jerry` (`claimCoins`), uma vez só.
+- **Pacote Lua Cheia (R$ 47,90):** Song of Moonlight + 500 moedas + Multiplicador.
+- **Todas as skins (R$ 239,90):** também por chave.
+- No jogo: botão **Loja** no menu, aviso no fim da partida ("com o Multiplicador você levaria +X") e no Sortear skin quando faltam moedas; a compra abre o site em `#/comprar/<item>`.

@@ -53,12 +53,18 @@ async function pushCloud() { try { await api('save', { data: JSON.parse(JSON.str
 // ---------------------------------------------------------------- conta
 // extras da conta liberados por chave ("Todas as skins"): vêm do servidor; ficam guardados no aparelho para valer sem internet
 const ENT = (id) => 'jerryway.ent.' + id;
-let ent = { allSkins: false };
-function readEnt(id) { try { return JSON.parse(localStorage.getItem(ENT(id)) || 'null') || { allSkins: false }; } catch (_) { return { allSkins: false }; } }
+let ent = { allSkins: false, x2: false };
+function readEnt(id) { try { return JSON.parse(localStorage.getItem(ENT(id)) || 'null') || { allSkins: false, x2: false }; } catch (_) { return { allSkins: false, x2: false }; } }
+// Multiplicador de moedas (comprado na Loja do site): as moedas da partida valem o dobro
+export const coinMult = () => (ent.x2 && account && account.verified ? 2 : 1);
+let coinsArrived = null;
+export const onCoinsArrived = (fn) => { coinsArrived = fn; };
 export async function refreshEnt() {
   if (!cloud || !account || !account.verified) return ent;
-  try { const r = await api('ent'); ent = { allSkins: !!r.allSkins }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
+  try { const r = await api('ent'); ent = { allSkins: !!r.allSkins, x2: !!r.x2 }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
   unlockAll();
+  // moedas compradas na Loja: o servidor entrega uma vez só (mesmo com vários aparelhos)
+  try { const r = await api('claimCoins', {}); if (r.coins > 0) { save.coins += r.coins; commit(); if (coinsArrived) coinsArrived(r.coins); } } catch (_) { /* tenta de novo na próxima vez */ }
   return ent;
 }
 // chave "Todas as skins": todas as skins do Jerry's Way ficam da conta (e são salvas na nuvem como qualquer outra)
@@ -81,7 +87,7 @@ export async function initCloud() {
 }
 // ao entrar: junta o que estava no aparelho (sem conta) com o que está na nuvem (o recorde maior, todas as skins)
 async function attach(u) {
-  if (!u) { uid = null; ent = { allSkins: false }; load(readLocal(null)); emit(); return; }
+  if (!u) { uid = null; ent = { allSkins: false, x2: false }; load(readLocal(null)); emit(); return; }
   uid = u.uid; ent = readEnt(u.uid);
   const local = readLocal(uid) || readLocal(null) || {};
   load(local);

@@ -4,7 +4,7 @@ import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD, MYTH_HARD_BOOST } from '.
 import { SKIN_BY_ID, missingMythics, ABILITIES } from './skins.js';
 import { BONUS } from './world.js';
 import { pollPad } from './gamepad.js';
-import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange, refreshEnt } from './store.js';
+import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange, refreshEnt, coinMult, onCoinsArrived } from './store.js';
 import { REVIVE_COST } from './ui.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { brandIntro } from './brand.js';
@@ -139,11 +139,11 @@ function died() {
   });
 }
 function finish() {
-  const g = game, record = g.score > save.best;
-  save.coins += g.coins; save.runs++; save.last = g.score;
+  const g = game, record = g.score > save.best, mult = coinMult(), earned = Math.max(0, g.coins) * mult;   // Multiplicador: moedas em dobro
+  save.coins += earned; save.runs++; save.last = g.score;
   if (record) save.best = g.score;
   commit();
-  const r = { myth: g.mythFound ? SKIN_BY_ID[g.mythFound] : null, kind: g.end.kind, score: g.score, coins: g.coins, record, world: g.beatWorld, worldBest: g.worldBest, worldName: g.worldName, top: topList.slice(0, 5), rankMsg: '' };
+  const r = { myth: g.mythFound ? SKIN_BY_ID[g.mythFound] : null, kind: g.end.kind, score: g.score, coins: earned, base: Math.max(0, g.coins), mult, record, world: g.beatWorld, worldBest: g.worldBest, worldName: g.worldName, top: topList.slice(0, 5), rankMsg: '' };
   g.state = 'over';
   show('result', r);
   const me = currentAccount();
@@ -160,6 +160,8 @@ initUI({
 show('title');
 brandIntro();   // abertura da marca Song of Moonlight por cima da tela inicial
 initCloud().then(refreshTop);
+// moedas compradas na Loja chegaram: avisa e atualiza a tela aberta
+onCoinsArrived((n) => { game.toast(`+${n} moedas da Loja!`, '#ffcc3a'); if (showing() && showing() !== 'revive') show(showing()); });
 setInterval(refreshTop, 60000);   // ranking das laterais sempre atualizado
 
 // ---------------------------------------------------------------- controles
