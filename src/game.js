@@ -119,7 +119,7 @@ export class Game {
   revive() {
     this.placeSafe(); this.end = null; this.queue = null; this.state = 'play'; this.revived = true; this.shield = 2.5; this.blink = 2.5;
   }
-  // põe o Jerry na grama livre mais perto (reviver, Nadador e a volta da dimensão bônus)
+  // põe o Jerry na grama livre mais perto (reviver e a volta da dimensão bônus)
   placeSafe() {
     const j = this.j, W = this.world;
     let row = null;
@@ -220,7 +220,7 @@ export class Game {
     const [sc, sr] = BONUS_START;
     Object.assign(j, { row: sr, x: sc * T + T / 2, hop: null, on: null, view: 'back', bump: 0 });
     this.cam = -1; this.queue = null;
-    const b = this.bonus = { kind, arena: true, t: BONUS_TIME, coins0: this.coins, meteors: [], spawn: 1, gust: 1.6, wind: Math.random() < 0.5 ? -1 : 1, caught: 0, mobs: [] };
+    const b = this.bonus = { kind, arena: true, t: BONUS_TIME + (this.ability === 'tempoBonus' ? this.pv : 0), coins0: this.coins, meteors: [], spawn: 1, gust: 1.6, wind: Math.random() < 0.5 ? -1 : 1, caught: 0, mobs: [] };
     if (kind === 'caca') { b.sqBig = 1 + Math.floor(Math.random() * BONUS_MAX.big); b.sq = this.squirrelSpot(); }
     if (kind === 'mina' || kind === 'trilhos') {   // slimes / carrinhos andando pelos corredores
       const open = this.world.open.filter(([c, r]) => Math.abs(c - sc) + Math.abs(r - sr) > 3);
@@ -315,6 +315,7 @@ export class Game {
   exitBonus(fail, done = false) {
     const s = this.stash, j = this.j;
     if (done) { this.coins += BONUS_FINISH; sfx.record(); }
+    if (this.ability === 'premioBonus') this.coins += Math.round(this.pv);   // Caçador de Portais: moedas extras ao sair
     const got = this.coins - this.bonus.coins0;
     this.world = s.world; this.cam = s.cam; this.bonus = null; this.stash = null;
     Object.assign(j, { row: s.row, x: s.col * T + T / 2, hop: null, on: null, view: 'back', bump: 0 });
@@ -326,11 +327,6 @@ export class Game {
   die(kind) {
     if (this.state !== 'play') return;
     if (this.bonus) return this.exitBonus(true);   // na dimensão bônus ninguém morre: só volta antes
-    // Nadador: 1 vez por partida, sai da água e volta para a margem
-    if (kind === 'water' && this.ability === 'nadador' && !this.used.nadador) {
-      this.used.nadador = true; sfx.splash(); this.fx.push({ k: 'splash', x: this.j.x, row: this.j.row, t: 0 });
-      this.placeSafe(); this.shield = this.pv; this.toast('Nadador: nadou até a margem!', '#7af0ff'); return;
-    }
     this.state = 'dying'; this.end = { kind, t: 0 };
     if (kind === 'water') { sfx.splash(); this.fx.push({ k: 'splash', x: this.j.x, row: this.j.row, t: 0 }); }
     else if (kind === 'hit') sfx.hit();
@@ -340,9 +336,6 @@ export class Game {
   squash(L, o, jx, row) {
     const j = this.j;
     if (this.bonus) return this.exitBonus(true);
-    if (this.ability === 'casco' && !this.used.casco) {   // Casco Duro: a primeira batida da partida não derruba
-      this.used.casco = true; this.shield = this.pv; sfx.bump(); this.toast('Casco Duro aguentou a batida!', '#7aff9a'); return;
-    }
     if (j.hop) { j.x = jx; j.row = row; j.hop = null; }
     L.frozen = true;
     // o que atropelou para com a traseira (a roda de trás) em cima dele: metade do Jerry achatado fica embaixo
