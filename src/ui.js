@@ -1,6 +1,6 @@
 // Telas por cima do jogo (HTML): início, resultado, Sortear skin, Coleção, Ranking, Conta e pausa.
 import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, signUp, signInGoogle, checkOnline, resetPass, sendVerify, refreshVerified, logout, friendly, top10, submitScore, coinMult, refreshEnt } from './store.js';
-import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin, ABILITIES } from './skins.js';
+import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
 import { sfx, isMuted, setMuted, initAudio } from './audio.js';
@@ -60,7 +60,7 @@ function quitApp() {
   if (plug) plug.exit().catch(() => {});
 }
 // habilidade passiva da skin (nome e o que faz)
-const abilityTag = (s) => { const a = ABILITIES[s.ability]; return a ? `<span class="ability">Habilidade: <b>${esc(a.name)}</b><br>${esc(a.desc)}</span>` : ''; };
+const abilityTag = (s) => { const a = s.power; return a ? `<span class="ability">${a.active ? 'Poder (botão)' : 'Poder'}: <b>${esc(a.name)}</b><br>${esc(a.desc)}</span>` : ''; };
 const coinsTag = () => `<span class="coins"><i class="coin"></i>${save.coins}</span>`;
 const soundBtns = () => `<div class="row small"><button class="ghost" data-go="sound">${isMuted() ? 'Som: desligado' : 'Som: ligado'}</button><button class="ghost" data-go="music">${musicEnabled() ? 'Música: ligada' : 'Música: desligada'}</button></div>`;
 
@@ -324,19 +324,19 @@ function revive(d) {
 
 // ---------------------------------------------------------------- Loja (a compra é feita no site, com a mesma conta)
 const SHOP = [
-  { id: 'pacote-lua', name: 'Pacote Lua Cheia', price: 'R$ 47,90', badge: 'Melhor oferta', desc: 'Song of Moonlight: O Mistério do Castelo Silencioso + 500 moedas + Multiplicador de moedas.', big: true, own: () => coinMult() > 1 },
+  { id: 'pacote-lua', name: 'Pacote Lua Cheia', price: 'R$ 47,90', badge: 'Melhor oferta', desc: 'Song of Moonlight: O Mistério do Castelo Silencioso + 500 moedas + Multiplicador de moedas.', big: true, part: () => coinMult() > 1 },
   { id: 'jerry-way-x2', name: 'Multiplicador de moedas', price: 'R$ 7,90', badge: 'x2', desc: 'Todas as moedas das suas partidas valem o dobro, para sempre.', own: () => coinMult() > 1 },
   { id: 'jerry-way-coins150', name: '150 moedas', price: 'R$ 12,00', badge: '+150', desc: 'Entram sozinhas no jogo. Pode comprar quantas vezes quiser.' },
-  { id: 'jerry-way-allskins', name: 'Todas as skins', price: 'R$ 239,90', badge: 'Tudo', desc: 'Todas as skins do Jerry, inclusive as míticas.', own: () => SKINS.every((k) => save.owned.includes(k.id)) },
+  { id: 'jerry-way-allskins', name: 'Todas as skins', price: 'R$ 239,90', badge: 'Tudo', desc: 'Todas as 450 skins do Jerry, inclusive as míticas e as que saírem depois.', own: () => SKINS.every((k) => save.owned.includes(k.id)) },
 ];
 function openSite(path) { const a = document.createElement('a'); a.href = SITE_URL + path; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
 function loja() {
   const me = currentAccount();
   root.innerHTML = `<div class="panel wide"><h2>Loja</h2>
     <p class="muted small">A compra é feita no site (Pix ou cartão), com a mesma conta do jogo. ${me && me.verified ? `Conta: ${esc(me.email)}` : '<b>Entre na sua conta antes</b> para receber o que comprar.'}</p>
-    <div class="shop">${SHOP.map((x) => { const have = x.own && x.own();
+    <div class="shop">${SHOP.map((x) => { const have = x.own && x.own(), part = !have && x.part && x.part();   // "Já é seu" só no que foi comprado; pacote com parte já comprada: não vende
       return `<div class="shop-item${x.big ? ' big' : ''}"><span class="badge">${esc(x.badge)}</span><b>${esc(x.name)}</b><span class="muted">${esc(x.desc)}</span>
-        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já adquirido</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
+        <div class="buy"><span class="price">${esc(x.price)}</span>${have ? '<span class="own">✓ Já é seu</span>' : part ? '<span class="own">Você já tem parte dele</span>' : `<button data-buy="${x.id}">Comprar</button>`}</div></div>`; }).join('')}</div>
     <p class="muted" id="sh-msg"></p>
     <div class="row">${me && me.verified ? '<button id="sh-check">Já comprei</button>' : '<button data-go="conta">Entrar na conta</button>'}<button data-go="title">Voltar</button></div></div>`;
   root.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => { sfx.click(); openSite('/#/comprar/' + b.dataset.buy); $('#sh-msg').textContent = 'Depois de pagar no site, volte aqui: o jogo confere sozinho (ou toque em "Já comprei").'; }));

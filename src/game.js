@@ -26,20 +26,58 @@ export class Game {
     this.revived = false; this.shield = 0;   // reviver: só 1 vez por partida; depois de reviver, 2,5 s sem ser atropelado
     this.hard = false;   // passou da fileira 1000: o monstro começa a perseguir (sem aviso)
     this.bonus = null; this.stash = null; this.used = {};   // dimensão bônus em andamento; habilidades de 1 vez por partida já usadas
-    this.setAbility(this.ability || null);
+    this.powerCd = 0; this.freezeT = 0; this.turboT = 0; this.magnetT = 0; this.waterT = 0; this.slowT = 0; this.recordPaid = false;
+    this.setPower(this.pw || null);
   }
-  // habilidade passiva da skin (ver ABILITIES em skins.js): ajusta o mundo e o pulo
-  setAbility(id) {
-    this.ability = id;
-    this.hopT = id === 'ligeiro' ? HOP * 0.75 : HOP;
-    this.world.bigChance = id === 'faro' ? 0.28 : 0.1;
-    this.world.bonusRate = id === 'explorador' ? 1.45 : 1;
+  // poder da skin (ver POWER_TYPES em skins.js): os passivos ajustam o jogo; os ativos usam o botão PODER
+  setPower(pw) {
+    this.pw = pw || { type: null, v: 0 };
+    const t = this.pw.type, v = this.pw.v;
+    this.ability = t; this.pv = v;
+    this.hopT = t === 'ligeiro' ? HOP * (1 - v / 100) : HOP;
+    this.world.bigChance = t === 'faro' ? v / 100 : 0.1;
+    this.world.bonusRate = t === 'explorador' ? v : 1;
+  }
+  // começo da partida: Cofrinho (moedas) e Largada Segura (proteção)
+  startPower() {
+    if (this.ability === 'moedaInicial') this.coins = this.pv;
+    if (this.ability === 'escudoInicio') this.shield = this.pv;
+  }
+  // botão PODER: usa o poder ativo da skin (se já tiver passado o tempo de espera)
+  usePower() {
+    const pw = this.pw, j = this.j;
+    if (this.state !== 'play' || !pw.active || this.powerCd > 0) return false;
+    if (this.bonus) { this.toast('O poder não funciona nas dimensões bônus', '#c8b8ff'); return false; }
+    if (j.hop) return false;
+    const [a, b] = Array.isArray(pw.v) ? pw.v : [pw.v, 0], col = Math.round((j.x - T / 2) / T);
+    const freeCol = (row, want) => { const L = this.world.lane(row); if (!L || L.type !== 'grass') return want; for (let d = 0; d < COLS; d++) for (const c of [want - d, want + d]) if (c >= 0 && c < COLS && !L.block.has(c)) return c; return want; };
+    switch (pw.type) {
+      case 'teleporte': { const r = j.row + a, c = freeCol(r, col); this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: r, t: 0, dur: 0.1, tp: true }; this.shield = Math.max(this.shield, 0.4 + b); sfx.portal(); break; }
+      case 'voo': { const r = j.row + a, c = freeCol(r, col), dur = 0.2 * a; j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: r, t: 0, dur, h: 8 + a * 4 }; j.view = 'back'; this.shield = Math.max(this.shield, dur + b); sfx.hop(); break; }
+      case 'dash': { const dir = j.view === 'left' ? -1 : 1, c = freeCol(j.row, Math.max(0, Math.min(COLS - 1, col + dir * a))); if (c === col) return false; j.hop = { fx: j.x, fr: j.row, tx: c * T + T / 2, tr: j.row, t: 0, dur: 0.1 }; this.shield = Math.max(this.shield, 0.2 + b); sfx.hop(); break; }
+      case 'tempo': this.freezeT = a; sfx.portal(); break;
+      case 'escudo': this.shield = Math.max(this.shield, a); sfx.record(); break;
+      case 'turbo': this.turboT = a; sfx.pass(); break;
+      case 'imaAtivo': this.magnetT = a; sfx.bigcoin(); break;
+      case 'agua': this.waterT = a; sfx.splash(); break;
+      case 'lento': this.slowT = a; sfx.portal(); break;
+      case 'recuar': this.cam -= a; sfx.pass(); break;
+      case 'chuva': {
+        let left = a, big = b;
+        for (let k = 0; k < 40 && left > 0; k++) { const r = j.row + 1 + Math.floor(Math.random() * 6), L = this.world.lane(r), c = Math.floor(Math.random() * COLS); if (!L || L.coins.has(c) || L.block.has(c) || L.type === 'river') continue; L.coins.set(c, big ? 5 : 1); big = 0; left--; this.fx.push({ k: 'star', x: c * T + T / 2, row: r, t: 0, c: 0 }); }
+        sfx.bigcoin(); break;
+      }
+      default: return false;
+    }
+    this.powerCd = pw.cd; this.started = true;
+    this.toast(pw.name + '!', '#7aff9a');
+    return true;
   }
   // fantasmas dos recordes: o seu, o da última partida e os 10 maiores do ranking, parados onde cada um chegou
   setGhosts(list) {
     this.ghosts = list.filter((g) => g.row > 2).map((g, i) => ({ ...g, col: [0, 1, 7, 8][Math.abs(g.row * 7 + i * 3) % 4] }));
   }
-  start() { this.state = 'play'; }
+  start() { this.state = 'play'; this.startPower(); }
   // reviver (vídeo ou 70 moedas, 1 vez por partida): o Jerry volta na grama segura mais perto de onde caiu,
   // a tela desce um pouco para ele ter espaço e ele fica piscando 2,5 s sem poder ser atropelado
   revive() {
@@ -86,6 +124,7 @@ export class Game {
       j.hop = { fx: j.x, fr: j.row, tx: straight ? clamp(j.x, T / 2, COLS * T - T / 2) : col * T + T / 2, tr: row, t: 0 };
     }
     j.on = null; this.started = true;
+    if (this.turboT > 0 && j.hop) j.hop.dur = this.hopT * 0.5;   // Turbo: pulo na metade do tempo
     sfx.hop();
   }
   land() {
@@ -95,7 +134,8 @@ export class Game {
     if (this.bonus) return this.landBonus(L);
     if (j.row > this.score) {
       this.score = j.row;
-      if (this.ability === 'caminhante' && this.score % 10 === 0) { this.coins++; this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }   // Caminhante: 1 moeda a cada 10 fileiras
+      if (this.ability === 'recorde' && !this.recordPaid && this.personalBest > 2 && this.score > this.personalBest) { this.recordPaid = true; this.coins += this.pv; this.toast(`Campeão: +${this.pv} moedas!`, '#ffcc3a'); }
+      if (this.ability === 'caminhante' && this.score % Math.round(this.pv) === 0) { this.coins++; this.fx.push({ k: 'spark', x: j.x, row: j.row, t: 0 }); }   // Caminhante: 1 moeda a cada 10 fileiras
       // passou o recorde mundial (o 1º do ranking): aviso grande, som e chuva de estrelas
       if (this.worldBest > 0 && !this.beatWorld && this.score > this.worldBest) {
         this.beatWorld = true; this.toast('NOVO RECORDE MUNDIAL!', '#ffcc3a'); sfx.record(); setTimeout(() => sfx.bigcoin(), 450);
@@ -114,8 +154,9 @@ export class Game {
     if (L.bonus === col) return this.enterBonus(L, col);   // portal dourado: vai para a dimensão bônus
     if (L.type === 'river') {
       // margem de erro: se cair até 7 px fora do tronco (ou da vitória-régia), o Jerry escorrega para cima dele
-      const M = this.ability === 'equilibrio' ? 11 : 7, o = L.objs.filter((o) => j.x >= o.x - M && j.x <= o.x + o.w + M)
+      const M = this.ability === 'equilibrio' ? this.pv : 7, o = L.objs.filter((o) => j.x >= o.x - M && j.x <= o.x + o.w + M)
         .sort((a, b) => Math.max(0, a.x - j.x, j.x - a.x - a.w) - Math.max(0, b.x - j.x, j.x - b.x - b.w))[0];
+      if (!o && this.waterT > 0) { j.on = null; if (this.queue) { const q = this.queue; this.queue = null; this.move(q[0], q[1]); } return; }   // Andar na Água
       if (!o) return this.die('water');
       // fica onde caiu, só que sempre todo em cima (nunca metade para fora da ponta); sem "encaixar", que dava um segundo pulinho
       j.x = Math.max(o.x + T / 2, Math.min(o.x + o.w - T / 2, j.x));
@@ -126,10 +167,11 @@ export class Game {
   // pega a moeda da casa (Ímã: também as das casas do lado; Sortudo: 1 em 4 vale o dobro)
   grab(L, col) {
     const j = this.j;
-    for (const c of this.ability === 'ima' ? [col, col - 1, col + 1] : [col]) {
+    const cols = this.magnetT > 0 ? [col, col - 1, col + 1, col - 2, col + 2] : this.ability === 'ima' && Math.random() < this.pv / 100 ? [col, col - 1, col + 1] : [col];
+    for (const c of cols) {
       if (!L.coins.has(c)) continue;
       let v = L.coins.get(c); L.coins.delete(c);
-      if (this.ability === 'sorte' && Math.random() < 0.25) { v *= 2; this.fx.push({ k: 'star', x: c * T + T / 2, row: j.row, t: 0, c: 0 }); }
+      if (this.ability === 'sorte' && Math.random() < this.pv / 100) { v *= 2; this.fx.push({ k: 'star', x: c * T + T / 2, row: j.row, t: 0, c: 0 }); }
       this.coins += v; (v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: c * T + T / 2, row: j.row, t: 0 });
     }
   }
@@ -251,7 +293,7 @@ export class Game {
     // Nadador: 1 vez por partida, sai da água e volta para a margem
     if (kind === 'water' && this.ability === 'nadador' && !this.used.nadador) {
       this.used.nadador = true; sfx.splash(); this.fx.push({ k: 'splash', x: this.j.x, row: this.j.row, t: 0 });
-      this.placeSafe(); this.shield = 1.5; this.toast('Nadador: nadou até a margem!', '#7af0ff'); return;
+      this.placeSafe(); this.shield = this.pv; this.toast('Nadador: nadou até a margem!', '#7af0ff'); return;
     }
     this.state = 'dying'; this.end = { kind, t: 0 };
     if (kind === 'water') { sfx.splash(); this.fx.push({ k: 'splash', x: this.j.x, row: this.j.row, t: 0 }); }
@@ -263,7 +305,7 @@ export class Game {
     const j = this.j;
     if (this.bonus) return this.exitBonus(true);
     if (this.ability === 'casco' && !this.used.casco) {   // Casco Duro: a primeira batida da partida não derruba
-      this.used.casco = true; this.shield = 2; sfx.bump(); this.toast('Casco Duro aguentou a batida!', '#7aff9a'); return;
+      this.used.casco = true; this.shield = this.pv; sfx.bump(); this.toast('Casco Duro aguentou a batida!', '#7aff9a'); return;
     }
     if (j.hop) { j.x = jx; j.row = row; j.hop = null; }
     L.frozen = true;
@@ -297,7 +339,10 @@ export class Game {
     const W = this.world, j = this.j;
     W.ensure(Math.floor(this.cam + visRows + 12));
     W.prune(Math.floor(this.cam) - 6);
-    W.update(this.ability === 'reflexo' ? dt * 0.9 : dt, this.rnd);
+    for (const k of ['powerCd', 'freezeT', 'turboT', 'magnetT', 'slowT']) if (this[k] > 0) this[k] = Math.max(0, this[k] - dt);
+    if (this.waterT > 0) { this.waterT -= dt; if (this.waterT <= 0) { const L = W.lane(j.row); if (L && L.type === 'river' && !j.on && !j.hop && this.state === 'play') this.die('water'); } }   // acabou o Andar na Água em cima da água
+    const wdt = this.freezeT > 0 ? 0 : dt * (this.ability === 'reflexo' ? 1 - this.pv / 100 : 1) * (this.slowT > 0 ? 0.5 : 1);
+    W.update(wdt, this.rnd);
     if (this.mythRun) { const m = this.mythRun; m.t += dt; m.x += m.dir * (60 + m.t * 220) * dt; if (m.x < -60 || m.x > COLS * T + 60) this.mythRun = null; }
     for (const L of W.lanes.values()) {
       if (L.type === 'rail') {
@@ -338,9 +383,10 @@ export class Game {
         j.onOff = j.x - j.on.x; j.pushed = 0.15;
         if (j.onOff < -2 || j.onOff > j.on.w + 2) {
           // acabou este tronco: se tiver outro (ou vitória-régia) logo ali do lado, o Jerry passa para ele; senão cai
-          const lane = this.world.lane(j.row), next = lane && lane.objs.find((o) => o !== j.on && j.x >= o.x - (this.ability === 'equilibrio' ? 6 : 3) && j.x <= o.x + o.w + (this.ability === 'equilibrio' ? 6 : 3));
-          if (!next) return this.die('water');
-          j.on = next; j.onOff = Math.max(0, Math.min(next.w, j.x - next.x));
+          const lane = this.world.lane(j.row), next = lane && lane.objs.find((o) => o !== j.on && j.x >= o.x - (this.ability === 'equilibrio' ? this.pv - 5 : 3) && j.x <= o.x + o.w + (this.ability === 'equilibrio' ? this.pv - 5 : 3));
+          if (!next && this.waterT > 0) j.on = null;   // Andar na Água: fica de pé na água
+          else if (!next) return this.die('water');
+          else { j.on = next; j.onOff = Math.max(0, Math.min(next.w, j.x - next.x)); }
         }
       }
     }
@@ -359,7 +405,7 @@ export class Game {
     if (this.bonus && (this.bonus.t -= dt) <= 0) return this.exitBonus(false);   // acabou o tempo da dimensão bônus
     if (this.bonus) { this.cam = -1; return this.bonusTick(dt); }   // dimensão bônus: a tela fica parada (labirinto numa tela só)
     if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; if (this.onHard) this.onHard(); }   // começa do nada (e o jogo sorteia de novo o esquilo mítico, com 3x a chance)
-    if (this.started) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 0.88 : 1) * (this.hard ? 1.15 : 1) * dt;
+    if (this.started && !(this.freezeT > 0)) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 1 - this.pv / 100 : 1) * (this.hard ? 1.15 : 1) * (this.slowT > 0 ? 0.5 : 1) * dt;
     const target = j.row - visRows * 0.42;
     if (target > this.cam) this.cam += (target - this.cam) * Math.min(1, dt * 4);
     // depois da fileira 1000 o monstro vem por baixo da tela: se alcançar o Jerry, acabou (sem reviver)
@@ -467,7 +513,7 @@ export class Game {
   }
   jerryPos(ox, rowY) {
     const j = this.j;
-    if (j.hop) { const p = Math.min(1, j.hop.t / (j.hop.dur || this.hopT)); const y0 = rowY(j.hop.fr), y1 = rowY(j.hop.tr); return { x: ox + j.hop.fx + (j.hop.tx - j.hop.fx) * p, y: y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * 6, air: true }; }
+    if (j.hop) { const p = Math.min(1, j.hop.t / (j.hop.dur || this.hopT)); const y0 = rowY(j.hop.fr), y1 = rowY(j.hop.tr); return { x: ox + j.hop.fx + (j.hop.tx - j.hop.fx) * p, y: y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * (j.hop.h || 6), air: true }; }
     const by = j.bump > 0 ? Math.round(Math.sin(j.bump * 50) * 1) : 0;
     return { x: ox + j.x + by, y: rowY(j.row), air: false };
   }
@@ -521,6 +567,23 @@ export class Game {
   }
   drawAura(c, fx, x, y) {
     const t = this.t;
+    // efeitos das míticas novas: partículas que sobem, caem ou giram em volta
+    const NEW = { gold: ['#ffcc3a', '#fff2a0', 'up'], spirit: ['#7a8aff', '#c8d0ff', 'up'], feathers: ['#ffffff', '#e8f0ff', 'fall'], shadow: ['#1a0a1a', '#5a2a4a', 'up'],
+      snow: ['#ffffff', '#bfe8ff', 'fall'], electric: ['#fff27a', '#ffffff', 'zap'], leaves: ['#5ad070', '#a8f0a0', 'fall'], bubbles: ['#7ae8ff', '#e8fbff', 'up'],
+      petals: ['#ffb0d0', '#ffffff', 'fall'], sun: ['#ffcc3a', '#ff9a3a', 'ring'], runes: ['#e0a8ff', '#c08aff', 'ring'] };
+    if (NEW[fx]) {
+      const [a1, a2, mode] = NEW[fx];
+      for (let i = 0; i < 8; i++) {
+        const k = (t * 0.8 + i / 8) % 1, sx = Math.sin(i * 12.9) * 9;
+        c.fillStyle = i % 2 ? a1 : a2;
+        if (mode === 'up') { c.globalAlpha = 1 - k; c.fillRect(Math.round(x + sx + Math.sin(t * 3 + i) * 2), Math.round(y + 6 - k * 22), fx === 'bubbles' ? 2 : 1, fx === 'shadow' ? 3 : fx === 'bubbles' ? 2 : 1); }
+        else if (mode === 'fall') { c.globalAlpha = 1 - k * 0.7; c.fillRect(Math.round(x + sx + Math.sin(t * 2 + i) * 3), Math.round(y - 18 + k * 26), fx === 'leaves' || fx === 'petals' ? 2 : 1, 1); }
+        else if (mode === 'zap') { if ((Math.floor(t * 12) + i) % 4) continue; const zx = Math.round(x + sx), zy = Math.round(y - 10 + Math.cos(i * 7.1) * 8); c.fillRect(zx, zy, 1, 2); c.fillRect(zx + 1, zy + 2, 1, 2); c.fillRect(zx, zy + 4, 1, 1); }
+        else { const ang = t * 1.8 + i * 0.785, r = 11; c.fillRect(Math.round(x + Math.cos(ang) * r), Math.round(y - 4 + Math.sin(ang) * r * 0.55), fx === 'runes' && i % 2 ? 2 : 1, 1); }
+        c.globalAlpha = 1;
+      }
+      return;
+    }
     for (let i = 0; i < 6; i++) {
       const a = t * 2 + i * 1.05, r = 9 + Math.sin(t * 3 + i) * 2, px = Math.round(x + Math.cos(a) * r), py = Math.round(y + Math.sin(a) * r * 0.6);
       c.fillStyle = fx === 'rainbow' ? `hsl(${(t * 200 + i * 60) % 360},90%,65%)` : fx === 'stars' ? (i % 2 ? '#ffffff' : '#ffe070') : fx === 'fire' ? (i % 2 ? '#ff8a2a' : '#ffd23a') : fx === 'moon' ? '#fff4c8' : '#e8e8ff';

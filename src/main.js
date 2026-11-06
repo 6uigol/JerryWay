@@ -1,7 +1,7 @@
 // Jerry's Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
 import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD, MYTH_HARD_BOOST } from './world.js';
-import { SKIN_BY_ID, missingMythics, ABILITIES } from './skins.js';
+import { SKIN_BY_ID, missingMythics, powerOf } from './skins.js';
 import { BONUS } from './world.js';
 import { pollPad } from './gamepad.js';
 import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, onChange, refreshEnt, coinMult, onCoinsArrived } from './store.js';
@@ -29,6 +29,11 @@ pauseBtn.id = 'pausebtn'; pauseBtn.type = 'button'; pauseBtn.setAttribute('aria-
 document.body.appendChild(pauseBtn);
 pauseBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
 pauseBtn.addEventListener('click', () => { if (game.state === 'play') { game.state = 'pause'; show('pause'); } });
+// botão PODER (canto de baixo à direita): aparece na partida quando a skin tem poder ativo; mostra o tempo de espera
+const powerBtn = document.createElement('button');
+powerBtn.id = 'powerbtn'; powerBtn.type = 'button'; powerBtn.hidden = true; powerBtn.innerHTML = '<i></i><span>PODER</span>';
+document.body.appendChild(powerBtn);
+powerBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); game.usePower(); });
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 3);
   const W = window.innerWidth, H = window.innerHeight;
@@ -51,6 +56,7 @@ function resize() {
   if (sc >= 3) sc = Math.floor(sc);
   LW = Math.ceil(VP.w / sc); LH = Math.ceil(VP.h / sc);
   lc.width = LW; lc.height = LH;
+  powerBtn.style.right = Math.round((cv.width - VP.x - VP.w) / dpr + 12) + 'px'; powerBtn.style.bottom = `max(${Math.round((cv.height - VP.y - VP.h) / dpr + 14)}px, calc(env(safe-area-inset-bottom) + 10px))`;
   pauseBtn.style.left = Math.round(VP.x / dpr + 8) + 'px'; pauseBtn.style.top = `max(${Math.round(VP.y / dpr + 8)}px, calc(env(safe-area-inset-top) + 4px))`;
   frameCv = buildFrame(CW, CH);
 }
@@ -100,7 +106,7 @@ function play() {
   initAudio(); setHardMusic(false); startMusic(); hide();
   game.reset((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
   game.skinId = save.skin;
-  game.setAbility((SKIN_BY_ID[save.skin] || {}).ability || null);   // habilidade passiva da skin escolhida
+  game.setPower(powerOf(save.skin)); game.personalBest = save.best;   // poder da skin escolhida
   // esquilo mítico da partida: uma das míticas que ainda faltam (se não faltar nenhuma, ele não aparece)
   const left = missingMythics(save.owned), myth = left.length ? left[Math.floor(Math.random() * left.length)] : null;
   // um sorteio só, no começo da partida: 0,00014% de chance de o esquilo mítico aparecer nela
@@ -122,7 +128,7 @@ function play() {
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();
 }
-const reviveCost = () => (game.ability === 'pechincha' ? 40 : REVIVE_COST);   // Pechincheiro: reviver mais barato
+const reviveCost = () => (game.ability === 'pechincha' ? Math.round(game.pv) : REVIVE_COST);   // Pechincheiro: reviver mais barato
 // morreu: antes do fim, oferece reviver (1 vez por partida) por 70 moedas (sem moedas suficientes, vai direto para o fim)
 function died() {
   const g = game;
@@ -170,6 +176,7 @@ window.addEventListener('keydown', (e) => {
   if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
   if (e.code === 'Escape' || e.code === 'KeyP') { if (game.state === 'play') { game.state = 'pause'; show('pause'); } else if (game.state === 'pause') { hide(); game.state = 'play'; } return; }
   if ((e.code === 'Enter' || e.code === 'Space') && (showing() === 'title' || showing() === 'result')) { e.preventDefault(); play(); return; }
+  if ((e.code === 'KeyE' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && game.state === 'play') { e.preventDefault(); game.usePower(); return; }   // poder
   const k = keys[e.code];
   if (k && game.state === 'play') { e.preventDefault(); if (!e.repeat) game.move(k[0], k[1]); }
 });
@@ -206,6 +213,8 @@ function frame(now) {
   game.draw(lctx, LW, LH);
   if (game.state === 'play' || game.state === 'dying') hud();
   const showPause = game.state === 'play' && !showing(); if (pauseBtn.hidden === showPause) pauseBtn.hidden = !showPause;
+  const showPower = showPause && game.pw && game.pw.active; if (powerBtn.hidden === showPower) powerBtn.hidden = !showPower;
+  if (showPower) { const k = game.pw.cd ? Math.min(1, game.powerCd / game.pw.cd) : 0; powerBtn.style.setProperty('--cd', k); powerBtn.classList.toggle('ready', k <= 0); powerBtn.firstChild.textContent = k > 0 ? Math.ceil(game.powerCd) : '★'; }
   ctx.imageSmoothingEnabled = false;
   if (frameCv) ctx.drawImage(frameCv, 0, 0);
   // depois da fileira 1000 a tela treme de leve o tempo todo
@@ -251,8 +260,8 @@ function drawPanels() {
   row('Moedas', save.coins + (playing ? game.coins : 0), '#ffcc3a');
   ptext('Lugar', x, y, 8, '#8aa8ff'); ptext(fit(game.bonus ? BONUS[game.bonus.kind].name : ZONE_NAMES[game.zone] || '', cols), x, y + 14 * u, 9, '#c8b8ff'); y += 40 * u;
   ptext('Skin', x, y, 8, '#8aa8ff'); ptext(fit(skinName(), cols), x, y + 14 * u, 9, '#ffffff');
-  const ab = ABILITIES[(SKIN_BY_ID[save.skin] || {}).ability]; y += 40 * u;
-  if (ab) { ptext('Habilidade', x, y, 8, '#8aa8ff'); ptext(fit(ab.name, cols), x, y + 14 * u, 9, '#7aff9a'); }
+  const ab = powerOf(save.skin); y += 40 * u;
+  if (ab) { ptext('Poder', x, y, 8, '#8aa8ff'); ptext(fit(ab.name, cols), x, y + 14 * u, 9, '#7aff9a'); if (ab.active && playing) ptext(game.powerCd > 0 ? `pronto em ${Math.ceil(game.powerCd)}s` : 'pronto! (E ou Shift)', x, y + 30 * u, 8, game.powerCd > 0 ? '#c8b8ff' : '#ffe070'); }
   // direita: ranking e controles
   x = Rp.x + 18 * u; y = Rp.y + 22 * u;
   ptext('Ranking', Rp.x + Rp.w / 2, y, 12, '#ffcc3a', 'center'); y += 30 * u;

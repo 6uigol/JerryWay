@@ -47,7 +47,7 @@ export function pollPad({ game, showing, onPause }) {
   const p = readPad();
   if (!p) { prev = {}; return; }
   const b = (i) => !!(p.buttons[i] && (p.buttons[i].pressed || p.buttons[i].value > 0.5));
-  const now = { a: b(0), b: b(1), lb: b(4), rb: b(5), start: b(9) || b(8), up: b(12), down: b(13), left: b(14), right: b(15) };
+  const now = { x: b(2) || b(3), a: b(0), b: b(1), lb: b(4), rb: b(5), start: b(9) || b(8), up: b(12), down: b(13), left: b(14), right: b(15) };
   const was = prev, hit = (k) => now[k] && !was[k];
   let dir = ['up', 'down', 'left', 'right'].find(hit) || stick(p);
   // segurar o direcional nos menus repete devagar
@@ -74,6 +74,7 @@ export function pollPad({ game, showing, onPause }) {
   }
   if (game.state !== 'play') return;
   if (hit('start')) { onPause(); return; }
+  if (hit('x')) { game.usePower(); return; }   // X ou Y: poder
   if (dir) game.move(dir === 'left' ? -1 : dir === 'right' ? 1 : 0, dir === 'up' ? 1 : dir === 'down' ? -1 : 0);
   else if (hit('a')) game.move(0, 1);
 }

@@ -91,6 +91,7 @@ async function attach(u) {
   uid = u.uid; ent = readEnt(u.uid);
   const local = readLocal(uid) || readLocal(null) || {};
   load(local);
+  unlockAll();   // "Todas as skins": libera também as skins novas que saírem depois (mesmo sem internet)
   emit();
   if (!u.verified) return;
   try {

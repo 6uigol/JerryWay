@@ -117,3 +117,12 @@ button.shop-btn { background: #8a5a10; border-color: #ffcc3a; color: #fff2c8; fo
 .shop-item button { flex: none; font-size: 8px; padding: 7px 8px; background: #2a8a4a; border-color: #5ad07a; }
 .shop-item .own { color: #7aff9a; font-size: 8px; }
 @media (max-width: 380px) { .shop { grid-template-columns: 1fr; } }
+
+/* botão PODER */
+#powerbtn { position: fixed; z-index: 6; width: 64px; height: 64px; border-radius: 50%; padding: 0; flex: none; display: grid; place-items: center; gap: 0;
+  background: conic-gradient(rgba(10, 6, 24, 0.85) calc(var(--cd, 0) * 360deg), #2a8a4a 0); border: 3px solid #5ad07a; box-shadow: 0 4px 0 #0a0618, 0 0 16px rgba(90, 208, 122, 0.35); }
+#powerbtn.ready { animation: pw 1s ease-in-out infinite; }
+#powerbtn i { font-style: normal; font-size: 16px; color: #fff; line-height: 1; margin-top: 8px; }
+#powerbtn span { font-size: 7px; color: #e8ffe8; margin-bottom: 8px; }
+#powerbtn[hidden] { display: none; }
+@keyframes pw { 50% { box-shadow: 0 4px 0 #0a0618, 0 0 26px rgba(122, 255, 154, 0.8); } }
