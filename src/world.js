@@ -5,6 +5,8 @@ export const TILE = 16, COLS = 9;            // 9 colunas jogáveis
 // esquilo mítico: um sorteio só por partida (não acumula por fileira): 0,00014% de chance de a partida ter um.
 // Se tiver, ele aparece uma vez só, numa fileira de grama entre a 200 e a 600.
 export const MYTH_RUN_CHANCE = 0.0000014, MYTH_ROW = 200, MYTH_SPREAD = 400;
+// depois da fileira 1000 (tentáculos) o jogo sorteia de novo, com 3x a chance (no máximo uma mítica por partida)
+export const MYTH_HARD_BOOST = 3;
 // a partir da fileira 1000 o caminho fica mais difícil (sem aviso): um monstro persegue o Jerry, não dá para reviver
 // e cai 3,2% mais moeda
 export const HARD_ROW = 1000, HARD_COINS = 1.032;

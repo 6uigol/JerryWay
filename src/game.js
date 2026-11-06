@@ -358,7 +358,7 @@ export class Game {
     const d = Math.min(1, this.score / 700);
     if (this.bonus && (this.bonus.t -= dt) <= 0) return this.exitBonus(false);   // acabou o tempo da dimensão bônus
     if (this.bonus) { this.cam = -1; return this.bonusTick(dt); }   // dimensão bônus: a tela fica parada (labirinto numa tela só)
-    if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; if (this.onHard) this.onHard(); }   // começa do nada
+    if (!this.hard && this.score >= HARD_ROW) { this.hard = true; sfx.roar(); j.bump = 0.3; if (this.onHard) this.onHard(); }   // começa do nada (e o jogo sorteia de novo o esquilo mítico, com 3x a chance)
     if (this.started) this.cam += (0.38 + d * 0.62) * (this.ability === 'calmo' ? 0.88 : 1) * (this.hard ? 1.15 : 1) * dt;
     const target = j.row - visRows * 0.42;
     if (target > this.cam) this.cam += (target - this.cam) * Math.min(1, dt * 4);
@@ -448,21 +448,22 @@ export class Game {
     c.fillStyle = g; c.fillRect(0, LH - 70, LW, 70);
     const tentacle = (bx, h, w0, ph, amp) => {
       const n = Math.max(4, Math.round(h / 2));
-      for (let k = 0; k < n; k++) {
-        const f = k / n, x = bx + Math.sin(f * 4.2 + t * 3 + ph) * amp * f, w = Math.max(1, Math.round(w0 * (1 - f * 0.85))), y = Math.round(base - k * 2);
+      for (let k = 0; k < n; k++) {   // ondula da base até a ponta (a ponta se enrola)
+        const f = k / n, x = bx + Math.sin(f * 5.5 - t * 4.5 + ph) * amp * f + Math.sin(t * 7 + ph) * f * f * 4, w = Math.max(1, Math.round(w0 * (1 - f * 0.85))), y = Math.round(base - k * 2);
         c.fillStyle = '#050208'; c.fillRect(Math.round(x - w / 2), y - 2, w, 3);
         if (w > 3) { c.fillStyle = '#1c0f2a'; c.fillRect(Math.round(x - w / 2), y - 2, 1, 3); }   // brilho na borda
         if (k % 5 === 2 && w > 4) { c.fillStyle = '#4a2a5a'; c.fillRect(Math.round(x + w / 2 - 2), y - 1, 1, 1); }   // ventosas
       }
     };
     const W = Math.ceil(LW / 18);
-    for (let i = 0; i <= W; i++) {   // fileira de tentáculos de fundo
-      const bx = i * 18 + Math.sin(i * 2.1) * 6, h = 30 + Math.sin(t * 1.7 + i * 1.3) * 10 + (i % 3) * 7;
-      tentacle(bx, h, 11, i * 1.9, 8);
+    for (let i = 0; i <= W; i++) {   // fileira de tentáculos de fundo: sobem e descem; de vez em quando um dá um bote
+      const lunge = Math.max(0, Math.sin(t * 1.3 + i * 2.7)) ** 8 * 34;
+      const bx = i * 18 + Math.sin(i * 2.1) * 6 + Math.sin(t * 1.1 + i) * 3, h = 30 + Math.sin(t * 2.6 + i * 1.3) * 13 + (i % 3) * 7 + lunge;
+      tentacle(bx, h, 11, i * 1.9, 12);
     }
     // o tentáculo que caça o Jerry: sobe mais alto e vai atrás dele (e o agarra quando pega)
     const reach = eat ? Math.max(0, base - jp.y - 6) * Math.min(1, e.t * 4) : 48 + Math.sin(t * 2.4) * 8;
-    tentacle(this.mx, Math.max(48, reach), 14, 0.7, eat ? 2 : 10);
+    tentacle(this.mx, Math.max(48, reach), 14, 0.7, eat ? 3 : 14);
   }
   jerryPos(ox, rowY) {
     const j = this.j;

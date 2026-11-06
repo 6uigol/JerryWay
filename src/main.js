@@ -1,6 +1,6 @@
 // Jerry's Way: laço principal, controles (toque/arrasto e teclado), tela e placar.
 import { Game, label } from './game.js';
-import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD } from './world.js';
+import { TILE, MYTH_RUN_CHANCE, MYTH_ROW, MYTH_SPREAD, MYTH_HARD_BOOST } from './world.js';
 import { SKIN_BY_ID, missingMythics, ABILITIES } from './skins.js';
 import { BONUS } from './world.js';
 import { pollPad } from './gamepad.js';
@@ -112,7 +112,13 @@ function play() {
     if (!myth || save.owned.includes(myth.id)) return null;
     save.owned.push(myth.id); commit(); return myth;
   };
-  game.onHard = () => setHardMusic(true);   // passou da fileira 1000: playlist tensa
+  game.onHard = () => {   // passou da fileira 1000: playlist tensa e um novo sorteio do esquilo mítico, com 3x a chance
+    setHardMusic(true);
+    const W = game.world;
+    if (myth && !game.mythFound && !save.owned.includes(myth.id) && !(W.mythOn && !W.mythDone) && Math.random() < MYTH_RUN_CHANCE * MYTH_HARD_BOOST) {
+      W.mythOn = true; W.mythDone = false; W.mythAt = game.score + 60 + Math.floor(Math.random() * MYTH_SPREAD);
+    }
+  };
   game.setGhosts(ghostsFor());
   game.worldBest = topList[0] ? topList[0].best : 0; game.worldName = topList[0] ? topList[0].name : '';
   game.start();
