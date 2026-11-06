@@ -29,24 +29,28 @@ export function rng(seed) {
 // dimensões bônus: um portal dourado aparece de vez em quando no caminho (na coluna livre da grama). Pulando nele,
 // o Jerry vai para uma fase curta cheia de moedas e volta para o mesmo lugar da corrida (a distância não conta lá dentro).
 // Se cair, for atropelado ou a tela passar dele lá dentro, ele só volta antes (não morre).
-// arena: fase parada numa tela só (fileiras 0 a 9), com mecânica própria; as outras sobem como o caminho normal.
+// Toda dimensão bônus é um labirinto passável (médio-difícil) numa tela só, com o tema e uma mecânica própria.
+// Chegar ao portal de saída antes do tempo vale +3 moedas; se o tempo acabar, volta sem esse bônus.
 export const BONUS = {
-  cofre:     { name: 'Cofre da Lua', zone: 'lua', hint: 'Corra e junte as moedas!' },
-  lagoa:     { name: 'Lagoa Dourada', zone: 'campo', hint: 'Pule nas vitórias-régias!' },
-  mina:      { name: 'Mina de Lacrímora', zone: 'lacrimora', hint: 'Desvie dos slimes!' },
+  labirinto: { name: 'Labirinto da Floresta', zone: 'floresta', hint: 'Ache a saída do labirinto!' },
+  cofre:     { name: 'Cofre da Lua', zone: 'lua', hint: 'Muitas moedas! Ache a saída!' },
+  lagoa:     { name: 'Lagoa Dourada', zone: 'campo', hint: 'Só dá para pisar nas vitórias-régias!' },
+  mina:      { name: 'Mina de Lacrímora', zone: 'lacrimora', hint: 'Desvie dos slimes no caminho!' },
+  trilhos:   { name: 'Trilhos Dourados', zone: 'neve', hint: 'Cuidado com os carrinhos!' },
   vento:     { name: 'Tempestade nas Dunas', zone: 'deserto', hint: 'O vento empurra você!' },
-  trilhos:   { name: 'Trilhos Dourados', zone: 'neve', hint: 'Moedas nos trilhos. Cuidado com o trem!' },
-  chuva:     { name: 'Chuva de Estrelas', zone: 'lua', hint: 'Pegue as moedas que caem. Fuja dos meteoros!', arena: true, start: [4, 1] },
-  labirinto: { name: 'Labirinto da Floresta', zone: 'floresta', hint: 'Ache o portal no fim do labirinto!', arena: true, start: [4, 0] },
-  gelo:      { name: 'Lago Congelado', zone: 'neve', hint: 'No gelo você escorrega até bater!', arena: true, start: [4, 0] },
-  caca:      { name: 'Caça ao Esquilo Dourado', zone: 'campo', hint: 'Pegue o esquilo dourado!', arena: true, start: [4, 0] },
+  chuva:     { name: 'Chuva de Estrelas', zone: 'lua', hint: 'Fuja das sombras: meteoros!' },
+  gelo:      { name: 'Lago Congelado', zone: 'neve', hint: 'No gelo você escorrega até a curva!' },
+  caca:      { name: 'Caça ao Esquilo Dourado', zone: 'campo', hint: 'Pegue o esquilo dourado no labirinto!' },
 };
-export const BONUS_LEN = 14, BONUS_TIME = 10, ARENA_ROWS = 10;   // fileiras das que sobem; segundos de cada dimensão (máximo 10)
-export const BONUS_MAX = { small: 17, big: 3 };                    // no máximo 17 moedas normais e 3 moedas de 5 em cada dimensão
-export const BONUS_FIRST = 45, BONUS_GAP = 130;  // primeiro portal por volta da fileira 45-75; depois, a cada 130-200 fileiras
+export const BONUS_TIME = 10, ARENA_ROWS = 10, BONUS_START = [4, 0];   // segundos de cada dimensão (máximo 10); a arena tem 10 fileiras
+export const BONUS_MAX = { small: 17, big: 3 };                         // no máximo 17 moedas normais e 3 moedas de 5 em cada dimensão
+export const BONUS_FINISH = 3;                                          // moedas a mais por chegar à saída antes do tempo
+// chance pequena-média: a partir da fileira 60, cada grama tem 1,2% de chance de ter o portal, com pelo menos 150 fileiras entre um
+// e outro (em média um a cada ~350 fileiras; a habilidade Explorador aumenta a chance)
+export const BONUS_FIRST = 60, BONUS_GAP = 150, BONUS_CHANCE = 0.012;
 
 export class World {
-  // kind: null = o caminho normal; 'cofre' | 'lagoa' | 'mina' = uma dimensão bônus
+  // kind: null = o caminho normal; senão, uma dimensão bônus (ver BONUS)
   constructor(seed, kind = null, bonusRate = 1) {
     this.kind = kind; this.bonusRate = bonusRate; this.bigChance = 0.1;
     this.r = rng(seed);
@@ -61,7 +65,7 @@ export class World {
     }
     if (kind) for (const L of this.lanes.values()) L.zone = BONUS[kind].zone;
     this.next = 0;
-    this.nextBonus = BONUS_FIRST + Math.floor(this.r() * 30);
+    this.nextBonus = BONUS_FIRST;
     this.ensure(30);
   }
   diff(row) { return Math.min(1, row / 700); }
@@ -117,79 +121,65 @@ export class World {
     // esquilo mítico: só nas partidas sorteadas (e se faltar mítica), na fileira marcada, no máximo um por partida
     if (this.mythOn && !this.mythDone && row >= this.mythAt) { L.myth = this.pathCol; L.coins.delete(this.pathCol); this.mythDone = true; }
     // portal dourado da dimensão bônus (na coluna livre, então sempre dá para chegar nele)
-    else if (!this.kind && row >= this.nextBonus) {
+    else if (!this.kind && row >= this.nextBonus && r() < BONUS_CHANCE * this.bonusRate) {
       L.bonus = this.pathCol; L.coins.delete(this.pathCol);
-      this.nextBonus = row + Math.round((BONUS_GAP + r() * 70) / this.bonusRate);
+      this.nextBonus = row + BONUS_GAP;
     }
   }
-  // ---------------------------------------------------------------- dimensão bônus (fase curta, com limite de moedas)
-  // põe uma moeda respeitando o limite da dimensão (de vez em quando uma de 5)
-  put(L, c) {
-    const m = this.left || (this.left = { ...BONUS_MAX });
-    const big = m.big > 0 && (this.r() < 0.12 || m.small <= 0);
-    if (big) { m.big--; L.coins.set(c, 5); } else if (m.small > 0) { m.small--; L.coins.set(c, 1); }
-  }
+  // ---------------------------------------------------------------- dimensão bônus (labirinto numa tela só)
   genBonus() {
     const r = this.r, row = this.next, B = BONUS[this.kind];
-    const sides = (L, all = false) => { for (let c = -9; c < 0; c++) if (all || r() < 0.55) L.deco.push(c); for (let c = COLS; c < COLS + 9; c++) if (all || r() < 0.55) L.deco.push(c); };
-    let L;
-    if (B.arena) {
-      if (!this.layout) this.layout = this.makeArena();
-      L = this.base(row, 'grass'); L.variant = Math.floor(r() * 4); sides(L);   // acima da arena o chão continua limpo (a borda é invisível)
-      if (row < ARENA_ROWS) { const A = this.layout[row]; for (let c = 0; c < COLS; c++) { if (A.block[c]) L.block.add(c); else if (A.coin[c]) this.put(L, c); } if (A.exit !== undefined) L.exit = A.exit; }
-    } else if (row < 2 || row > BONUS_LEN) {   // começo livre; depois da saída, mata fechada (não dá para passar)
-      L = this.base(row, 'grass'); L.variant = Math.floor(r() * 4); sides(L);
-      if (row > BONUS_LEN) for (let c = 0; c < COLS; c++) L.block.add(c);
-    } else if (row === BONUS_LEN) {     // a saída: portal dourado no meio
-      L = this.base(row, 'grass'); L.variant = 0; L.exit = 4; sides(L, true);
-    } else if (this.kind === 'lagoa' && row % 3 !== 0) {
-      L = this.base(row, 'river'); L.lily = true;
-      if (r() < 0.45) this.pathCol = Math.max(0, Math.min(COLS - 1, this.pathCol + (r() < 0.5 ? -1 : 1)));
-      for (let c = 0; c < COLS; c++) if (c === this.pathCol || r() < 0.5) { L.objs.push({ x: c * TILE, w: TILE, kind: 0 }); if (r() < 0.3) this.put(L, c); }
-    } else if (this.kind === 'mina' && row % 2 === 0) {
-      L = this.base(row, 'slime'); L.dir = row % 4 ? 1 : -1; L.speed = 16 + r() * 8;
-      this.movers(L, 2, 1, 1, 3); for (const o of L.objs) o.ph = r() * 6;
-      for (let c = 0; c < COLS; c++) if (r() < 0.2) this.put(L, c);
-    } else if (this.kind === 'trilhos' && row % 2 === 1) {
-      L = this.base(row, 'rail'); L.dir = r() < 0.5 ? -1 : 1; L.speed = 380; L.timer = 0.6 + r() * 2; L.train = null; L.fast = true;
-      for (let c = 0; c < COLS; c++) if (r() < 0.3) this.put(L, c);
-    } else {                             // grama com moedas espalhadas e umas pedras
-      L = this.base(row, 'grass'); L.variant = Math.floor(r() * 4); sides(L);
-      for (let c = 0; c < COLS; c++) if (c !== this.pathCol && r() < 0.12) L.block.add(c);
-      for (let c = 0; c < COLS; c++) if (!L.block.has(c) && r() < (this.kind === 'trilhos' ? 0.08 : 0.2)) this.put(L, c);
+    if (!this.layout) this.layout = this.makeMaze();
+    const lily = this.kind === 'lagoa' && row >= 0 && row < ARENA_ROWS;
+    const L = this.base(row, lily ? 'river' : 'grass'); L.variant = Math.floor(r() * 4);
+    for (let c = -9; c < 0; c++) if (r() < 0.55) L.deco.push(c); for (let c = COLS; c < COLS + 9; c++) if (r() < 0.55) L.deco.push(c);
+    if (row < ARENA_ROWS) {
+      const A = this.layout[row];
+      for (let c = 0; c < COLS; c++) {
+        if (A.block[c]) L.block.add(c);   // parede (na lagoa, água: não dá para pisar)
+        else { if (lily) L.objs.push({ x: c * TILE, w: TILE, kind: 0 }); if (A.coin[c]) L.coins.set(c, A.coin[c]); }
+      }
+      if (lily) L.lily = true;
+      if (A.exit !== undefined) L.exit = A.exit;
     }
     L.zone = B.zone; L.bonusLane = true;
   }
-  // arenas (uma tela só): onde ficam árvores/pedras, moedas e a saída
-  makeArena() {
-    const r = this.r, k = this.kind, [sc, sr] = BONUS[k].start;
-    const A = Array.from({ length: ARENA_ROWS }, () => ({ block: Array(COLS).fill(false), coin: Array(COLS).fill(false) }));
-    const free = [];
-    if (k === 'labirinto') {
-      // labirinto perfeito: casas nas posições pares (5 x 5), paredes de árvore entre elas, cavado a partir da largada
-      for (let y = 0; y < ARENA_ROWS; y++) for (let x = 0; x < COLS; x++) A[y].block[x] = !(x % 2 === 0 && y % 2 === 0 && y < 9);
-      const seen = new Set([sc + ',' + sr]), stack = [[sc, sr]], dist = { [sc + ',' + sr]: 0 };
-      let far = [sc, sr];
-      while (stack.length) {
-        const [x, y] = stack[stack.length - 1];
-        const nb = [[2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => [x + dx, y + dy]).filter(([a, b]) => a >= 0 && a < COLS && b >= 0 && b < 9 && !seen.has(a + ',' + b));
-        if (!nb.length) { stack.pop(); continue; }
-        const [nx, ny] = nb[Math.floor(r() * nb.length)];
-        A[(y + ny) / 2].block[(x + nx) / 2] = false; seen.add(nx + ',' + ny); dist[nx + ',' + ny] = dist[x + ',' + y] + 1;
-        if (dist[nx + ',' + ny] > dist[far[0] + ',' + far[1]]) far = [nx, ny];
-        stack.push([nx, ny]);
-      }
-      A[far[1]].exit = far[0];
-      for (let y = 0; y < 9; y++) for (let x = 0; x < COLS; x++) if (!A[y].block[x] && !(x === sc && y === sr) && !(x === far[0] && y === far[1])) free.push([x, y]);
-    } else {
-      const rocks = k === 'gelo' ? 0.13 : k === 'caca' ? 0.08 : 0;
-      for (let y = 0; y < ARENA_ROWS; y++) for (let x = 0; x < COLS; x++) {
-        if (Math.abs(x - sc) + Math.abs(y - sr) > 1 && r() < rocks) A[y].block[x] = true; else if (!(x === sc && y === sr)) free.push([x, y]);
+  // labirinto perfeito (casas nas posições pares, 5 x 5) cavado a partir da largada, com 2 atalhos para não ficar linear demais;
+  // a saída é a casa mais longe da largada. Moedas variam: 8 a 17 normais e 0 a 3 de 5 (Cofre da Lua: mais).
+  makeMaze() {
+    const r = this.r, [sc, sr] = BONUS_START, k = this.kind;
+    const A = Array.from({ length: ARENA_ROWS }, (_, y) => ({ block: Array.from({ length: COLS }, (_, x) => !(x % 2 === 0 && y % 2 === 0 && y < 9)), coin: Array(COLS).fill(0) }));
+    const key = (x, y) => x + ',' + y, seen = new Set([key(sc, sr)]), stack = [[sc, sr]];
+    while (stack.length) {
+      const [x, y] = stack[stack.length - 1];
+      const nb = [[2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => [x + dx, y + dy]).filter(([a, b]) => a >= 0 && a < COLS && b >= 0 && b < 9 && !seen.has(key(a, b)));
+      if (!nb.length) { stack.pop(); continue; }
+      const [nx, ny] = nb[Math.floor(r() * nb.length)];
+      A[(y + ny) / 2].block[(x + nx) / 2] = false; seen.add(key(nx, ny)); stack.push([nx, ny]);
+    }
+    for (let n = 0, t = 0; n < 2 && t < 40; t++) {   // 2 atalhos: abre paredes entre duas casas
+      const x = Math.floor(r() * COLS), y = Math.floor(r() * 9);
+      if (y < 9 && A[y].block[x] && ((x % 2 === 1 && y % 2 === 0) || (x % 2 === 0 && y % 2 === 1))) { A[y].block[x] = false; n++; }
+    }
+    // distância de cada casa até a largada (a saída fica na mais longe)
+    const dist = { [key(sc, sr)]: 0 }, q = [[sc, sr]]; let far = [sc, sr];
+    while (q.length) {
+      const [x, y] = q.shift();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= COLS || ny < 0 || ny >= ARENA_ROWS || A[ny].block[nx] || key(nx, ny) in dist) continue;
+        dist[key(nx, ny)] = dist[key(x, y)] + 1; q.push([nx, ny]);
+        if (dist[key(nx, ny)] > dist[key(far[0], far[1])]) far = [nx, ny];
       }
     }
-    // moedas no chão (na Chuva de Estrelas elas caem do céu)
-    if (k !== 'chuva') for (let i = free.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [free[i], free[j]] = [free[j], free[i]]; }
-    if (k !== 'chuva') free.slice(0, k === 'caca' ? 10 : 18).forEach(([x, y]) => { A[y].coin[x] = true; });
+    A[far[1]].exit = far[0];
+    const free = [];
+    for (let y = 0; y < ARENA_ROWS; y++) for (let x = 0; x < COLS; x++) if (!A[y].block[x] && !(x === sc && y === sr) && !(x === far[0] && y === far[1])) free.push([x, y]);
+    for (let i = free.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [free[i], free[j]] = [free[j], free[i]]; }
+    const small = k === 'cofre' ? 14 + Math.floor(r() * 4) : 8 + Math.floor(r() * 10), big = k === 'caca' ? 0 : Math.floor(r() * (BONUS_MAX.big + 1));   // na Caça, as moedas de 5 são do esquilo
+    free.slice(0, Math.min(BONUS_MAX.small, small)).forEach(([x, y]) => { A[y].coin[x] = 1; });
+    free.slice(small, small + Math.min(BONUS_MAX.big, big)).forEach(([x, y]) => { A[y].coin[x] = 5; });
+    this.open = free;   // casas livres (para o esquilo, os slimes e os carrinhos)
     return A;
   }
   // objetos que andam na faixa: espaçados com folga, dando a volta pelos dois lados

@@ -238,7 +238,7 @@ function hud() {
   const b = game.zoneBanner;
   if (b && game.state === 'play') { const a = b.t < 0.3 ? b.t / 0.3 : b.t > 2.2 ? (2.6 - b.t) / 0.4 : 1; c.globalAlpha = Math.max(0, a); label(c, b.name, LW / 2, 44, '#ffe9a8'); c.globalAlpha = 1; }
   game.toasts.forEach((s, i) => { c.globalAlpha = Math.min(1, (2.2 - s.t) * 2); label(c, s.text, LW / 2, 60 + i * 12 - s.t * 6, s.color); c.globalAlpha = 1; });
-  if (!game.started && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, desktop ? 'Espaço ou setas para pular' : 'Toque para pular', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
+  if (!game.started && !game.bonus && game.state === 'play') { c.globalAlpha = 0.6 + Math.sin(game.t * 4) * 0.3; label(c, desktop ? 'Espaço ou setas para pular' : 'Toque para pular', LW / 2, LH - 30, '#ffffff'); c.globalAlpha = 1; }
 }
 function coin(c, x, y) { c.fillStyle = '#c8901a'; c.fillRect(x, y + 1, 8, 7); c.fillStyle = '#ffcc3a'; c.fillRect(x, y, 8, 7); c.fillStyle = '#fff2a0'; c.fillRect(x + 1, y + 1, 3, 2); }
 // ---------------------------------------------------------------- painéis do computador (informações da partida)

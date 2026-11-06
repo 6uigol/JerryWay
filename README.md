@@ -39,8 +39,8 @@ Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.j
 
 ## Dimensões bônus e habilidades
 
-- **Portal dourado:** aparece no caminho (primeiro por volta da fileira 45-75, depois a cada 130-200 fileiras; mais com a habilidade Explorador). Pulando nele, o Jerry vai para uma dimensão bônus e depois volta para o mesmo lugar. Lá dentro ele não morre: se cair ou bater, só volta antes.
-- **Cada dimensão dura no máximo 10 s e tem no máximo 17 moedas normais e 3 moedas de 5** (`BONUS_TIME` e `BONUS_MAX` em `src/world.js`). Nunca repete a mesma duas vezes seguidas.
-- **9 dimensões:** Cofre da Lua, Lagoa Dourada, Mina de Lacrímora, Tempestade nas Dunas (vento empurra), Trilhos Dourados (trens), Chuva de Estrelas (moedas caindo, meteoros), Labirinto da Floresta, Lago Congelado (escorrega até bater) e Caça ao Esquilo Dourado.
+- **Portal dourado:** chance pequena-média: a partir da fileira 60, cada grama tem 1,2% de chance de ter o portal, com pelo menos 150 fileiras entre um e outro (em média um a cada ~400 fileiras; mais com a habilidade Explorador). Pulando nele, o Jerry vai para uma dimensão bônus e depois volta para o mesmo lugar. Lá dentro ele não morre: se bater, só volta antes.
+- **Toda dimensão é um labirinto passável** (médio-difícil, numa tela só) com **no máximo 10 s** e **no máximo 17 moedas normais e 3 de 5** (a quantidade varia). Chegar à saída antes do tempo vale **+3 moedas**; se o tempo acabar, volta sem esse bônus. Nunca repete a mesma duas vezes seguidas. Constantes em `src/world.js` (`BONUS_TIME`, `BONUS_MAX`, `BONUS_FINISH`, `BONUS_CHANCE`).
+- **9 dimensões:** Labirinto da Floresta, Cofre da Lua (mais moedas), Lagoa Dourada (só vitórias-régias), Mina de Lacrímora (slimes nos corredores), Trilhos Dourados (carrinhos), Tempestade nas Dunas (vento empurra), Chuva de Estrelas (meteoros com sombra), Lago Congelado (escorrega até a curva) e Caça ao Esquilo Dourado (pegar o esquilo vale 5).
 - **Habilidades passivas:** toda skin tem uma (`ABILITIES` em `src/skins.js`). A raridade não deixa a habilidade mais forte; cada habilidade existe em todas as raridades.
 - **Chave "Todas as skins":** criada no Admin (Chaves de resgate → Para que serve: Todas as skins) e usada na aba **Chaves** do site com a conta. O jogo confere em `/api/jerry?op=ent` e libera todas as skins do Jerry's Way, inclusive as míticas.
