@@ -7,7 +7,7 @@
 //    partidas do dia; no máximo 20 por dia;
 //  - o vídeo para reviver só aparece quando o jogador escolhe (1 vez por partida);
 //  - cada anúncio espera no máximo 8 s para carregar; se o AdMob não tiver anúncio (sem internet, sem estoque, erro),
-//    o jogo segue normalmente (o vídeo de reviver cai no anúncio próprio, então reviver sempre funciona).
+//    entra o anúncio próprio do Song of Moonlight (no reviver e entre partidas), então os dois sempre aparecem.
 import { SITE_URL } from './config.js';
 
 export const ADMOB = {
@@ -127,11 +127,11 @@ export async function maybeInterstitial(noAds) {
       loaded.interstitial = false;
       const res = once(p, [['interstitialAdDismissed', 1], ['interstitialAdFailedToShow', 0]], 60000);
       const ok = await wait(p.showInterstitial(), 15000).then(() => true).catch(() => false);
-      if (ok) await res;
+      const r = ok ? await res : 0;
       preload('interstitial');
-      return;
+      if (ok && r !== 0) return;
     }
-    return;   // sem anúncio do AdMob agora: segue o jogo (sem anúncio próprio no meio no celular)
+    // o AdMob não tinha anúncio agora (app novo, fora da Play Store, sem internet...): mostra o anúncio próprio
   }
   return houseAd(5, { rewarded: false, buy: true });
 }
