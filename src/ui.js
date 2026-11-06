@@ -310,23 +310,35 @@ function pause() {
 // morreu: reviver uma vez por partida, por 70 moedas (40 com a habilidade Pechincheiro)
 export const REVIVE_COST = 70;
 function revive(d) {
-  const cost = d.cost || REVIVE_COST;
+  const cost = d.cost || REVIVE_COST, short = Math.max(0, cost - d.coins), me = currentAccount();
   root.innerHTML = `<div class="panel revive"><h2>Reviver?</h2>
     <p class="muted">Continue de onde parou. Só dá para reviver uma vez por partida.</p>
     <div class="score">${d.score}</div>
     <button class="big" id="rv-coins">Reviver por ${cost} <i class="coin"></i></button>
     <p class="muted small">Você tem ${d.coins} <i class="coin"></i></p>
-    <div class="rv-bar"><i id="rv-time"></i></div>
+    <div id="rv-buy" hidden><p class="rv-short">Faltam <b>${short}</b> <i class="coin"></i> para reviver.</p>
+      <button class="big" id="rv-shop">Comprar 150 moedas</button>
+      ${me && me.verified ? '<button id="rv-check">Já comprei</button>' : '<p class="muted small">Entre na sua conta antes de comprar, para as moedas chegarem aqui.</p>'}
+      <p class="muted small" id="rv-msg"></p></div>
+    <div class="rv-bar" ${short ? 'hidden' : ''}><i id="rv-time"></i></div>
     <button class="ghost" id="rv-skip">Não, obrigado</button></div>`;
-  const T0 = Date.now(), MS = 7000, ARM = 900; let done = false;   // nos primeiros 0,9 s nada é aceito: o toque/espaço do pulo que matou o Jerry não pode reviver sozinho
+  // nos primeiros 0,9 s nada é aceito: o toque/espaço do pulo que matou o Jerry não pode reviver sozinho
+  // sem moedas suficientes não tem contagem: o jogador tem tempo de comprar moedas e voltar
+  const T0 = Date.now(), MS = 7000, ARM = d.armed ? 0 : 900; let done = false;
   const end = (fn) => { if (done) return; done = true; clearInterval(timer); fn(); };
   const armed = () => Date.now() - T0 >= ARM;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  const btns = [$('#rv-coins'), $('#rv-skip')]; btns.forEach((b) => { b.disabled = true; });
-  setTimeout(() => btns.forEach((b) => { b.disabled = false; }), ARM);
-  const timer = setInterval(() => { const k = 1 - (Date.now() - T0) / MS; $('#rv-time').style.width = Math.max(0, k * 100) + '%'; if (k <= 0) end(d.skip); }, 50);
-  $('#rv-coins').onclick = (e) => { if (!armed()) return; sfx.click(); end(d.pay); };
-  $('#rv-skip').onclick = (e) => { if (!armed()) return; sfx.click(); end(d.skip); };
+  const btns = [$('#rv-coins'), $('#rv-skip')]; if (ARM) { btns.forEach((b) => { b.disabled = true; }); setTimeout(() => btns.forEach((b) => { b.disabled = false; }), ARM); }
+  const timer = short ? 0 : setInterval(() => { const k = 1 - (Date.now() - T0) / MS; $('#rv-time').style.width = Math.max(0, k * 100) + '%'; if (k <= 0) end(d.skip); }, 50);
+  $('#rv-coins').onclick = () => {
+    if (!armed()) return; sfx.click();
+    if (short) { $('#rv-buy').hidden = false; $('#rv-coins').hidden = true; return; }   // não tem moedas: mostra como comprar
+    end(d.pay);
+  };
+  $('#rv-skip').onclick = () => { if (!armed()) return; sfx.click(); end(d.skip); };
+  const shop = $('#rv-shop'); if (shop) shop.onclick = () => { sfx.click(); openSite('/#/comprar/jerry-way-coins150'); $('#rv-msg').textContent = 'Depois de pagar no site, volte aqui: as moedas entram sozinhas (ou toque em "Já comprei").'; };
+  const chk = $('#rv-check'); if (chk) chk.onclick = async () => { sfx.click(); chk.disabled = true; $('#rv-msg').textContent = 'Conferindo...'; try { await refreshEnt(); } finally { chk.disabled = false; if (!done) $('#rv-msg').textContent = 'Ainda não chegou. Se acabou de pagar, espere um pouquinho e toque de novo.'; } };
+  d.rerender = () => { if (done) return; done = true; clearInterval(timer); };   // a tela é refeita quando as moedas chegam
 }
 
 // ---------------------------------------------------------------- Loja (a compra é feita no site, com a mesma conta)

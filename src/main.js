@@ -130,19 +130,23 @@ function play() {
 }
 const reviveCost = () => (game.ability === 'pechincha' ? Math.round(game.pv) : REVIVE_COST);   // Pechincheiro: reviver mais barato
 // morreu: antes do fim, oferece reviver (1 vez por partida) por 70 moedas (sem moedas suficientes, vai direto para o fim)
+let reviveData = null;
 function died() {
   const g = game;
-  if (g.revived || g.hard || save.coins + g.coins < reviveCost()) return finish();   // depois da fileira 1000 não dá para reviver
+  if (g.revived || g.hard) return finish();   // depois da fileira 1000 não dá para reviver
   g.state = 'ask';   // a partida fica parada (sem contar como fim) enquanto o jogador escolhe
-  show('revive', {
+  // sem moedas suficientes a tela aparece do mesmo jeito: ao tocar em Reviver, sugere comprar moedas
+  reviveData = {
     score: g.score, coins: save.coins + g.coins, cost: reviveCost(),
     pay: () => {
+      const cost = reviveCost(); if (save.coins + g.coins < cost) return finish();
       // paga primeiro com as moedas guardadas; o que faltar sai das moedas desta partida
-      const cost = reviveCost(), fromSave = Math.min(save.coins, cost); save.coins -= fromSave; g.coins -= cost - fromSave; commit();
-      hide(); g.revive(); last = performance.now();
+      const fromSave = Math.min(save.coins, cost); save.coins -= fromSave; g.coins -= cost - fromSave; commit();
+      reviveData = null; hide(); g.revive(); last = performance.now();
     },
-    skip: finish,
-  });
+    skip: () => { reviveData = null; finish(); },
+  };
+  show('revive', reviveData);
 }
 function finish() {
   const g = game, record = g.score > save.best, mult = coinMult(), earned = Math.max(0, g.coins) * mult;   // Multiplicador: moedas em dobro
@@ -167,7 +171,11 @@ show('title');
 brandIntro();   // abertura da marca Song of Moonlight por cima da tela inicial
 initCloud().then(refreshTop);
 // moedas compradas na Loja chegaram: avisa e atualiza a tela aberta
-onCoinsArrived((n) => { game.toast(`+${n} moedas da Loja!`, '#ffcc3a'); if (showing() && showing() !== 'revive') show(showing()); });
+onCoinsArrived((n) => {
+  game.toast(`+${n} moedas da Loja!`, '#ffcc3a');
+  if (showing() === 'revive' && reviveData) { if (reviveData.rerender) reviveData.rerender(); reviveData.coins = save.coins + game.coins; reviveData.armed = true; show('revive', reviveData); }   // comprou moedas na hora de reviver: agora dá
+  else if (showing()) show(showing());
+});
 setInterval(refreshTop, 60000);   // ranking das laterais sempre atualizado
 
 // ---------------------------------------------------------------- controles
