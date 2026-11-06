@@ -42,7 +42,7 @@ export const BONUS = {
   caca:      { name: 'Caça ao Esquilo Dourado', zone: 'campo', hint: 'Pegue o esquilo dourado!', arena: true, start: [4, 0] },
 };
 export const BONUS_LEN = 14, BONUS_TIME = 10, ARENA_ROWS = 10;   // fileiras das que sobem; segundos de cada dimensão (máximo 10)
-export const BONUS_MAX = { small: 15, big: 5 };                    // no máximo 15 moedas normais e 5 moedas de 5 em cada dimensão
+export const BONUS_MAX = { small: 17, big: 3 };                    // no máximo 17 moedas normais e 3 moedas de 5 em cada dimensão
 export const BONUS_FIRST = 45, BONUS_GAP = 130;  // primeiro portal por volta da fileira 45-75; depois, a cada 130-200 fileiras
 
 export class World {
@@ -126,7 +126,7 @@ export class World {
   // põe uma moeda respeitando o limite da dimensão (de vez em quando uma de 5)
   put(L, c) {
     const m = this.left || (this.left = { ...BONUS_MAX });
-    const big = m.big > 0 && (this.r() < 0.18 || m.small <= 0);
+    const big = m.big > 0 && (this.r() < 0.12 || m.small <= 0);
     if (big) { m.big--; L.coins.set(c, 5); } else if (m.small > 0) { m.small--; L.coins.set(c, 1); }
   }
   genBonus() {
@@ -135,9 +135,8 @@ export class World {
     let L;
     if (B.arena) {
       if (!this.layout) this.layout = this.makeArena();
-      L = this.base(row, 'grass'); L.variant = Math.floor(r() * 4); sides(L, row >= ARENA_ROWS);
-      if (row >= ARENA_ROWS) for (let c = 0; c < COLS; c++) L.block.add(c);
-      else { const A = this.layout[row]; for (let c = 0; c < COLS; c++) { if (A.block[c]) L.block.add(c); else if (A.coin[c]) this.put(L, c); } if (A.exit !== undefined) L.exit = A.exit; }
+      L = this.base(row, 'grass'); L.variant = Math.floor(r() * 4); sides(L);   // acima da arena o chão continua limpo (a borda é invisível)
+      if (row < ARENA_ROWS) { const A = this.layout[row]; for (let c = 0; c < COLS; c++) { if (A.block[c]) L.block.add(c); else if (A.coin[c]) this.put(L, c); } if (A.exit !== undefined) L.exit = A.exit; }
     } else if (row < 2 || row > BONUS_LEN) {   // começo livre; depois da saída, mata fechada (não dá para passar)
       L = this.base(row, 'grass'); L.variant = Math.floor(r() * 4); sides(L);
       if (row > BONUS_LEN) for (let c = 0; c < COLS; c++) L.block.add(c);

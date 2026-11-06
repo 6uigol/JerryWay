@@ -35,11 +35,12 @@ Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.j
 - **PC (Windows/Linux):** anúncio próprio do Song of Moonlight (`icons/som-ad.jpg`), sem rede de anúncios.
 - **Limites:** anúncio entre partidas só a cada 3 mortes, nunca antes de 2 minutos do anterior, nunca nas 2 primeiras partidas do dia e no máximo 20 por dia. Cada anúncio espera no máximo 8 s para carregar; sem anúncio disponível, o jogo segue (o vídeo de reviver usa o anúncio próprio).
 - **Reviver:** 1 vez por partida, vendo vídeo (sempre disponível, mesmo para quem tirou os anúncios) ou por 70 moedas (40 com a habilidade Pechincheiro).
-- **Sem anúncios (R$ 9,90):** comprado no site com a conta (`#/comprar/jerry-way-noads`) ou por chave de resgate (Admin → Chaves → "Jerry's Way · Sem anúncios"). O jogo confere em `/api/jerry?op=ent`.
+- **Sem anúncios (R$ 9,90):** comprado no site com a conta (`#/comprar/jerry-way-noads`) ou por chave de resgate (Admin → Chaves de resgate → "Para que serve: Sem anúncios"; usar em songofmoonlight.online/#/chaves). O jogo confere em `/api/jerry?op=ent`.
 
 ## Dimensões bônus e habilidades
 
 - **Portal dourado:** aparece no caminho (primeiro por volta da fileira 45-75, depois a cada 130-200 fileiras; mais com a habilidade Explorador). Pulando nele, o Jerry vai para uma dimensão bônus e depois volta para o mesmo lugar. Lá dentro ele não morre: se cair ou bater, só volta antes.
-- **Cada dimensão dura no máximo 10 s e tem no máximo 15 moedas normais e 5 moedas de 5** (`BONUS_TIME` e `BONUS_MAX` em `src/world.js`). Nunca repete a mesma duas vezes seguidas.
+- **Cada dimensão dura no máximo 10 s e tem no máximo 17 moedas normais e 3 moedas de 5** (`BONUS_TIME` e `BONUS_MAX` em `src/world.js`). Nunca repete a mesma duas vezes seguidas.
 - **9 dimensões:** Cofre da Lua, Lagoa Dourada, Mina de Lacrímora, Tempestade nas Dunas (vento empurra), Trilhos Dourados (trens), Chuva de Estrelas (moedas caindo, meteoros), Labirinto da Floresta, Lago Congelado (escorrega até bater) e Caça ao Esquilo Dourado.
 - **Habilidades passivas:** toda skin tem uma (`ABILITIES` em `src/skins.js`). A raridade não deixa a habilidade mais forte; cada habilidade existe em todas as raridades.
+- **Chave "Todas as skins":** criada no Admin (Chaves de resgate → Para que serve: Todas as skins) e usada na aba **Chaves** do site com a conta. O jogo confere em `/api/jerry?op=ent` e libera todas as skins do Jerry's Way, inclusive as míticas.

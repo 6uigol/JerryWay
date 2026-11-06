@@ -323,7 +323,7 @@ function revive(d) {
   $('#rv-skip').onclick = () => { sfx.click(); end(d.skip); };
 }
 // "Sem anúncios": compra única no site, ligada à conta (precisa estar na conta para comprar)
-const NOADS_URL = SITE_URL + '/#/comprar/jerry-way-noads', KEY_URL = SITE_URL + '/#/resgatar';
+const NOADS_URL = SITE_URL + '/#/comprar/jerry-way-noads', KEY_URL = SITE_URL + '/#/chaves';
 function noads() {
   const me = currentAccount();
   let body;

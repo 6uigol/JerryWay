@@ -151,22 +151,24 @@ export class Game {
   bonusTick(dt) {
     const b = this.bonus, j = this.j, jc = Math.round((j.x - T / 2) / T), jr = j.hop ? j.hop.tr : j.row;
     if (b.kind === 'chuva') {
-      // moedas (no limite da dimensão) e meteoros caem do céu; pegar moeda = ficar embaixo; meteoro = volta antes
+      // moedas (no limite da dimensão) e meteoros caem do céu numa casa marcada pela sombra; a moeda fica no chão
+      // até ser pega; o meteoro, se cair em cima do Jerry, manda ele de volta antes
       if ((b.spawn -= dt) <= 0) {
-        b.spawn = 0.32;
-        const rock = Math.random() < 0.3 || (b.left.small <= 0 && b.left.big <= 0);
-        let v = 0; if (!rock) { if (b.left.big > 0 && Math.random() < 0.2) { b.left.big--; v = 5; } else if (b.left.small > 0) { b.left.small--; v = 1; } }
-        b.drops.push({ col: Math.floor(Math.random() * COLS), row: ARENA_ROWS + 1, sp: 4 + Math.random() * 2.5, v });
+        b.spawn = 0.42;
+        const rock = Math.random() < 0.28 || (b.left.small <= 0 && b.left.big <= 0);
+        let v = 0; if (!rock) { if (b.left.big > 0 && Math.random() < 0.15) { b.left.big--; v = 5; } else if (b.left.small > 0) { b.left.small--; v = 1; } }
+        let col, row; for (let k = 0; k < 20; k++) { col = Math.floor(Math.random() * COLS); row = Math.floor(Math.random() * 8); const L = this.world.lane(row); if (L && !L.coins.has(col) && !b.drops.some((d) => d.col === col && d.row === row)) break; }
+        b.drops.push({ col, row, h: 7, sp: 7 + Math.random() * 3, v });
       }
       for (const d of b.drops) {
-        d.row -= d.sp * dt;
-        if (!d.done && d.col === jc && Math.abs(d.row - jr) < 0.5) {
-          d.done = true;
-          if (d.v) { this.coins += d.v; (d.v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: jr, t: 0 }); }
-          else if (!(this.shield > 0)) { sfx.hit(); return this.exitBonus(true); }
-        }
+        d.h -= d.sp * dt;
+        if (d.h > 0) continue;
+        d.done = true;
+        const here = d.col === jc && d.row === jr && !j.hop;
+        if (d.v) { const L = this.world.lane(d.row); if (here) { this.coins += d.v; (d.v > 1 ? sfx.bigcoin : sfx.coin)(); this.fx.push({ k: 'spark', x: j.x, row: jr, t: 0 }); } else if (L) L.coins.set(d.col, d.v); }
+        else { this.fx.push({ k: 'splash', x: d.col * T + T / 2, row: d.row, t: 0 }); if (here && !(this.shield > 0)) { sfx.hit(); return this.exitBonus(true); } }
       }
-      b.drops = b.drops.filter((d) => !d.done && d.row > -1.5);
+      b.drops = b.drops.filter((d) => !d.done);
     } else if (b.kind === 'caca') {
       // o esquilo dourado foge (de casa em casa, para longe do Jerry); pegar = moeda de 5 e ele aparece em outro lugar
       const q = b.sq; q.t = (q.t || 0) + dt;
@@ -400,8 +402,10 @@ export class Game {
   drawBonus(c, ox, rowY, LW) {
     const b = this.bonus, t = this.t;
     if (b.kind === 'chuva') for (const d of b.drops) {
-      const x = ox + d.col * T, y = Math.round(rowY(d.row));
-      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x + 4, rowY(Math.max(d.row - 0.01, -1)) + 12, 8, 2);
+      // sombra no chão onde vai cair (cresce conforme chega perto) e a moeda/meteoro descendo até ela
+      const x = ox + d.col * T, gy = rowY(d.row), y = Math.round(rowY(d.row + d.h)), k = 1 - Math.min(1, d.h / 7);
+      c.globalAlpha = 0.25 + k * 0.45; c.fillStyle = d.v ? '#1a1226' : '#c83a2a';
+      const w = Math.round(4 + k * 8); c.fillRect(x + 8 - w / 2, gy + 11, w, 3); c.globalAlpha = 1;
       if (d.v) drawCoin(c, x, y, d.v, t);
       else {   // meteoro: pedra com rastro de fogo
         c.fillStyle = '#ff8a3a'; c.fillRect(x + 6, y - 10, 4, 10); c.fillStyle = '#ffe070'; c.fillRect(x + 7, y - 6, 2, 6);

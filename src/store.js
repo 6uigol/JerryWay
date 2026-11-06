@@ -1,6 +1,6 @@
 // Progresso do jogador: moedas, skins, recorde, última partida e o fantasma do recorde.
 // Fica no aparelho (localStorage) e, com conta, também na nuvem (mesma conta do Song of Moonlight).
-import { DEFAULT_SKIN, SKIN_BY_ID } from './skins.js';
+import { DEFAULT_SKIN, SKIN_BY_ID, SKINS } from './skins.js';
 import { FIREBASE_CONFIG, API_URL } from './config.js';
 import { nativeGoogleLogin, pendingGoogleLogin, acknowledgeGoogleLogin } from './google-login.js';
 import { isBadName } from './names.js';
@@ -58,8 +58,16 @@ export const noAds = () => !!(ent.noAds && account && account.verified);
 function readEnt(id) { try { return JSON.parse(localStorage.getItem(ENT(id)) || 'null') || { noAds: false }; } catch (_) { return { noAds: false }; } }
 export async function refreshEnt() {
   if (!cloud || !account || !account.verified) return ent;
-  try { const r = await api('ent'); ent = { noAds: !!r.noAds }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
+  try { const r = await api('ent'); ent = { noAds: !!r.noAds, allSkins: !!r.allSkins }; try { localStorage.setItem(ENT(account.uid), JSON.stringify(ent)); } catch (_) { /* ok */ } emit(); } catch (_) { /* sem internet: fica o que estava guardado */ }
+  unlockAll();
   return ent;
+}
+// chave "Todas as skins": todas as skins do Jerry's Way ficam da conta (e são salvas na nuvem como qualquer outra)
+export const allSkins = () => !!(ent.allSkins && account && account.verified);
+function unlockAll() {
+  if (!allSkins()) return;
+  const missing = SKINS.filter((k) => !save.owned.includes(k.id));
+  if (missing.length) { save.owned.push(...missing.map((k) => k.id)); commit(); }
 }
 export const cloudReady = () => !!cloud;
 export const currentAccount = () => account;
