@@ -103,6 +103,8 @@ export const sfx = {
   boss: () => { voice({ f: hz(38), d: 1.2, type: 'sawtooth', v: 0.18, bus: sfxBus, cutoff: 600 }); seq([62, 63, 62, 63, 62, 63], 0.1, { type: 'square', v: 0.1 }); },
   clear: () => seq([72, 76, 79, 84, 79, 84, 88, 91], 0.09, { type: 'square', v: 0.16, echo: 0.6 }),
   over: () => seq([64, 63, 62, 61, 60, 59, 58, 57, null, 45], 0.14, { type: 'triangle', v: 0.2, echo: 0.8 }),
+  // nota de cada runa do quebra-cabeça do chefe (escala pentatônica, com eco)
+  note: (i) => voice({ f: hz(64 + [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26][i % 12]), d: 0.35, type: 'triangle', v: 0.22, bus: sfxBus, echo: 0.4 }),
   // a vela que apaga (perdeu uma vida)
   snuff: () => { noise({ d: 0.5, v: 0.12, hp: 400, bus: sfxBus }); voice({ f: 500, d: 0.4, type: 'sine', v: 0.08, slide: 0.3, bus: sfxBus }); },
 };

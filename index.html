@@ -10,6 +10,14 @@
 </head>
 <body>
   <canvas id="screen"></canvas>
+  <!-- joystick e botões na tela: o mesmo desenho do Song of Moonlight -->
+  <div id="touch" aria-hidden="true">
+    <div id="stick-zone"><div id="stick"><div id="knob"></div></div></div>
+    <div id="btns">
+      <button class="btn b" data-act="back" type="button">B</button>
+      <button class="btn a" data-act="a" type="button">A</button>
+    </div>
+  </div>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

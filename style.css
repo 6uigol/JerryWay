@@ -1,3 +1,41 @@
 @font-face { font-family: 'Press Start 2P'; src: url('fonts/PressStart2P.ttf') format('truetype'); font-display: block; }
 html, body { margin: 0; height: 100%; background: #05030c; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 #screen { display: block; width: 100vw; height: 100vh; height: 100dvh; image-rendering: pixelated; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+
+/* ------------------------------------------------ joystick e botões na tela (iguais aos do Song of Moonlight) */
+:root { --gold: #e0c060; }
+#touch { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 4; font-family: 'Press Start 2P', monospace; }
+body.touch #touch { display: block; }
+#stick-zone { display: none; position: absolute; left: 0; bottom: 0; width: 34%; height: 70%; pointer-events: auto; touch-action: none; }
+body.ctl-stick #stick-zone { display: block; }
+#stick {
+  position: absolute; left: min(92px, 11vw); top: calc(100% - 110px);
+  width: 144px; height: 144px; margin: -72px 0 0 -72px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 144 144'><g fill='none' stroke='%23ffe9a8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.7'><path d='M64 20l8-8 8 8'/><path d='M64 124l8 8 8-8'/><path d='M20 64l-8 8 8 8'/><path d='M124 64l8 8-8 8'/></g><circle cx='72' cy='72' r='50' fill='none' stroke='%23ffffff' stroke-opacity='.18' stroke-width='2' stroke-dasharray='3 7'/></svg>") center / 100% 100% no-repeat,
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.13), rgba(10, 8, 24, 0.5) 72%);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.45);
+  opacity: 0.6; transition: opacity 0.15s, box-shadow 0.15s;
+}
+#stick.on { opacity: 1; box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55), 0 0 18px rgba(224, 192, 96, 0.45), 0 4px 14px rgba(0, 0, 0, 0.45); }
+#knob {
+  position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+  border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.55);
+  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.85), rgba(200, 210, 235, 0.45) 30%, rgba(70, 70, 110, 0.65) 75%);
+  box-shadow: inset 0 -5px 8px rgba(0, 0, 0, 0.35), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+#stick.on #knob { border-color: #ffe9a8; box-shadow: inset 0 -5px 8px rgba(0, 0, 0, 0.3), 0 0 14px rgba(255, 233, 168, 0.6), 0 3px 8px rgba(0, 0, 0, 0.5); }
+#btns { position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); width: 196px; height: 160px; pointer-events: none; }
+.btn {
+  display: none; position: absolute; pointer-events: auto; touch-action: none;
+  border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.4);
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06) 42%, rgba(12, 10, 28, 0.62) 100%);
+  box-shadow: inset 0 -6px 10px rgba(0, 0, 0, 0.4), inset 0 2px 3px rgba(255, 255, 255, 0.28), 0 3px 10px rgba(0, 0, 0, 0.5);
+  color: #fff; font-family: inherit; font-size: 20px; line-height: 1; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  align-items: center; justify-content: center; transition: transform 0.06s, box-shadow 0.1s; -webkit-tap-highlight-color: transparent; outline: none; padding: 0;
+}
+body.ctl-a .btn.a, body.ctl-b .btn.b { display: flex; }
+.btn.on { transform: scale(0.93); background: radial-gradient(circle at 50% 40%, rgba(255, 233, 168, 0.55), rgba(224, 192, 96, 0.25) 60%, rgba(12, 10, 28, 0.6) 100%); border-color: var(--gold); box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 16px rgba(224, 192, 96, 0.55); }
+.btn.a { width: 88px; height: 88px; right: 0; bottom: 40px; font-size: 26px; color: #ffeab0; border-color: rgba(224, 192, 96, 0.9); background: radial-gradient(circle at 32% 26%, rgba(255, 233, 168, 0.4), rgba(224, 192, 96, 0.1) 45%, rgba(40, 28, 10, 0.62) 100%); box-shadow: inset 0 -7px 12px rgba(80, 50, 0, 0.45), inset 0 2px 3px rgba(255, 240, 200, 0.4), 0 0 14px rgba(224, 192, 96, 0.3), 0 3px 10px rgba(0, 0, 0, 0.5); }
+.btn.b { width: 70px; height: 70px; right: 96px; bottom: 0; color: #e8f0ff; border-color: rgba(190, 205, 235, 0.75); }

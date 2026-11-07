@@ -17,7 +17,18 @@ const press = () => inp.hit('a') || inp.ptr.tap;
 // visto de cima: sala de verdade do Song of Moonlight no tema da visão
 function topBg(o) { g.drawImage(room(o.V.theme, ROOM_OPEN), 0, 0); }
 // de frente (estilo plataforma): céu da visão com lua e torres, chão de pedra do tema
-const FLOOR = ['####################', '####################', '####################'];
+// chão de verdade (piso do tema), não parede: '.' é o piso de cada tema do Song of Moonlight
+const FLOOR = ['....................', '....................', '....................'];
+// silhuetas do fundo: a Torre das Treze Vozes e árvores de cristal, na cor do céu da visão (guardadas prontas)
+const silCache = new Map();
+function silhouettes(col) {
+  let cv = silCache.get(col); if (cv) return cv;
+  cv = document.createElement('canvas'); cv.width = W; cv.height = 160; const c = cv.getContext('2d');
+  for (const [x, s] of [[-30, 0.7], [210, 0.85]]) { c.save(); c.translate(x, 160 - 112 * s); c.scale(s, s); G.drawLacrTower(c, 0, 0, 0); c.restore(); }
+  for (const x of [70, 110, 150, 176, 320 - 30]) { c.save(); c.translate(x, 160 - 34); c.scale(1.6, 1.6); G.drawCrystalTree(c, 0, 0, 0); c.restore(); }
+  c.globalCompositeOperation = 'source-in'; c.fillStyle = col; c.fillRect(0, 0, W, 160);
+  silCache.set(col, cv); return cv;
+}
 function sideBg(o, floorY = 160) {
   const hue = o.trip ? (o.age * 40) % 360 : 0;
   const top = o.V.sky[0], bot = o.V.sky[1];
@@ -28,8 +39,9 @@ function sideBg(o, floorY = 160) {
   // ao fundo: picos de cristal de Lacrímora (paralaxe lenta)
   g.fillStyle = o.V.sky[1]; g.globalAlpha = 0.55; g.beginPath(); g.moveTo(0, floorY);
   for (let x = 0; x <= W + 20; x += 20) g.lineTo(x - (o.age * 3) % 20, floorY - 60 - ((x * 37) % 50) * (x % 40 ? 0.6 : 1)); g.lineTo(W, floorY); g.closePath(); g.fill(); g.globalAlpha = 1;
-  // silhuetas: torres de Lacrímora com janelas acesas
-  for (let i = 0; i < 6; i++) { const x = i * 58 - 10, h = 50 + ((i * 37) % 40); R(x, floorY - h, 34, h, o.V.sky[2]); R(x + 4, floorY - h - 8, 26, 8, o.V.sky[2]); for (let k = 0; k < 3; k++) if ((i + k) % 2) R(x + 8 + k * 7, floorY - h + 10 + k * 9, 4, 6, '#ffd27a'); }
+  // silhuetas: a torre do Richard e árvores de cristal, com janelinhas acesas
+  g.drawImage(silhouettes(o.V.sky[2]), 0, floorY - 160);
+  for (const [x, y] of [[30, 80], [24, 100], [298, 66], [290, 92]]) if (Math.sin(o.age * 2 + x) > -0.6) R(x, floorY - 160 + y, 3, 4, '#ffd27a');
   fog(g, o.age, floorY - 46, 46, '220,210,255', 0.16);
   g.drawImage(room(o.V.theme, FLOOR), 0, floorY);
   R(0, floorY, W, 2, 'rgba(255,255,255,0.18)'); g.save(); g.globalAlpha = 0.35; R(0, floorY + 2, W, 3, '#05030c'); g.restore();
@@ -39,6 +51,16 @@ function vial(x, y, t, s = 2) {
   x = Math.round(x); y = Math.round(y); const P = (a, b, w, h, c) => R(x + a * s, y + b * s, w * s, h * s, c);
   P(-3, -7, 6, 10, '#120c1e'); P(-2, -9, 4, 3, '#120c1e'); P(-1, -9, 2, 2, '#a86a3a');
   P(-2, -6, 4, 8, '#bfe8ff'); P(-2, -3, 4, 5, Math.sin(t * 8) > 0 ? '#c86aff' : '#a84ae8'); P(-2, -6, 1, 3, '#ffffff');
+}
+// casca de banana (pixel art com contorno)
+function banana(x, y, t, s = 2, rot = 0) {
+  // banana em lua crescente, com cabinho marrom e brilho
+  const MAP = ['..........bb', '.........yYb', '........yyY.', '.......yyyY.', '.....wyyyY..', '...yyyyyYY..', 'yyyyyyyYY...', '.YYYYYYY....', '..dd........'];
+  const C = { b: '#5a3a1a', y: '#ffe04a', Y: '#e0a820', d: '#5a3a1a', w: '#fff8c0' };
+  g.save(); g.translate(Math.round(x), Math.round(y)); g.rotate(rot * 0.1);
+  for (let j = 0; j < MAP.length; j++) for (let i = 0; i < MAP[j].length; i++) { const ch = MAP[j][i]; if (ch === '.') continue; g.fillStyle = '#120c1e'; g.fillRect((i - 6) * s - 1, (j - 4) * s - 1, s + 2, s + 2); }
+  for (let j = 0; j < MAP.length; j++) for (let i = 0; i < MAP[j].length; i++) { const ch = MAP[j][i]; if (ch === '.') continue; g.fillStyle = C[ch]; g.fillRect((i - 6) * s, (j - 4) * s, s, s); }
+  g.restore();
 }
 function spark(x, y) { R(x - 2, y - 5, 4, 10, '#fff4a0'); R(x - 1, y - 7, 2, 14, '#ffffff'); }
 function bed(x, y, glow, t) {
@@ -104,25 +126,30 @@ export const MICROS = {
       else { o.drop.y += 260 * o.dt; if (o.drop.y >= 126) { const i = Math.round((o.drop.x - 32) / 64); if (i === o.target && Math.abs(o.drop.x - (32 + i * 64)) < 20) o.win = true; else o.lose = true; } }
     },
     draw(o, t) { topBg(o); for (let i = 0; i < 5; i++) { const x = 32 + i * 64; drawActor(g, i === o.target ? o.V.actor : ['elo', 'ruk', 'brusk', 'salvia'][i % 4], x, 120, t + i, 1, { alpha: i === o.target ? 1 : 0.8 }); bed(x, 134, i === o.target, t); } arrowDown(32 + o.target * 64, 82, t, '#7aff9a'); R(0, 30, W, 2, '#5a4a7a'); const hx = o.drop ? o.drop.x : o.hx; R(hx - 6, 26, 12, 8, '#f0c8a0'); R(hx - 6, 26, 12, 2, '#d8a880'); vial(o.drop ? o.drop.x : o.hx, o.drop ? o.drop.y : 46, t); } },
-  bau: { word: 'ONDE ESTÁ?', icon: 'pick', timeout: 'lose', dur: (o) => 0.9 + (3 + o.lvl) * (0.5 - Math.min(0.25, o.lvl * 0.04)) / o.sp + 2.4,
-    init(o) { o.slots = [0, 1, 2]; o.hid = 1; o.swaps = 3 + o.lvl; o.swT = (0.5 - Math.min(0.25, o.lvl * 0.04)) / o.sp; o.sel = 1; o.done = 0; o.from = null; },
+  // três baús, uma casca de banana: ela entra num baú, eles se embaralham; ao escolher, os três abrem
+  bau: { word: 'ONDE ESTÁ?', icon: 'pick', timeout: 'lose', dur: (o) => 1.2 / o.sp + (3 + o.lvl) * (0.5 - Math.min(0.25, o.lvl * 0.04)) / o.sp + 2.6,
+    init(o) { o.slots = [0, 1, 2]; o.hid = 1; o.swaps = 3 + o.lvl; o.swT = (0.5 - Math.min(0.25, o.lvl * 0.04)) / o.sp; o.sel = 1; o.done = 0; o.from = null; o.show = 1.2 / o.sp; },
     update(o) {
-      const showEnd = 0.9 / o.sp, shuffleEnd = showEnd + o.swaps * o.swT;
-      if (o.age > showEnd && o.done < o.swaps && o.age > showEnd + o.done * o.swT) { const a = ri(0, 2), b = (a + ri(1, 2)) % 3; o.from = { a, b, t0: o.age }; const ia = o.slots.indexOf(a), ib = o.slots.indexOf(b); [o.slots[ia], o.slots[ib]] = [o.slots[ib], o.slots[ia]]; o.done++; sfx.tick(); }
+      const shuffleEnd = o.show + o.swaps * o.swT;
+      if (o.reveal) { if (o.age - o.revealAt > 0.9) { if (o.picked === o.slots.indexOf(o.hid)) o.win = true; else o.lose = true; } return; }
+      if (o.age > o.show && o.done < o.swaps && o.age > o.show + o.done * o.swT) { const a = ri(0, 2), b = (a + ri(1, 2)) % 3; o.from = { a, b, t0: o.age }; const ia = o.slots.indexOf(a), ib = o.slots.indexOf(b); [o.slots[ia], o.slots[ib]] = [o.slots[ib], o.slots[ia]]; o.done++; sfx.tick(); }
       if (o.age < shuffleEnd + 0.1) return;
-      const rects = [0, 1, 2].map((p) => [60 + p * 100 - 26, 90, 52, 52]); const i = pick(o, rects);
-      if (i >= 0) { const chestAt = o.slots.findIndex((s, k) => o.slots[k] === o.hid); if (o.slots.indexOf(o.hid) === i) o.win = true; else o.lose = true; o.reveal = true; void chestAt; }
+      const i = pick(o, [0, 1, 2].map((p) => [60 + p * 100 - 28, 80, 56, 64]));
+      if (i >= 0) { o.reveal = true; o.revealAt = o.age; o.picked = i; o.dur = Math.max(o.dur, o.age + 1.2); if (i === o.slots.indexOf(o.hid)) sfx.catch(); else sfx.bad && sfx.bad(); }
     },
     draw(o, t) {
-      topBg(o); const showEnd = 0.9 / o.sp, picking = o.age > showEnd + o.swaps * o.swT;
+      topBg(o); const picking = o.age > o.show + o.swaps * o.swT;
       for (let id = 0; id < 3; id++) {
-        let p = o.slots.indexOf(id), x = 60 + p * 100, y = 130;
-        if (o.from && (id === o.from.a || id === o.from.b) && o.age - o.from.t0 < o.swT) { const k = (o.age - o.from.t0) / o.swT, other = id === o.from.a ? o.from.b : o.from.a, p0 = o.slots.indexOf(other); const x0 = 60 + p0 * 100; x = x0 + (x - x0) * k; y -= Math.sin(k * Math.PI) * 26 * (id === o.from.a ? 1 : -1); }
-        if (id === o.hid && o.age < showEnd) drawActor(g, o.V.actor, x, 110 - Math.max(0, (o.age / showEnd - 0.5)) * 40, t, fitScale(o.V.actor, 44, 2), { alpha: Math.min(1, 2 - o.age / showEnd * 2 + 0.6) });
-        g.save(); g.translate(Math.round(x - 16), Math.round(y - 30)); g.scale(2, 2); G.drawChest(g, 0, 0, !!o.reveal && id === o.hid, false); g.restore();
-        if (o.reveal && id === o.hid) drawActor(g, o.V.actor, x, y - 26, t, fitScale(o.V.actor, 44, 2));
-        if (picking && !o.reveal && p === o.sel) arrowDown(x, y - 52, t);
+        const p = o.slots.indexOf(id); let x = 60 + p * 100, y = 130;
+        if (o.from && (id === o.from.a || id === o.from.b) && o.age - o.from.t0 < o.swT) { const k = (o.age - o.from.t0) / o.swT, other = id === o.from.a ? o.from.b : o.from.a, x0 = 60 + o.slots.indexOf(other) * 100; x = x0 + (x - x0) * k; y -= Math.sin(k * Math.PI) * 26 * (id === o.from.a ? 1 : -1); }
+        // no começo a casca cai dentro do baú do meio
+        if (id === o.hid && o.age < o.show) { const k = Math.min(1, o.age / o.show); banana(x, 40 + k * 66, t, 2, k * 6); }
+        if (o.reveal && p === o.picked) { g.save(); g.globalAlpha = 0.4 + 0.2 * Math.sin(t * 12); R(x - 30, y - 50, 60, 60, id === o.hid ? '#7aff9a' : '#ff5a5a'); g.restore(); }
+        g.save(); g.translate(Math.round(x - 16), Math.round(y - 30)); g.scale(2, 2); G.drawChest(g, 0, 0, !!o.reveal, false); g.restore();
+        if (o.reveal && id === o.hid) banana(x, y - 34 - Math.min(10, (o.age - o.revealAt) * 30), t, 2, 0);
+        if (picking && !o.reveal && p === o.sel) arrowDown(x, y - 56, t);
       }
+      if (o.age < o.show) drawActor(g, o.V.actor, 160, 70, t, fitScale(o.V.actor, 40, 2), { alpha: 0.9 });
     } },
   pule: { word: 'PULE!', icon: 'press', timeout: 'win', dur: () => 4.2,
     init(o) { o.jy = 0; o.vy = 0; o.obs = Array.from({ length: 1 + Math.min(2, Math.floor(o.lvl / 2)) }, (_, i) => ({ x: W + 30 + i * rnd(110, 150) })); },
@@ -137,8 +164,8 @@ export const MICROS = {
     draw(o, t) { sideBg(o); for (const m of o.mobs) if (!m.dead || m.dead < 0.3) drawActor(g, o.V.mob, m.x, m.y + (m.dead ? m.dead * 60 : 0), t + m.x, 2, { alpha: m.dead ? 1 - m.dead * 3 : 1, flip: m.vx < 0 }); for (const s of o.shots) spark(s.x, s.y); drawActor(g, rich(o), o.px, 160, t, 2, { flip: o.face }); } },
   acorde: { word: 'NÃO DURMA!', icon: 'mash', timeout: 'win', dur: () => 4,
     init(o) { o.awake = 0.6; o.z = []; },
-    update(o) { o.awake -= (0.32 + o.lvl * 0.05) * o.sp * o.dt; if (press()) { o.awake = Math.min(1, o.awake + 0.11); sfx.tick(); } if (o.awake <= 0) o.lose = true; if (Math.random() < o.dt * 3) o.z.push({ x: 190, y: 80, t: 0 }); for (const z of o.z) { z.t += o.dt; z.x += 20 * o.dt; z.y -= 25 * o.dt; } o.z = o.z.filter((z) => z.t < 1.5); },
-    draw(o, t) { topBg(o); g.save(); g.globalAlpha = 0.5; R(0, 0, W, H, '#05030c'); g.restore(); g.save(); g.translate(160, 150); g.scale(2.4, 2.4); bed(0, 0, false, t); g.restore(); drawActor(g, 'richard', 160, 146, t * (0.3 + o.awake), 3, { filter: `brightness(${0.45 + o.awake * 0.65})`, rot: (1 - o.awake) * 0.5 });
+    update(o) { o.awake -= (0.32 + o.lvl * 0.05) * o.sp * o.dt; if (press()) { o.awake = Math.min(1, o.awake + 0.11); sfx.tick(); } if (o.awake <= 0) o.lose = true; if (Math.random() < o.dt * 3) o.z.push({ x: 120 + o.awake * 60, y: 100 - o.awake * 30, t: 0 }); for (const z of o.z) { z.t += o.dt; z.x += 20 * o.dt; z.y -= 25 * o.dt; } o.z = o.z.filter((z) => z.t < 1.5); },
+    draw(o, t) { topBg(o); g.save(); g.globalAlpha = 0.5; R(0, 0, W, H, '#05030c'); g.restore(); g.save(); g.translate(160, 150); g.scale(2.4, 2.4); bed(0, 0, false, t); g.restore(); drawActor(g, 'richard', 196, 146, t * (0.3 + o.awake), 3, { filter: `brightness(${0.45 + o.awake * 0.65})`, rot: -(1 - o.awake) * 1.35 });
       g.font = '12px "Press Start 2P", monospace'; g.fillStyle = '#c8bce8'; for (const z of o.z) { g.globalAlpha = 1 - z.t / 1.5; g.fillText('Z', z.x, z.y); } g.globalAlpha = 1;
       R(40, 176, 240, 10, '#120c1e'); R(42, 178, 236 * o.awake, 6, o.awake < 0.3 ? '#ff5a5a' : '#7af0ff'); } },
   // plataforma (de lado): o chão tem espinhos; pule de beirada em beirada até o livro
@@ -186,30 +213,66 @@ export const MICROS = {
 export const MICRO_KINDS = Object.keys(MICROS);
 
 // ---------------------------------------------------------------- o chefe de cada visão
-// O chefe: difícil, mas justo. O Richard aguenta 3 golpes (pisca e fica invencível um instante depois de cada um),
-// o chefe avisa antes de atirar (brilha), os tiros são lentos e segurar o botão atira sozinho.
-// A velocidade do resto da partida não acelera o chefe.
-export const BOSS = { word: 'VENÇA A VISÃO!', icon: 'movepress', timeout: 'lose', dur: () => 16, fixed: true,
-  init(o) { o.px = W / 2; o.hp = 3 + Math.min(4, Math.floor(o.lvl / 2)); o.max = o.hp; o.shots = []; o.foes = []; o.cd = 0; o.fire = 1.6; o.bx = W / 2; o.flash = 0; o.life = 3; o.inv = 0; o.warn = 0; },
-  update(o) { const sp0 = o.sp; o.sp = 1; moveX(o, 170); o.sp = sp0; o.cd -= o.dt; o.flash -= o.dt; o.inv -= o.dt;
-    o.bx = W / 2 + Math.sin(o.age * (0.55 + o.lvl * 0.03)) * 95; o.by = 66 + Math.sin(o.age * 1.6) * 8;
-    if ((press() || inp.held('a')) && o.cd <= 0) { o.shots.push({ x: o.px, y: 122 }); o.cd = 0.18; sfx.zap(); }
-    o.fire -= o.dt;
-    if (o.fire < 0.45) o.warn = 1;   // brilha antes de atirar
-    if (o.fire <= 0) { o.warn = 0; o.fire = Math.max(0.75, 1.5 - o.lvl * 0.05); const n = o.lvl >= 8 ? 2 : 1, spd = 62 + Math.min(40, o.lvl * 4);
-      for (let k = 0; k < n; k++) { const dx = o.px - o.bx + (k ? rnd(-70, 70) : 0), d = Math.hypot(dx, 90); o.foes.push({ x: o.bx, y: o.by, vx: dx / d * spd, vy: 90 / d * spd }); } }
-    for (const f of o.foes) { f.x += f.vx * o.dt; f.y += f.vy * o.dt;
-      if (o.inv <= 0 && Math.abs(f.x - o.px) < 11 && f.y > 132 && f.y < 160) { f.y = 999; o.life--; o.inv = 1.2; sfx.hit(); if (o.life <= 0) o.lose = true; } }
-    for (const s of o.shots) { s.y -= 340 * o.dt; if (Math.abs(s.x - o.bx) < 32 && Math.abs(s.y - o.by) < 30) { s.y = -99; o.hp--; o.flash = 0.12; sfx.hit(); } }
-    o.shots = o.shots.filter((s) => s.y > -20); o.foes = o.foes.filter((f) => f.y < 200);
-    if (o.hp <= 0) o.win = true; },
-  draw(o, t) { sideBg(o); g.save(); g.globalAlpha = 0.12 + 0.06 * Math.sin(o.age * 8); R(0, 0, W, 160, '#ff2a4a'); g.restore();
+// ---------------------------------------------------------------- o chefe: um quebra-cabeça
+// A visão acende runas no chão, uma por vez, e você repete o caminho (toque nas runas ou setas + A).
+// São 3 rodadas, cada uma com um caminho maior; você tem 3 chances (errou: perde uma e a visão mostra de novo).
+const BCOLS = 4, BROWS = 3, BT = 36, BX = 34, BY = 44;
+const RUNE_COL = ['#ff7ad8', '#7af0ff', '#ffe07a', '#7aff9a', '#c89aff', '#ff9a5a', '#5ab0ff', '#ff5a7a', '#a0ff5a', '#ffd0a0', '#5affd0', '#e0e0ff'];
+function bossRound(o) {
+  const L = Math.min(8, 3 + o.round + Math.floor(o.lvl / 4)); o.seq = [];
+  for (let i = 0; i < L; i++) { let c; do c = ri(0, BCOLS * BROWS - 1); while (o.seq.length && c === o.seq[o.seq.length - 1]); o.seq.push(c); }
+  o.step = 0; o.stage = 'show'; o.pt = 0; o.shownIdx = -1;
+}
+const tileRect = (c) => [BX + (c % BCOLS) * (BT + 4), BY + Math.floor(c / BCOLS) * (BT + 4), BT, BT];
+function runeGlyph(x, y, c, col) {
+  g.fillStyle = col; const k = c % 4;
+  if (k === 0) { R(x - 1, y - 8, 2, 16, col); R(x - 6, y - 2, 12, 2, col); }
+  if (k === 1) { g.beginPath(); g.moveTo(x, y - 8); g.lineTo(x + 7, y + 6); g.lineTo(x - 7, y + 6); g.closePath(); g.fill(); g.fillStyle = '#2a1e44'; g.beginPath(); g.moveTo(x, y - 3); g.lineTo(x + 3, y + 3); g.lineTo(x - 3, y + 3); g.closePath(); g.fill(); }
+  if (k === 2) { g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill(); g.fillStyle = '#2a1e44'; g.beginPath(); g.arc(x + 3, y - 2, 6, 0, 7); g.fill(); }
+  if (k === 3) { R(x - 7, y - 1, 14, 2, col); R(x - 1, y - 7, 2, 14, col); R(x - 5, y - 5, 2, 2, col); R(x + 3, y + 3, 2, 2, col); R(x + 3, y - 5, 2, 2, col); R(x - 5, y + 3, 2, 2, col); }
+}
+export const BOSS = { word: 'LEMBRE O CAMINHO!', icon: 'pick', timeout: 'lose', dur: () => 999, fixed: true, noFuse: true,
+  init(o) { o.round = 0; o.rounds = 3; o.life = 3; o.cur = 5; o.flash = null; bossRound(o); },
+  update(o) { o.pt += o.dt; if (o.flash && (o.flash.t -= o.dt) <= 0) o.flash = null;
+    if (o.stage === 'show') {
+      const per = Math.max(0.42, 0.62 - o.lvl * 0.015), idx = Math.floor((o.pt - 0.5) / per);
+      if (idx >= 0 && idx !== o.shownIdx && idx < o.seq.length) { o.shownIdx = idx; sfx.note(o.seq[idx]); }
+      if (idx >= o.seq.length) { o.stage = 'input'; o.pt = 0; }
+      return;
+    }
+    if (o.stage === 'wait') { if (o.pt > 0.9) { if (o.after === 'lose') o.lose = true; else if (o.after === 'win') o.win = true; else if (o.after === 'next') bossRound(o); else { o.stage = 'show'; o.pt = 0; o.shownIdx = -1; o.step = 0; } } return; }
+    // escolher: setas movem o cursor, A confirma; ou toque direto na runa
+    if (inp.hit('left')) { o.cur = (o.cur % BCOLS === 0) ? o.cur + BCOLS - 1 : o.cur - 1; sfx.tick(); }
+    if (inp.hit('right')) { o.cur = (o.cur % BCOLS === BCOLS - 1) ? o.cur - BCOLS + 1 : o.cur + 1; sfx.tick(); }
+    if (inp.hit('up')) { o.cur = (o.cur - BCOLS + BCOLS * BROWS) % (BCOLS * BROWS); sfx.tick(); }
+    if (inp.hit('down')) { o.cur = (o.cur + BCOLS) % (BCOLS * BROWS); sfx.tick(); }
+    let chose = -1;
+    if (inp.ptr.tap) for (let c = 0; c < BCOLS * BROWS; c++) { const [x, y, w, h] = tileRect(c); if (inp.ptr.x >= x && inp.ptr.x <= x + w && inp.ptr.y >= y && inp.ptr.y <= y + h) { chose = c; o.cur = c; } }
+    if (chose < 0 && inp.hit('a')) chose = o.cur;
+    if (chose < 0) return;
+    if (chose === o.seq[o.step]) {
+      o.flash = { c: chose, ok: true, t: 0.3 }; sfx.note(chose); o.step++;
+      if (o.step >= o.seq.length) { o.round++; sfx.catch(); o.stage = 'wait'; o.pt = 0; o.after = o.round >= o.rounds ? 'win' : 'next'; }
+    } else {
+      o.flash = { c: chose, ok: false, t: 0.5 }; sfx.hit(); o.life--; o.stage = 'wait'; o.pt = 0; o.after = o.life <= 0 ? 'lose' : 'again';
+    } },
+  draw(o, t) {
+    topBg(o); g.save(); g.globalAlpha = 0.45; R(0, 0, W, H, '#0a0616'); g.restore();
+    // a visão-chefe "rege" as runas, do lado direito
     const ba = o.V.boss || o.V.actor;
-    if (o.warn) { g.save(); g.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); g.fillStyle = '#ff5a7a'; g.beginPath(); g.arc(o.bx, o.by, 26, 0, 7); g.fill(); g.restore(); }
-    drawActor(g, ba, o.bx, o.by + 30, t, fitScale(ba, 60, 3), { filter: o.flash > 0 ? 'brightness(3)' : undefined, shadow: false });
-    for (const f of o.foes) { g.save(); g.globalAlpha = 0.35; g.fillStyle = '#ff5a7a'; g.beginPath(); g.arc(f.x, f.y, 9, 0, 7); g.fill(); g.restore(); drawActor(g, o.V.mob, f.x, f.y + 8, t + f.x, 1, { shadow: false }); }
-    for (const s of o.shots) spark(s.x, s.y);
-    if (o.inv <= 0 || Math.floor(t * 16) % 2) drawActor(g, 'richard', o.px, 160, t, 2, { flip: o.face });
-    R(60, 6, 200, 8, '#120c1e'); R(62, 8, 196 * Math.max(0, o.hp / o.max), 4, '#ff5a7a');
-    for (let i = 0; i < 3; i++) { const on = i < o.life, x = 10 + i * 12, y = 8; R(x, y + 1, 9, 6, '#120c1e'); R(x + 1, y, 3, 2, '#120c1e'); R(x + 5, y, 3, 2, '#120c1e'); if (on) { R(x + 1, y + 1, 7, 4, '#ff5a7a'); R(x + 2, y + 5, 5, 1, '#ff5a7a'); R(x + 3, y + 6, 3, 1, '#ff5a7a'); R(x + 2, y + 1, 1, 1, '#ffffff'); } } },
-};
+    drawActor(g, ba, 262, 150, t, fitScale(ba, 70, 3), { flip: true });
+    const per = Math.max(0.42, 0.62 - o.lvl * 0.015), lit = o.stage === 'show' ? Math.floor((o.pt - 0.5) / per) : -1, litOn = o.stage === 'show' && (o.pt - 0.5) % per < per * 0.8;
+    for (let c = 0; c < BCOLS * BROWS; c++) {
+      const [x, y] = tileRect(c), cx = x + BT / 2, cy = y + BT / 2;
+      const on = (lit >= 0 && lit < o.seq.length && o.seq[lit] === c && litOn), fl = o.flash && o.flash.c === c;
+      R(x - 2, y - 2, BT + 4, BT + 4, '#120c1e'); R(x, y, BT, BT, on ? RUNE_COL[c] : fl ? (o.flash.ok ? '#7aff9a' : '#ff5a5a') : '#4a3e5c'); R(x + 2, y + 2, BT - 4, BT - 4, on || fl ? '#ffffff' : '#3a2e4c'); R(x + 3, y + 3, BT - 6, BT - 6, on ? RUNE_COL[c] : '#2a1e44');
+      runeGlyph(cx, cy, c, on ? '#ffffff' : RUNE_COL[c]);
+      if (on) { g.save(); g.globalAlpha = 0.35; g.fillStyle = RUNE_COL[c]; g.beginPath(); g.arc(cx, cy, 30, 0, 7); g.fill(); g.restore(); }
+      if (o.stage === 'input' && c === o.cur) { g.strokeStyle = '#ffe07a'; g.lineWidth = 2; g.strokeRect(x - 3.5, y - 3.5, BT + 7, BT + 7); }
+    }
+    // progresso: rodadas e passos
+    for (let i = 0; i < o.rounds; i++) { R(BX + i * 14, 26, 10, 10, '#120c1e'); R(BX + 1 + i * 14, 27, 8, 8, i < o.round ? '#7aff9a' : '#3a2e4c'); }
+    for (let i = 0; i < o.seq.length; i++) R(BX + 50 + i * 8, 29, 6, 4, i < o.step ? '#ffe07a' : o.stage === 'show' && i <= lit ? '#c8bce8' : '#3a2e4c');
+    for (let i = 0; i < 3; i++) { const on = i < o.life, x = 214 + i * 12, y = 26; R(x, y + 1, 9, 6, '#120c1e'); R(x + 1, y, 3, 2, '#120c1e'); R(x + 5, y, 3, 2, '#120c1e'); if (on) { R(x + 1, y + 1, 7, 4, '#ff5a7a'); R(x + 2, y + 5, 5, 1, '#ff5a7a'); R(x + 3, y + 6, 3, 1, '#ff5a7a'); R(x + 2, y + 1, 1, 1, '#ffffff'); } }
+    if (o.stage === 'show') arrowDown(262, 60, t, '#c8bce8');
+  } };

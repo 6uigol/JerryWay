@@ -23,7 +23,7 @@ setVolumes(save.music, save.sfx);
 
 // ---------------------------------------------------------------- entrada: teclado, controle de videogame e toque
 // `device` guarda o último jeito que você usou (teclado, controle ou toque): os avisos de controle mudam junto.
-// No toque, os minijogos de andar ganham joystick na tela (metade esquerda) e botão de ação (metade direita).
+// No toque aparecem o joystick e os botões A/B do Song of Moonlight (mesmo desenho), só quando a tela precisa deles.
 const keys = new Set(), hits = new Set();
 let device = matchMedia?.('(pointer: coarse)').matches ? 'touch' : 'keyboard';
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'a', Enter: 'a', KeyZ: 'a', KeyJ: 'a', Escape: 'back', Backspace: 'back' };
@@ -31,45 +31,65 @@ const wake = () => { initAudio(); };
 addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k) return; e.preventDefault(); wake(); device = 'keyboard'; if (!keys.has(k)) hits.add(k); keys.add(k); });
 addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys.delete(k); });
 const ptr = { down: false, x: W / 2, y: H / 2, tap: false };
-const stick = { on: false, id: null, x0: 0, y0: 0, x: 0, y: 0, btn: null, btnDown: false };
 const toLogic = (e) => { const r = cv.getBoundingClientRect(), s = Math.min(r.width / W, r.height / H), ox = (r.width - W * s) / 2, oy = (r.height - H * s) / 2; return [(e.clientX - r.left - ox) / s, (e.clientY - r.top - oy) / s]; };
-const JOY_ICONS = new Set(['move', 'move4', 'movepress', 'hold', 'platform']);
-const joyMode = () => device === 'touch' && mode === 'play' && P && P.micro && (P.phase === 'micro' || P.phase === 'irisIn' || P.phase === 'command') && JOY_ICONS.has(P.micro.K.icon);
-// controle na tela também nos menus (direcional + A + B), quando você joga pelo toque
-const menuPadOn = () => device === 'touch' && ['title', 'visions', 'settings', 'legal', 'howto'].includes(mode);
-const PAD = { dx: 36, dy: H - 38, ax: W - 26, ay: H - 46, bx: W - 58, by: H - 22 };
-let padFlash = null;
-function padZone(x, y) {
-  if (Math.hypot(x - PAD.ax, y - PAD.ay) < 17) return 'a';
-  if (Math.hypot(x - PAD.bx, y - PAD.by) < 14) return 'back';
-  const dx = x - PAD.dx, dy = y - PAD.dy; if (Math.hypot(dx, dy) < 32 && Math.hypot(dx, dy) > 4) return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
-  return null;
-}
-function drawMenuPad() {
-  if (!menuPadOn()) return;
-  const on = (z) => padFlash && padFlash.z === z;
-  g.save(); g.globalAlpha = 0.72;
-  const { dx, dy } = PAD; R(dx - 9, dy - 27, 18, 54, '#120c1e'); R(dx - 27, dy - 9, 54, 18, '#120c1e'); R(dx - 7, dy - 25, 14, 50, '#4a3a72'); R(dx - 25, dy - 7, 50, 14, '#4a3a72');
-  for (const [z, ax, ay, d] of [['up', dx, dy - 17, 'up'], ['down', dx, dy + 17, 'down'], ['left', dx - 17, dy, 'left'], ['right', dx + 17, dy, 'right']]) arrowTri(ax, ay, d, 5, on(z) ? '#ffffff' : '#ffe07a');
-  for (const [z, x, y, r, c1, lab] of [['a', PAD.ax, PAD.ay, 15, '#3ac86a', 'A'], ['back', PAD.bx, PAD.by, 12, '#c83a5a', 'B']]) { g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y + 1, r + 1, 0, 7); g.fill(); g.fillStyle = on(z) ? '#ffffff' : c1; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); text(lab, x + 1, y - 3, 7, '#ffffff', 'center', '#120c1e'); }
-  g.restore();
-}
-const needsButton = () => joyMode() && (P.micro.K.icon === 'movepress' || P.micro.K.icon === 'platform');
 cv.addEventListener('pointerdown', (e) => {
   wake(); if (e.pointerType === 'touch' || e.pointerType === 'pen') device = 'touch'; else if (device === 'touch') device = 'keyboard';
-  const [x, y] = toLogic(e); cv.setPointerCapture?.(e.pointerId);
-  if (menuPadOn()) { const z = padZone(x, y); if (z) { hits.add(z); padFlash = { z, t: 0.15 }; return; } }
-  if (joyMode()) {
-    if (x > W * 0.55 && needsButton()) { stick.btn = e.pointerId; stick.btnDown = true; hits.add('a'); keys.add('a'); return; }
-    if (!stick.on) { Object.assign(stick, { on: true, id: e.pointerId, x0: x, y0: y, x, y }); return; }
-  }
-  ptr.x = x; ptr.y = y; ptr.down = true; ptr.tap = true;
+  const [x, y] = toLogic(e); ptr.x = x; ptr.y = y; ptr.down = true; ptr.tap = true;
 });
-cv.addEventListener('pointermove', (e) => { const [x, y] = toLogic(e); if (stick.on && e.pointerId === stick.id) { stick.x = x; stick.y = y; return; } if (e.pointerId !== stick.btn) { ptr.x = x; ptr.y = y; } });
-const lift = (e) => { if (e.pointerId === stick.id) { stick.on = false; stick.id = null; } else if (e.pointerId === stick.btn) { stick.btn = null; stick.btnDown = false; keys.delete('a'); } else ptr.down = false; };
-addEventListener('pointerup', lift); addEventListener('pointercancel', lift);
-let padPrev = {}, padAxis = { x: 0, y: 0 };
-function pollPad() {
+cv.addEventListener('pointermove', (e) => { [ptr.x, ptr.y] = toLogic(e); });
+addEventListener('pointerup', () => { ptr.down = false; }); addEventListener('pointercancel', () => { ptr.down = false; });
+// joystick e botões na tela (HTML, igual ao Song of Moonlight)
+const stick = { x: 0, y: 0, on: false };
+(function touchControls() {
+  const zone = document.getElementById('stick-zone'), base = document.getElementById('stick'), knob = document.getElementById('knob');
+  if (!zone) return;
+  for (const btn of document.querySelectorAll('#touch [data-act]')) {
+    const k = btn.dataset.act;
+    const down = (e) => { e.preventDefault(); wake(); device = 'touch'; btn.setPointerCapture?.(e.pointerId); if (!keys.has(k)) hits.add(k); keys.add(k); btn.classList.add('on'); };
+    const up = (e) => { e.preventDefault(); keys.delete(k); btn.classList.remove('on'); };
+    btn.addEventListener('pointerdown', down); btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  let pid = null, cx = 0, cy = 0; const RAD = 56;
+  const move = (x, y) => {
+    let dx = x - cx, dy = y - cy; const d = Math.hypot(dx, dy);
+    if (d > RAD) { dx = dx / d * RAD; dy = dy / d * RAD; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    const m = Math.min(d, RAD) / RAD; if (m < 0.18) { stick.x = stick.y = 0; return; }
+    const k = Math.min(1, m / 0.7) / m; stick.x = dx / RAD * k; stick.y = dy / RAD * k;
+  };
+  zone.addEventListener('pointerdown', (e) => {
+    if (pid !== null) return; e.preventDefault(); wake(); device = 'touch'; pid = e.pointerId; zone.setPointerCapture?.(pid);
+    const r = zone.getBoundingClientRect(); cx = e.clientX; cy = e.clientY; base.style.left = cx - r.left + 'px'; base.style.top = cy - r.top + 'px';
+    base.classList.add('on'); stick.on = true; move(e.clientX, e.clientY);
+  });
+  zone.addEventListener('pointermove', (e) => { if (e.pointerId === pid) { e.preventDefault(); move(e.clientX, e.clientY); } });
+  const end = (e) => { if (e.pointerId !== pid) return; pid = null; stick.x = stick.y = 0; stick.on = false; knob.style.transform = 'translate(0px, 0px)'; base.classList.remove('on'); base.style.left = ''; base.style.top = ''; };
+  zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
+})();
+// quais controles a tela atual mostra no toque
+function controlsFor() {
+  if (['title', 'visions', 'settings', 'legal', 'howto'].includes(mode)) return 'stick a b';
+  if (mode === 'cleared' || mode === 'over') return 'a';
+  if (mode === 'play' && P && P.micro && ['micro', 'command', 'irisIn'].includes(P.phase)) {
+    const ic = P.micro.K.icon;
+    return ic === 'move' || ic === 'move4' || ic === 'hold' ? 'stick' : ic === 'press' || ic === 'mash' ? 'a' : 'stick a';
+  }
+  return '';
+}
+let ctlShown = null;
+function syncControls() {
+  const want = device === 'touch' ? controlsFor() : '';
+  if (want === ctlShown) return; ctlShown = want;
+  document.body.classList.toggle('touch', device === 'touch');
+  for (const k of ['stick', 'a', 'b']) document.body.classList.toggle('ctl-' + k, want.split(' ').includes(k));
+}
+let padPrev = {}, padAxis = { x: 0, y: 0 }, stickPrev = '', stickRep = 0;
+function pollPad(dt) {
+  // joystick na tela também anda pelos menus (um passo por empurrão; segurando, repete)
+  const sd = Math.abs(stick.x) > 0.6 || Math.abs(stick.y) > 0.6 ? (Math.abs(stick.x) > Math.abs(stick.y) ? (stick.x < 0 ? 'left' : 'right') : stick.y < 0 ? 'up' : 'down') : '';
+  if (sd && sd !== stickPrev) { hits.add(sd); stickRep = 0.4; } else if (sd && (stickRep -= dt) <= 0) { hits.add(sd); stickRep = 0.16; }
+  stickPrev = sd;
   const p = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null; if (!p) { padAxis = { x: 0, y: 0 }; return; }
   const dz = (v) => (Math.abs(v) < 0.18 ? 0 : v);
   padAxis = { x: dz(p.axes[0] || 0) || (p.buttons[15]?.pressed ? 1 : p.buttons[14]?.pressed ? -1 : 0), y: dz(p.axes[1] || 0) || (p.buttons[13]?.pressed ? 1 : p.buttons[12]?.pressed ? -1 : 0) };
@@ -83,29 +103,29 @@ function pollPad() {
 function axis() {
   let x = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0), y = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
   if (Math.abs(padAxis.x) > Math.abs(x)) x = padAxis.x; if (Math.abs(padAxis.y) > Math.abs(y)) y = padAxis.y;
-  if (stick.on) { const dx = stick.x - stick.x0, dy = stick.y - stick.y0, d = Math.hypot(dx, dy), k = Math.min(1, d / 22); if (d > 3) { x = dx / d * k; y = dy / d * k; } }
+  if (stick.on && Math.hypot(stick.x, stick.y) > 0) { x = stick.x; y = stick.y; }
   return { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) };
 }
-const inp = { held: (k) => keys.has(k) || (stick.on && ((k === 'left' && axis().x < -0.4) || (k === 'right' && axis().x > 0.4) || (k === 'up' && axis().y < -0.4) || (k === 'down' && axis().y > 0.4))), hit: (k) => hits.has(k), ptr, axis, joy: () => joyMode() };
+const joyOn = () => device === 'touch' && document.body.classList.contains('ctl-stick');
+const inp = { held: (k) => keys.has(k) || (stick.on && ((k === 'left' && stick.x < -0.4) || (k === 'right' && stick.x > 0.4) || (k === 'up' && stick.y < -0.4) || (k === 'down' && stick.y > 0.4))), hit: (k) => hits.has(k), ptr, axis, joy: joyOn };
 bindMicro(mg, inp);
 const tapIn = (x, y, w, h) => ptr.tap && ptr.x >= x && ptr.x <= x + w && ptr.y >= y && ptr.y <= y + h;
-// joystick e botão desenhados na tela (só no toque, nos minijogos de andar)
-function drawTouchPad() {
-  if (!joyMode()) return;
-  const bx = stick.on ? stick.x0 : 46, by = stick.on ? stick.y0 : H - 46, a = axis();
-  g.save(); g.globalAlpha = stick.on ? 0.7 : 0.4;
-  g.fillStyle = '#120c1e'; g.beginPath(); g.arc(bx, by, 24, 0, 7); g.fill(); g.strokeStyle = '#c8bce8'; g.lineWidth = 2; g.beginPath(); g.arc(bx, by, 24, 0, 7); g.stroke();
-  g.fillStyle = '#ffe07a'; g.beginPath(); g.arc(bx + a.x * 16, by + a.y * 16, 11, 0, 7); g.fill();
-  if (needsButton()) { const x = W - 40, y = H - 44; g.globalAlpha = stick.btnDown ? 0.85 : 0.5; g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y, 22, 0, 7); g.fill(); g.fillStyle = stick.btnDown ? '#c83a5a' : '#ff5a7a'; g.beginPath(); g.arc(x, y, 19, 0, 7); g.fill(); g.restore(); g.save(); text(tr(P.micro.K.icon === 'platform' ? 'pula' : 'atira'), x, y - 3, 6, '#ffffff', 'center', '#7a1a3a'); }
-  g.restore();
-}
 
 // ---------------------------------------------------------------- texto em pixel (contorno + acentos certos)
-function text(s, x, y, size = 8, col = '#fff', align = 'center', edge = '#120c1e', ctx = g) {
+// Os textos da tela são guardados numa lista e desenhados no fim, já na resolução do aparelho (nítidos, sem borrar
+// ao ampliar). O contorno usa o "pixel" da própria fonte (1/8 do tamanho), como numa fonte de videogame.
+const textQ = [];
+function putText(ctx, q) {
+  const { s, x, y, size, col, align, edge } = q, u = Math.max(0.6, size / 8);
   ctx.font = font(size); ctx.textAlign = align; ctx.textBaseline = 'top';
   const put = (xx, yy) => (cjk() ? ctx.fillText(s, xx, yy) : fillTextAccents(ctx, s, xx, yy, size));
-  ctx.fillStyle = edge; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1], [2, 2]]) put(x + dx, y + dy);
+  ctx.fillStyle = edge; for (const [dx, dy] of [[-u, 0], [u, 0], [0, -u], [0, u], [u, u], [-u, -u], [u, -u], [-u, u], [u * 1.5, u * 1.5]]) put(x + dx, y + dy);
   ctx.fillStyle = col; put(x, y);
+}
+function text(s, x, y, size = 8, col = '#fff', align = 'center', edge = '#120c1e', ctx = g) {
+  const q = { s: String(s), x, y, size, col, align, edge };
+  if (ctx === g) { q.m = g.getTransform(); q.a = g.globalAlpha; textQ.push(q); return; }
+  putText(ctx, q);
 }
 function wrap(s, maxW, size) {
   g.font = font(size); const out = []; let line = '';
@@ -117,19 +137,22 @@ function para(s, x, y, maxW, size = 8, col = '#fff', lh = size + 5, align = 'cen
 const R = (x, y, w, h, col, ctx = g) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
 function panel(x, y, w, h, alpha = 0.88) { g.save(); g.globalAlpha = alpha; R(x, y, w, h, '#120c1e'); g.restore(); R(x, y, w, 1, '#8a6ac8'); R(x, y + h - 1, w, 1, '#8a6ac8'); R(x, y, 1, h, '#8a6ac8'); R(x + w - 1, y, 1, h, '#8a6ac8'); for (const [a, b] of [[x, y], [x + w - 3, y], [x, y + h - 3], [x + w - 3, y + h - 3]]) R(a, b, 3, 3, '#e0c060'); }
 
-// ---------------------------------------------------------------- as 23 visões (personagens do universo Song of Moonlight)
+// ---------------------------------------------------------------- as 32 visões (personagens do universo Song of Moonlight)
 const SKY = { lacforest: ['#0e1a2a', '#2a4a3a', '#0a141e'], castle: ['#0c0c22', '#2a2a5a', '#0a0a1a'], lactower: ['#140c2a', '#3a2a6a', '#1a1236'], dmine: ['#1a120a', '#4a3420', '#140e08'],
   coast: ['#0a1426', '#2a4a7a', '#0a1222'], lacroots: ['#140e06', '#4a3a1a', '#0e0a04'], plains: ['#0c1430', '#3a4a8a', '#0a1022'], lacash: ['#1a0c0c', '#5a2a1a', '#120808'],
   laccrystal: ['#0a1a2e', '#2a5a8a', '#0e2238'], dcrypt: ['#0e0e14', '#3a3a4a', '#0a0a10'], moon: ['#06061a', '#24244a', '#12122a'], lacmarsh: ['#08162a', '#2a6aa8', '#0a1830'], moondg: ['#04040e', '#1a1a3a', '#06060e'] };
 // [desenho, tema do chão, monstro dos minijogos, chefe (opcional)]
+// [desenho, tema do chão, monstro dos minijogos, fala (índice em VISION_TEXT), chefe (opcional)]
 const V_DEF = [
-  ['mara', 'lacforest', 'bat'], ['hilda', 'castle', 'ghost'], ['salvia', 'lactower', 'ghost'], ['pedro', 'castle', 'skeleton'], ['doran', 'dmine', 'skeleton'],
-  ['mirela', 'castle', 'slime'], ['elo', 'lactower', 'ghost'], ['bento', 'coast', 'crab'], ['iria', 'lacforest', 'frog'], ['brenda', 'dmine', 'bat'],
-  ['ruk', 'lacroots', 'plant'], ['tobias', 'plains', 'slime'], ['brusk', 'lacash', 'scorpion'], ['odete', 'castle', 'ghost'], ['nara', 'laccrystal', 'slimeP'],
-  ['hermes', 'plains', 'wolf'], ['maelis', 'lacforest', 'bat'], ['aldo', 'dcrypt', 'skeleton'], ['icaro', 'moon', 'slimeP'], ['ray', 'lacmarsh', 'frog'],
-  ['aldric', 'dcrypt', 'skeleton', bossActor('skelking')], ['valerio', 'castle', 'bat'], ['ecoSilencio', 'moondg', 'ghost'],
+  ['mara', 'lacforest', 'bat', 0], ['hilda', 'castle', 'ghost', 1], ['salvia', 'lactower', 'ghost', 2], ['pedro', 'castle', 'skeleton', 3], ['doran', 'dmine', 'skeleton', 4],
+  ['tom', 'castle', 'skeleton', 23], ['mirela', 'castle', 'slime', 5], ['elo', 'lactower', 'ghost', 6], ['bento', 'coast', 'crab', 7], ['iria', 'lacforest', 'frog', 8],
+  ['rosa', 'plains', 'wolf', 24], ['brenda', 'dmine', 'bat', 9], ['ruk', 'lacroots', 'plant', 10], ['coral', 'coast', 'crab', 25], ['tobias', 'plains', 'slime', 11],
+  ['brusk', 'lacash', 'scorpion', 12], ['lia', 'coast', 'bat', 26], ['odete', 'castle', 'ghost', 13], ['tessa', 'lacforest', 'bat', 27], ['ulisses', 'plains', 'slime', 28],
+  ['nara', 'laccrystal', 'slimeP', 14], ['bruno', 'dcrypt', 'mummy', 29], ['hermes', 'plains', 'wolf', 15], ['oma', 'lacroots', 'plant', 30], ['selene', 'laccrystal', 'slimeP', 31],
+  ['maelis', 'lacforest', 'bat', 16], ['aldo', 'dcrypt', 'skeleton', 17], ['icaro', 'moon', 'slimeP', 18], ['ray', 'lacmarsh', 'frog', 19],
+  ['aldric', 'dcrypt', 'skeleton', 20, bossActor('skelking')], ['valerio', 'castle', 'bat', 21], ['ecoSilencio', 'moondg', 'ghost', 22],
 ];
-const VISIONS = V_DEF.map(([actor, theme, mob, boss], i) => ({ i, actor, theme, mob, sky: SKY[theme], boss, name: VISION_TEXT[i].name, quote: VISION_TEXT[i].quote, pool: 7 + i }));
+const VISIONS = V_DEF.map(([actor, theme, mob, q, boss], i) => ({ i, actor, theme, mob, sky: SKY[theme], boss, name: VISION_TEXT[q].name, quote: VISION_TEXT[q].quote, pool: 7 + i }));
 // a lista de minijogos da visão: 7 + i variações (tipo x nível), embaralhadas sem repetir o mesmo tipo em seguida
 function makePool(V) {
   const kinds = MICRO_KINDS.map((_, k) => MICRO_KINDS[(k + V.i * 5) % MICRO_KINDS.length]), out = [];
@@ -167,7 +190,7 @@ function wobble(amp, t, speed = 3) {
   pg.clearRect(0, 0, W, H); pg.drawImage(low, 0, 0);
   for (let y = 0; y < H; y += 2) { const off = Math.round(Math.sin(y * 0.07 + t * speed) * amp); if (off) g.drawImage(post, 0, y, W, 2, off, y, W, 2); }
 }
-const STAGE_FLOOR = ['####################', '####################'];
+const STAGE_FLOOR = ['....................', '....................'];
 // ícones de controle (o que fazer no minijogo)
 const ICON_TEXT = { move: 1, move4: 1, press: 1, mash: 1, pick: 1, arrows: 1, hold: 1, movepress: 1, platform: 1 };
 function ctrlText(icon, dev = device) {
@@ -188,9 +211,17 @@ function arrowTri(x, y, dir, s, col) {
   if (dir === 'down') { g.moveTo(x, y + s); g.lineTo(x - s, y - s); g.lineTo(x + s, y - s); }
   g.closePath(); g.fill();
 }
+const HAND = ['....##......', '...#ww#.....', '...#ww#.....', '...#ww####..', '...#ww#ww##.', '.###ww#ww#w#', '#ww#wwwwww#w#', '#wwwwwwwwwww#', '#wwwwwwwwwws#', '.#wwwwwwwws#.', '..#wwwwwwss#.', '...#ssssss#..', '....######...'];
+function hand(x, y, s = 1) {
+  const C = { '#': '#3a1e14', w: '#f6d0a8', s: '#d8a078' };
+  for (let j = 0; j < HAND.length; j++) for (let i = 0; i < HAND[j].length; i++) { const ch = HAND[j][i]; if (ch === '.') continue; R(x + (i - 6) * s, y + (j - 6) * s, s, s, C[ch]); }
+  R(x - 2 * s, y - 5 * s, s, s, '#ffffff');
+}
 function btnA(x, y, t, pressed = false) {
   if (device === 'keyboard') { R(x - 14, y - 6 + (pressed ? 1 : 0), 28, 13, '#120c1e'); R(x - 13, y - 5 + (pressed ? 1 : 0), 26, 10, pressed ? '#8a80a8' : '#e8e0f0'); R(x - 9, y + 1 + (pressed ? 1 : 0), 18, 2, '#3a2a4a'); return; }
-  if (device === 'touch') { const b = pressed ? 2 : 0; R(x - 2, y - 9 + b, 4, 12, '#f0c8a0'); R(x - 6, y - 1 + b, 12, 9, '#f0c8a0'); R(x - 2, y - 9 + b, 4, 1, '#ffffff'); if (pressed) { g.strokeStyle = '#ffe07a'; g.lineWidth = 1; g.beginPath(); g.arc(x, y - 10, 5, 0, 7); g.stroke(); } return; } g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y + 1, 9, 0, 7); g.fill(); g.fillStyle = pressed ? '#c83a5a' : '#ff5a7a'; g.beginPath(); g.arc(x, y + (pressed ? 1 : 0), 8, 0, 7); g.fill(); text('A', x + 1, y - 3 + (pressed ? 1 : 0), 8, '#ffffff', 'center', '#7a1a3a'); }
+  if (device === 'touch') { hand(x, y + (pressed ? 2 : 0), 1); if (pressed) { g.strokeStyle = '#ffe07a'; g.lineWidth = 1; g.beginPath(); g.arc(x - 2, y - 7, 5, 0, 7); g.stroke(); } return; }
+  g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y + 1, 9, 0, 7); g.fill(); g.fillStyle = pressed ? '#c83a5a' : '#ff5a7a'; g.beginPath(); g.arc(x, y + (pressed ? 1 : 0), 8, 0, 7); g.fill(); text('A', x + 1, y - 3 + (pressed ? 1 : 0), 8, '#ffffff', 'center', '#7a1a3a');
+}
 function drawIcon(kind, x, y, t) {
   const blink = Math.floor(t * 6) % 2 === 0, Y = '#ffe07a', D = '#5a4a7a';
   R(x - 22, y - 14, 44, 28, '#120c1e'); R(x - 21, y - 13, 42, 26, '#2a1e44');
@@ -198,7 +229,7 @@ function drawIcon(kind, x, y, t) {
   if (kind === 'move4') { R(x - 4, y - 11, 8, 22, '#5a4a7a'); R(x - 11, y - 4, 22, 8, '#5a4a7a'); const d = ['up', 'right', 'down', 'left'][Math.floor(t * 4) % 4]; const pos = { up: [0, -7], right: [7, 0], down: [0, 7], left: [-7, 0] }[d]; arrowTri(x + pos[0], y + pos[1], d, 4, Y); }
   if (kind === 'press') btnA(x, y, t, blink);
   if (kind === 'mash') { btnA(x - 4, y, t, Math.floor(t * 14) % 2 === 0); R(x + 9, y - 9, 2, 6, Y); R(x + 13, y - 6, 2, 6, Y); R(x + 9, y + 5, 2, 2, Y); }
-  if (kind === 'pick') { const b = Math.round(Math.sin(t * 8) * 2); R(x - 2, y - 9 + b, 4, 12, '#f0c8a0'); R(x - 6, y - 1 + b, 12, 9, '#f0c8a0'); R(x - 6, y - 1 + b, 12, 1, '#c8a080'); R(x - 2, y - 9 + b, 4, 1, '#ffffff'); }
+  if (kind === 'pick') hand(x + 1, y + Math.round(Math.sin(t * 8) * 2), 2);
   if (kind === 'arrows') { const d = ['up', 'right', 'down', 'left'][Math.floor(t * 3) % 4]; for (const [dd, dx, dy] of [['up', 0, -7], ['right', 9, 0], ['down', 0, 7], ['left', -9, 0]]) arrowTri(x + dx, y + dy, dd, 4, dd === d ? Y : D); }
   if (kind === 'hold') { arrowTri(x - 11, y, 'left', 6, Y); arrowTri(x + 11, y, 'right', 6, Y); R(x - 3, y - 8, 6, 16, blink ? Y : D); }
   if (kind === 'platform') { arrowTri(x - 13, y + 4, 'left', 5, Y); arrowTri(x + 1, y + 4, 'right', 5, Y); const j = Math.round(Math.abs(Math.sin(t * 6)) * 6); R(x + 10, y + 2 - j, 6, 6, '#7af0ff'); R(x + 9, y + 9, 8, 2, D); }
@@ -212,7 +243,7 @@ if (window.desktop?.quit) MENU.push(['Sair do jogo', () => window.desktop.quit()
 function go(m, next) { mode = m; sel = 0; if (m === 'story') { storyPage = 0; storyT = 0; storyNext = next || 'title'; } if (m === 'howto') howPage = 0; if (m === 'visions') sel = Math.min(save.unlocked - 1, VISIONS.length - 1); if (['title', 'visions', 'story', 'howto', 'settings', 'legal'].includes(m)) playSong('title'); }
 
 // ---------------------------------------------------------------- partida (palco + minijogos)
-const PH = { start: 2.4, command: 1.15, irisIn: 0.4, freeze: 0.6, irisOut: 0.4, result: 1.35, speed: 1.7, bossIntro: 2.2 };
+const PH = { start: 2.4, command: 1.15, irisIn: 0.4, freeze: 0.6, irisOut: 0.4, result: 1.35, speed: 1.7, bossIntro: 6 };
 function startVision(V) {
   P = { V, pool: makePool(V), idx: 0, wins: 0, lives: 3, sp: 1, score: 0, phase: 'start', pt: 0, micro: null, last: null, boss: false, bossDone: false, smoke: [0, 0, 0] };
   mode = 'play'; playSong('stage', 1); sfx.whoosh();
@@ -255,7 +286,7 @@ function updatePlay(dt) {
     if (P.last) { P.wins++; if (P.boss) P.bossDone = true; } else { P.lives--; P.smoke[P.lives] = 1; sfx.snuff(); }
     P.idx++; setPhase('result');
   } else if (ph === 'result' && P.pt > k(PH.result)) afterResult();
-  else if ((ph === 'speed' && P.pt > PH.speed) || (ph === 'bossIntro' && P.pt > PH.bossIntro)) prepareMicro();
+  else if ((ph === 'speed' && P.pt > PH.speed) || (ph === 'bossIntro' && (P.pt > PH.bossIntro || (P.pt > 1 && (hits.has('a') || ptr.tap))))) prepareMicro();
   P.smoke = P.smoke.map((s) => Math.max(0, s - dt * 0.6));
   setTempo(P.sp);
 }
@@ -292,8 +323,26 @@ function drawCommand(k) {
   drawIcon(o.K.icon, W / 2, 118, t);
   text(ctrlText(o.K.icon), W / 2, 134, 6, '#ffffff');
 }
+// o chefe aparece e se apresenta antes do quebra-cabeça final da visão
+function drawBossIntro() {
+  const k = P.pt, ba = P.V.boss || P.V.actor;
+  g.drawImage(room(P.V.theme, ROOM_OPEN), 0, 0);
+  const rise = Math.min(1, k / 1.2), s = fitScale(ba, 88, 4);
+  drawActor(g, ba, 214, 128 + (1 - rise) * 30, t, s, { flip: true, alpha: rise });
+  drawActor(g, 'richard', 74, 128, t, 2);
+  lighting(g, [[214, 80, 110, 1], [74, 100, 50, 0.7]], 0.7, '20,4,20', '255,120,160');
+  for (let i = 0; i < 14; i++) { const a = t * 0.8 + i * 0.45; R(214 + Math.cos(a) * (70 + (i % 3) * 10), 84 + Math.sin(a) * 40, 2, 2, '#ff9ab0'); }
+  vignette(g, 0.6);
+  const sc = Math.min(1, k * 3); g.save(); g.translate(W / 2, 16); g.scale(2.6 - sc * 1.6, 2.6 - sc * 1.6); text(tr('CHEFE!'), 0, -8, 12, '#ff5a7a'); g.restore();
+  // fala digitada: o nome, a fala da visão e o desafio
+  const say = tr(P.V.name) + ': "' + tr(P.V.quote) + '" ' + tr('Agora é comigo. Lembre o caminho das runas!');
+  const n = Math.min(say.length, Math.floor(Math.max(0, k - 0.6) * 34));
+  panel(10, 140, W - 20, 46, 0.86); para(say.slice(0, n), W / 2, 146, W - 36, 6, '#ffffff', 10);
+  if (k > 1) text(tr('Toque ou aperte A para continuar'), W - 16, 176, 5, '#c8bce8', 'right');
+}
 // pavio queimando (o tempo do minijogo)
 function drawFuse(o) {
+  if (o.K.noFuse) return;
   const k = Math.max(0, 1 - o.age / o.dur), x0 = 30, x1 = W - 12, xe = x0 + (x1 - x0) * k, y = H - 8;
   g.fillStyle = '#120c1e'; g.beginPath(); g.arc(18, y - 1, 9, 0, 7); g.fill(); g.fillStyle = '#3a3a4a'; g.beginPath(); g.arc(18, y - 1, 8, 0, 7); g.fill(); R(14, y - 5, 3, 2, '#8a8aa0');
   for (let x = x0; x < xe; x += 4) R(x, y + (x / 4 % 2 ? 0 : 1), 4, 2, '#c8a06a');
@@ -305,12 +354,13 @@ function drawPlay() {
   if (ph === 'micro' || ph === 'freeze') {
     if (ph === 'micro') { mg.save(); P.micro.K.draw(P.micro, t); mg.restore(); microPost(); }
     g.drawImage(mcv, 0, 0);
-    if (ph === 'micro') { drawFuse(P.micro); for (let i = 0; i < 3; i++) candle(W - 50 + i * 14, 16, i < P.lives, t, 1); drawTouchPad(); }
+    if (ph === 'micro') { drawFuse(P.micro); for (let i = 0; i < 3; i++) candle(W - 50 + i * 14, 16, i < P.lives, t, 1); }
     if (ph === 'freeze') { const s = Math.max(1, 2.4 - P.pt * 8); g.save(); g.translate(W / 2, H / 2); g.scale(s, s); text(P.last ? '✓' : '✗', 0, -16, 32, P.last ? '#7aff9a' : '#ff5a5a'); g.restore(); }
     if (P.micro.mad > 0.5 && ph === 'micro') wobble((P.micro.mad - 0.5) * 2.4, t, 2);
     return;
   }
-  const fx = { boss: P.boss && (ph === 'bossIntro' || ph === 'command' || ph === 'irisIn' || ph === 'irisOut' || ph === 'result'), speed: ph === 'speed' };
+  if (ph === 'bossIntro') { drawBossIntro(); return; }
+  const fx = { boss: P.boss && ( ph === 'command' || ph === 'irisIn' || ph === 'irisOut' || ph === 'result'), speed: ph === 'speed' };
   drawStage(fx);
   if (ph === 'start') {
     const k = Math.min(1, P.pt / 0.4);
@@ -321,7 +371,6 @@ function drawPlay() {
   }
   if (ph === 'command') drawCommand(P.pt / (PH.command / P.sp));
   if (ph === 'speed') { const s = 1 + Math.sin(P.pt * 20) * 0.1; g.save(); g.translate(W / 2, 90); g.scale(s, s); g.rotate(Math.sin(P.pt * 7) * 0.08); text(tr('MAIS RÁPIDO!'), 0, -8, 16, `hsl(${(t * 400) % 360},100%,70%)`); g.restore(); }
-  if (ph === 'bossIntro') { const s = Math.min(1, P.pt * 3); g.save(); g.translate(W / 2, 92); g.scale(3 - s * 2, 3 - s * 2); text(tr('CHEFE!'), 0, -8, 16, '#ff5a7a'); g.restore(); }
   // zoom circular para dentro e para fora do minijogo
   if (ph === 'irisIn' || ph === 'irisOut') {
     const k = ph === 'irisIn' ? P.pt / PH.irisIn : 1 - P.pt / PH.irisOut, r = Math.max(0, Math.min(1, k)) * 200;
@@ -349,23 +398,24 @@ function moonWindow(x, y, t) {
 }
 function drawTitle() {
   g.drawImage(room('lactower', OBS), 0, 0);
-  moonWindow(254, 70, t); desk(160, 140, t);
-  drawActor(g, 'richard', 160, 136, t, 2);
-  for (let i = 0; i < 9; i++) { const a = t * 0.5 + i * 0.7, x = 160 + Math.cos(a) * (40 + i * 6), y = 92 + Math.sin(a * 1.4) * 22; R(x - 3, y - 4, 7, 8, '#120c1e'); R(x - 2, y - 3, 5, 6, '#e8dcbc'); R(x - 1, y - 1, 3, 1, '#8a7a9a'); }
-  candle(118, 132, true, t, 1); candle(204, 132, true, t, 1); candle(40, 166, true, t, 2); candle(286, 166, true, t, 2);
-  lighting(g, [[118, 124, 70], [204, 124, 70], [40, 150, 60], [286, 150, 60], [254, 64, 70, 0.8], [160, 110, 50, 0.5]], 0.72);
+  const X = 214;   // o Richard e a mesa ficam à direita, o menu à esquerda
+  moonWindow(288, 74, t); desk(X, 140, t);
+  drawActor(g, 'richard', X, 136, t, 2);
+  for (let i = 0; i < 9; i++) { const a = t * 0.5 + i * 0.7, x = X + Math.cos(a) * (30 + i * 5), y = 92 + Math.sin(a * 1.4) * 22; R(x - 3, y - 4, 7, 8, '#120c1e'); R(x - 2, y - 3, 5, 6, '#e8dcbc'); R(x - 1, y - 1, 3, 1, '#8a7a9a'); }
+  candle(X - 42, 132, true, t, 1); candle(X + 44, 132, true, t, 1); candle(170, 170, true, t, 2); candle(300, 170, true, t, 2);
+  lighting(g, [[X - 42, 124, 70], [X + 44, 124, 70], [170, 154, 60], [300, 154, 60], [288, 68, 70, 0.8], [X, 110, 50, 0.5], [76, 80, 90, 0.55]], 0.72);
   motes(g, t, 30); vignette(g, 0.5);
   const title = 'RICHARD IS BORED';
   g.font = font(16); let x = W / 2 - g.measureText(title).width / 2;
   for (let i = 0; i < title.length; i++) { const ch = title[i], w = g.measureText(ch).width; text(ch, x + w / 2, 10 + Math.round(Math.sin(t * 3 + i * 0.6) * 3), 16, `hsl(${(t * 60 + i * 22) % 360},90%,72%)`); x += w; }
-  panel(8, 40, 112, MENU.length * 15 + 10);
+  panel(8, 40, 138, MENU.length * 15 + 10);
   MENU.forEach(([s], i) => text((i === sel ? '▶' : ' ') + tr(s), 14, 46 + i * 15, 6, i === sel ? '#ffe07a' : '#ffffff', 'left'));
   text('Song of Moonlight', W - 6, 32, 5, '#8a80b0', 'right');
 }
 function updateTitle() {
   if (hits.has('up')) { sel = (sel + MENU.length - 1) % MENU.length; sfx.tick(); }
   if (hits.has('down')) { sel = (sel + 1) % MENU.length; sfx.tick(); }
-  for (let i = 0; i < MENU.length; i++) if (tapIn(8, 44 + i * 15, 112, 15)) { sel = i; sfx.blip(); MENU[i][1](); return; }
+  for (let i = 0; i < MENU.length; i++) if (tapIn(8, 44 + i * 15, 138, 15)) { sel = i; sfx.blip(); MENU[i][1](); return; }
   if (hits.has('a')) { sfx.blip(); MENU[sel][1](); }
 }
 // A história de abertura: cenas animadas que rodam sozinhas (toque ou A adianta; B/Esc pula tudo)
@@ -456,11 +506,13 @@ function drawStory() {
   if (storyPage === 4) wobble(1 + k * 0.6, t);
   // texto aparecendo letra por letra
   const full = tr(sc.text), n = Math.min(full.length, Math.floor(k * 28)), shown = full.slice(0, n);
+  // escurece entre as cenas (o texto some junto)
+  const fade = Math.min(1, Math.max(0, 1 - k * 2.5, (k - sc.dur + 0.4) * 2.5)); if (fade > 0) { g.save(); g.globalAlpha = fade; R(0, 0, W, H, '#05030c'); g.restore(); }
+  g.save(); g.globalAlpha = 1 - fade;
   panel(10, 146, W - 20, 40, 0.82); para(shown, W / 2, 152, W - 40, 6, '#ffffff', 10);
   if (n >= full.length && Math.floor(t * 3) % 2) text('▶', W - 20, 176, 6, '#ffe07a');
+  g.restore();
   text(tr('Pular') + ' ▶▶', W - 6, 4, 5, '#c8bce8', 'right');
-  // escurece entre as cenas
-  const fade = Math.max(0, 1 - k * 2.5, (k - sc.dur + 0.4) * 2.5); if (fade > 0) { g.save(); g.globalAlpha = Math.min(1, fade); R(0, 0, W, H, '#05030c'); g.restore(); }
 }
 function nextStory() { storyPage++; storyT = 0; if (storyPage >= STORY.length) go(storyNext); }
 function updateStory(dt) {
@@ -492,7 +544,7 @@ function drawVisions() {
   drawActor(g, V.actor, W / 2, 114, t, fitScale(V.actor, 76, 3), { filter: open ? undefined : 'brightness(0)' });
   if (sel > 0) arrowTri(20, 80, 'left', 8, '#ffe07a'); if (sel < VISIONS.length - 1) arrowTri(W - 20, 80, 'right', 8, '#ffe07a');
   panel(14, 122, W - 28, 62);
-  text(`${tr('Visão')} ${V.i + 1}/23 · ${open ? tr(V.name) : '???'}`, W / 2, 128, 7, open ? '#ffffff' : '#8a80a8');
+  text(`${tr('Visão')} ${V.i + 1}/${VISIONS.length} · ${open ? tr(V.name) : '???'}`, W / 2, 128, 7, open ? '#ffffff' : '#8a80a8');
   if (open) para('"' + tr(V.quote) + '"', W / 2, 142, W - 50, 5, '#c8bce8', 9);
   else text(tr('Bloqueada: vença a visão anterior'), W / 2, 144, 5, '#ff9ab0');
   text(`${V.pool} ${tr('minijogos')} + ${tr('chefe')}${save.best[V.i] ? '  ·  ' + tr('Recorde') + ' ' + save.best[V.i] : ''}`, W / 2, 162, 5, '#9a90c0');
@@ -526,6 +578,7 @@ function drawLegal() {
   bgRoom('lactower'); panel(20, 14, 280, 162);
   text(tr('Termos e privacidade'), W / 2, 22, 8, '#ffe07a');
   para(tr('O jogo guarda só o seu progresso neste aparelho. Os textos completos estão no site.'), W / 2, 40, 250, 6, '#c8bce8', 10);
+  text(tr('Versão') + ' 1.0.0.0', W / 2, 164, 5, '#8a80b0');
   [...LEGAL.map(([s]) => tr(s) + ' ↗'), tr('Voltar')].forEach((s, i) => text((i === sel ? '▶ ' : '') + s, W / 2, 92 + i * 18, 7, i === sel ? '#ffe07a' : '#ffffff'));
 }
 function updateLegal() {
@@ -549,7 +602,7 @@ function updateEnd(dt) { P.pt += dt; if (P.pt > 1 && (hits.has('a') || ptr.tap |
 
 // ---------------------------------------------------------------- laço principal
 function update(dt) {
-  t += dt; pollPad(); pumpMusic();
+  t += dt; pollPad(dt); pumpMusic(); syncControls();
   const r = cv.getBoundingClientRect(); rotateHint = r.height > r.width * 1.05;
   if (!rotateHint) {
     if (mode === 'title') updateTitle(); else if (mode === 'story') updateStory(dt); else if (mode === 'howto') updateHow();
@@ -559,12 +612,13 @@ function update(dt) {
   hits.clear(); ptr.tap = false;
 }
 function draw() {
+  textQ.length = 0;
   g.save();
   if (mode === 'title') drawTitle(); else if (mode === 'story') drawStory(); else if (mode === 'howto') drawHow();
   else if (mode === 'visions') drawVisions(); else if (mode === 'settings') drawSettings(); else if (mode === 'legal') drawLegal();
   else if (mode === 'play') drawPlay(); else if (mode === 'cleared' || mode === 'over') drawEnd();
   else if (mode === 'boot') R(0, 0, W, H, '#05030c');
-  g.restore(); drawMenuPad(); if (padFlash && (padFlash.t -= 1 / 60) <= 0) padFlash = null;
+  g.restore();
   // tela: escala para caber, sempre nítida; no celular em pé, pede para girar
   const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
@@ -575,8 +629,13 @@ function draw() {
     c.font = `${Math.max(12, s * 6)}px "Press Start 2P", monospace`; c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.fillText(tr('Gire o celular'), cv.width / 2, cv.height / 2 + 40 * s);
     return;
   }
-  const s = Math.min(cv.width / W, cv.height / H), dw = W * s, dh = H * s;
-  c.drawImage(low, Math.floor((cv.width - dw) / 2), Math.floor((cv.height - dh) / 2), Math.floor(dw), Math.floor(dh));
+  const s = Math.min(cv.width / W, cv.height / H), dw = W * s, dh = H * s, ox = Math.floor((cv.width - dw) / 2), oy = Math.floor((cv.height - dh) / 2);
+  c.drawImage(low, ox, oy, Math.floor(dw), Math.floor(dh));
+  // textos nítidos por cima, na mesma posição (com a mesma escala, giro e transparência que tinham no jogo)
+  const k = Math.floor(dw) / W, base = new DOMMatrix([k, 0, 0, Math.floor(dh) / H, ox, oy]);
+  c.save(); c.beginPath(); c.rect(ox, oy, Math.floor(dw), Math.floor(dh)); c.clip(); c.imageSmoothingEnabled = true;
+  for (const q of textQ) { c.setTransform(base.multiply(q.m)); c.globalAlpha = q.a; putText(c, q); }
+  c.restore();
 }
 let last = performance.now();
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
@@ -584,4 +643,4 @@ document.fonts?.load(font(8)).finally(() => { requestAnimationFrame(frame); Prom
 // ganchos para testes automáticos
 window.__re = { get mode() { return mode; }, get P() { return P; }, VISIONS, makePool, go, startVision: (i) => startVision(VISIONS[i]),
   test(kind, i = 0) { startVision(VISIONS[i]); if (kind === 'boss') { P.boss = true; } else P.pool = [{ kind, lvl: 1 }]; prepareMicro(); setPhase('micro'); },
-  phase(ph) { P.phase = ph; P.pt = 0; }, setDevice(d) { device = d; }, story(i, k) { mode = 'story'; storyPage = i; storyT = k; storyNext = 'title'; } };
+  phase(ph) { P.phase = ph; P.pt = 0; }, setDevice(d) { device = d; ctlShown = null; }, story(i, k) { mode = 'story'; storyPage = i; storyT = k; storyNext = 'title'; } };

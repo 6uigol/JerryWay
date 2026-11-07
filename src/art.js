@@ -29,6 +29,8 @@ export const ACTORS = {
   valerio: { size: 64, draw: (c, x, y, t) => G.drawKnight(c, x - 12, y - 26, Math.floor(t * 4) % 2, 'idle', t, 0, false) },
   ecoSilencio: { size: 64, draw: (c, x, y, t) => G.drawKnight(c, x - 12, y - 26, Math.floor(t * 4) % 2, 'idle', t, 0, true) },
   // presente de Lacrímora
+  tom: npc('kid5'), rosa: npc('farmer'), coral: npc('collector'), lia: npc('keeper'), ulisses: npc('traveler2'), bruno: npc('scholar'), selene: npc('mystic'),
+  tessa: npc('lacMoth:4'), oma: npc('lacMushroom:3'),
   nara: npc('lacCrystal'), maelis: npc('lacMoth:1'), salvia: npc('lacMushroom:2'), elo: npc('lacBeast:1'), iria: npc('lacFae:4'), ruk: npc('lacBeast:2'), brusk: npc('lacCrystal:4'), orvo: npc('lacMoth'),
   // monstros e chefes usados nos minijogos
   slime: mob('drawSlime', (t) => [t, 'green']), slimeP: mob('drawSlime', (t) => [t, 'purple']), bat: mob('drawBat', (t) => [t]),

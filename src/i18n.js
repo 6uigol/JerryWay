@@ -79,6 +79,9 @@ const T = {
   'ande': ['anda', 'move', '移動', 'muévete', 'bouge', '移动'],
   'Plataforma: ande e pule': ['Plataforma: anda e salta', 'Platform: move and jump', 'アクション：動いてジャンプ', 'Plataformas: muévete y salta', 'Plateforme : bouge et saute', '平台：移动并跳跃'],
   'Pule nas plataformas e pegue o livro!': ['Salta nas plataformas e apanha o livro!', 'Jump the ledges and get the book!', '足場をとんで本をとれ！', '¡Salta por las plataformas y coge el libro!', 'Saute sur les plateformes et prends le livre !', '跳上平台拿到书！'],
+  'LEMBRE O CAMINHO!': ['LEMBRA O CAMINHO!', 'REMEMBER THE PATH!', '道を覚えろ！', '¡RECUERDA EL CAMINO!', 'RETIENS LE CHEMIN !', '记住路线！'],
+  'Agora é comigo. Lembre o caminho das runas!': ['Agora é comigo. Lembra o caminho das runas!', "Now it's me. Remember the path of the runes!", '次はわたしだ。ルーンの道を覚えなさい！', 'Ahora es conmigo. ¡Recuerda el camino de las runas!', "À moi maintenant. Retiens le chemin des runes !", '现在轮到我了。记住符文的路线！'],
+  'Versão': ['Versão', 'Version', 'バージョン', 'Versión', 'Version', '版本'],
   'Pular': ['Saltar', 'Skip', 'スキップ', 'Saltar', 'Passer', '跳过'],
   'Richard...': ['Richard...', 'Richard...', 'リチャード……', 'Richard...', 'Richard...', '理查德……'],
   'Treze...': ['Treze...', 'Thirteen...', '十三……', 'Trece...', 'Treize...', '十三……'],
@@ -102,7 +105,7 @@ const T = {
   'Pelo portal de Aldo chegam também os ecos de Brumavale: o rei que parou de dormir e a Noite do Silêncio.': ['Pelo portal de Aldo chegam também os ecos de Brumavale: o rei que deixou de dormir e a Noite do Silêncio.', "Through Aldo's portal come the echoes of Brumavale too: the king who stopped sleeping, and the Night of Silence.", 'アルドの門からはブルマヴァーレのこだまも届く。眠らなくなった王と、沈黙の夜。', 'Por el portal de Aldo llegan también los ecos de Brumavale: el rey que dejó de dormir y la Noche del Silencio.', "Par le portail d'Aldo arrivent aussi les échos de Brumavale : le roi qui ne dormait plus, et la Nuit du Silence.", '阿尔多的传送门也带来布鲁马瓦莱的回声：不再睡觉的国王，与寂静之夜。'],
   'Cada visão é alguém que ele conheceu, ou algo bem mais estranho. Vença as visões antes que a última vela apague.': ['Cada visão é alguém que ele conheceu, ou algo bem mais estranho. Vença as visões antes que a última vela se apague.', 'Each vision is someone he knew, or something much stranger. Beat the visions before the last candle goes out.', 'まぼろしは知り合いか、もっと奇妙な何か。最後のロウソクが消える前に勝て。', 'Cada visión es alguien que conoció, o algo mucho más raro. Vence las visiones antes de que se apague la última vela.', "Chaque vision est quelqu'un qu'il a connu, ou bien plus étrange. Bats les visions avant que la dernière bougie s'éteigne.", '每个幻象都是他认识的人，或更古怪的东西。在最后一支蜡烛熄灭前击败它们。'],
 };
-// as 23 visões: gente do passado de Brumavale (a história do Rei Aldric, da rainha Elara, do mago Orin e da Noite do
+// as 32 visões: gente do passado de Brumavale (a história do Rei Aldric, da rainha Elara, do mago Orin e da Noite do
 // Silêncio), gente do presente de Lacrímora (onde fica a torre do Richard) e alguns que fazem parte das duas histórias.
 // As falas vêm do próprio Song of Moonlight.
 const Q = [
@@ -120,7 +123,7 @@ const Q = [
   ['Tobias', 'Depois do enterro do Orin, alguém continua comprando tinta no meu nome.', "After Orin's funeral, someone still buys ink in my name."],
   ['Brusk, escaravelho desertor', 'Eu desobedeci. Perdi uma asa e a patente. Fiquei com a consciência.', 'I disobeyed. I lost a wing and my rank. I kept my conscience.'],
   ['Odete', 'A rainha pediu: não deixe o Aldric sozinho. Eu deixei.', 'The queen asked: do not leave Aldric alone. I did.'],
-  ['Nara, arquivista', 'A guerra ganhou dois nomes. Uma criança morta não escolhe o livro.', 'The war got two names. A dead child does not choose the book.'],
+  ['Nara, arquivista', 'Guardo os registros nas duas escritas. Nenhum nome some daqui.', 'I keep the records in both scripts. No name disappears from here.'],
   ['Hermes', 'Era o cavalo da rainha Elara. Só deixa montar quem ama a Lua.', 'He was Queen Elara’s horse. Only those who love the Moon may ride him.'],
   ['Maelis, regente', 'A paz não é um feitiço pronto. É o que fazemos depois dele.', 'Peace is not a finished spell. It is what we do after it.'],
   ['Aldo', 'Eu carreguei o caixão do Orin. Estava leve demais.', "I carried Orin's coffin. It was far too light."],
@@ -129,6 +132,15 @@ const Q = [
   ['Aldric, o Primeiro', 'Eu desejei ser eterno... e fui!', 'I wished to be eternal... and I was!'],
   ['Valério', 'Eu só abri a porta... só abri a porta.', 'I only opened the door... only opened the door.'],
   ['Eco do Silêncio', 'Eu sou o Silêncio que sobrou.', 'I am the Silence that was left behind.'],
+  ['Tom', 'Treino de noite. Meu pai sumiu na Noite do Silêncio.', 'I train at night. My father vanished on the Night of Silence.'],
+  ['Rosa', 'Desde que a rainha se foi, só eu cuido do Hermes.', 'Since the queen left, only I look after Hermes.'],
+  ['Coral', 'Conchas da Lua são lágrimas secas dela. Eu não vendo, eu devolvo.', "Moon shells are her dried tears. I don't sell them, I give them back."],
+  ['Lia', 'O farol não era para os barcos. Era para a Lua achar o caminho de volta.', 'The lighthouse was not for boats. It was for the Moon to find her way back.'],
+  ['Tessa, tecelã de pontes', 'Separados, nenhum dos dois povos mantém esta cidade de pé.', 'Apart, neither people can keep this city standing.'],
+  ['Ulisses', 'Os mapas antigos mostram uma oitava torre: a Torre da Lua. Alguém a apagou.', 'Old maps show an eighth tower: the Moon Tower. Someone erased it.'],
+  ['Prof. Bruno', 'Monstro não nasce mau. Pena que só o bestiário se lembra.', 'No monster is born evil. Too bad only the bestiary remembers.'],
+  ['Oma, guardiã das memórias', 'Uma criança morta não escolhe em qual livro vai entrar.', 'A dead child does not choose which book they go into.'],
+  ['Selene', 'A Runa da Vida foi a que o Orin escreveu pela irmã. Ela só pede paciência.', 'The Rune of Life is the one Orin wrote for his sister. It only asks for patience.'],
 ];
 const QX = {   // pt-PT, ja, es, fr, zh-CN
   0: ['Eu pedi uma casa. Não outra experiência.', 'ほしかったのは家。実験じゃない。', 'Pedí una casa. No otro experimento.', "J'ai demandé une maison. Pas une autre expérience.", '我要的是一个家，不是另一场实验。'],
@@ -145,7 +157,7 @@ const QX = {   // pt-PT, ja, es, fr, zh-CN
   11: ['Depois do enterro do Orin, alguém continua a comprar tinta em meu nome.', 'オリンの葬式のあとも、だれかがわたしの名でインクを買う。', 'Tras el entierro de Orin, alguien sigue comprando tinta a mi nombre.', "Après l'enterrement d'Orin, quelqu'un achète encore de l'encre à mon nom.", '奥林下葬后，仍有人用我的名字买墨水。'],
   12: ['Desobedeci. Perdi uma asa e a patente. Fiquei com a consciência.', '命令にそむいた。羽と階級を失った。良心は残った。', 'Desobedecí. Perdí un ala y el rango. Me quedé con la conciencia.', "J'ai désobéi. J'ai perdu une aile et mon grade. J'ai gardé ma conscience.", '我抗命了。失去一只翅膀和军衔，留住了良心。'],
   13: ['A rainha pediu: não deixes o Aldric sozinho. Eu deixei.', '王妃は言った、アルドリックをひとりにしないでと。わたしはした。', 'La reina pidió: no dejes solo a Aldric. Yo lo dejé.', 'La reine a demandé : ne laisse pas Aldric seul. Je l’ai laissé.', '王后说：别让奥德里克独自一人。我却没做到。'],
-  14: ['A guerra ganhou dois nomes. Uma criança morta não escolhe o livro.', '戦争には名前が2つ。死んだ子は本を選べない。', 'La guerra tuvo dos nombres. Un niño muerto no elige el libro.', 'La guerre a eu deux noms. Un enfant mort ne choisit pas le livre.', '战争有两个名字。死去的孩子选不了写进哪本书。'],
+  14: ['Guardo os registos nas duas escritas. Nenhum nome desaparece daqui.', '記録は2つの文字で残す。ここでは名前は消えない。', 'Guardo los registros en las dos escrituras. Ningún nombre se pierde aquí.', 'Je garde les registres dans les deux écritures. Aucun nom ne disparaît ici.', '我用两种文字保存记录，这里不会有名字消失。'],
   15: ['Era o cavalo da rainha Elara. Só deixa montar quem ama a Lua.', 'エララ王妃の馬。月を愛する人しか乗せない。', 'Era el caballo de la reina Elara. Solo deja montar a quien ama la Luna.', "C'était le cheval de la reine Elara. Seuls ceux qui aiment la Lune le montent.", '他是埃拉拉王后的马，只让爱月亮的人骑。'],
   16: ['A paz não é um feitiço pronto. É o que fazemos depois dele.', '平和はできあがった呪文じゃない。そのあとにすることだ。', 'La paz no es un hechizo hecho. Es lo que hacemos después.', "La paix n'est pas un sort tout fait. C'est ce qu'on fait après.", '和平不是现成的咒语，而是之后我们所做的事。'],
   17: ['Carreguei o caixão do Orin. Estava leve demais.', 'オリンの棺をかついだ。軽すぎた。', 'Cargué el ataúd de Orin. Pesaba demasiado poco.', "J'ai porté le cercueil d'Orin. Il était bien trop léger.", '我抬过奥林的棺材，轻得过分。'],
@@ -154,6 +166,15 @@ const QX = {   // pt-PT, ja, es, fr, zh-CN
   20: ['Eu desejei ser eterno... e fui!', '永遠を願った……そしてそうなった！', 'Deseé ser eterno... ¡y lo fui!', "J'ai souhaité être éternel... et je l'ai été !", '我许愿永生……我做到了！'],
   21: ['Eu só abri a porta... só abri a porta.', 'わたしは扉を開けただけ……開けただけだ。', 'Yo solo abrí la puerta... solo abrí la puerta.', "J'ai seulement ouvert la porte... seulement ouvert la porte.", '我只是开了门……只是开了门。'],
   22: ['Eu sou o Silêncio que sobrou.', 'わたしは残された沈黙。', 'Soy el Silencio que quedó.', 'Je suis le Silence qui est resté.', '我是残留下来的寂静。'],
+  23: ['Treino à noite. O meu pai desapareceu na Noite do Silêncio.', '夜に特訓してる。父さんは沈黙の夜に消えた。', 'Entreno de noche. Mi padre desapareció en la Noche del Silencio.', "Je m'entraîne la nuit. Mon père a disparu la Nuit du Silence.", '我在夜里训练。我爸在寂静之夜失踪了。'],
+  24: ['Desde que a rainha partiu, só eu cuido do Hermes.', '王妃がいなくなってから、ヘルメスの世話はわたしだけ。', 'Desde que la reina se fue, solo yo cuido de Hermes.', "Depuis le départ de la reine, je suis la seule à m'occuper d'Hermès.", '王后走后，只有我在照顾赫尔墨斯。'],
+  25: ['Conchas da Lua são lágrimas secas dela. Eu não vendo, devolvo.', '月の貝は月のかわいた涙。売らずに返している。', 'Las conchas de la Luna son sus lágrimas secas. No las vendo, las devuelvo.', 'Les coquillages de Lune sont ses larmes séchées. Je ne les vends pas, je les rends.', '月贝是她干掉的眼泪。我不卖，我把它们还回去。'],
+  26: ['O farol não era para os barcos. Era para a Lua encontrar o caminho de volta.', '灯台は船のためじゃない。月が帰り道を見つけるためだった。', 'El faro no era para los barcos. Era para que la Luna encontrara el camino de vuelta.', "Le phare n'était pas pour les bateaux. C'était pour que la Lune retrouve son chemin.", '灯塔不是给船用的，是让月亮找到回家的路。'],
+  27: ['Separados, nenhum dos dois povos mantém esta cidade de pé.', '別々では、どちらの民もこの町を支えられない。', 'Separados, ninguno de los dos pueblos mantiene esta ciudad en pie.', 'Séparés, aucun des deux peuples ne tient cette ville debout.', '分开的话，两个民族都撑不起这座城。'],
+  28: ['Os mapas antigos mostram uma oitava torre: a Torre da Lua. Alguém a apagou.', '古い地図には8つ目の塔、月の塔がある。だれかが消した。', 'Los mapas antiguos muestran una octava torre: la Torre de la Luna. Alguien la borró.', "Les vieilles cartes montrent une huitième tour : la Tour de la Lune. Quelqu'un l'a effacée.", '旧地图上有第八座塔：月之塔。有人把它抹掉了。'],
+  29: ['Nenhum monstro nasce mau. Pena que só o bestiário se lembre.', '生まれつき悪い魔物はいない。覚えているのは図鑑だけ。', 'Ningún monstruo nace malo. Lástima que solo el bestiario lo recuerde.', "Aucun monstre ne naît mauvais. Dommage que seul le bestiaire s'en souvienne.", '怪物不是生来就坏。可惜只有图鉴还记得。'],
+  30: ['Uma criança morta não escolhe em que livro vai entrar.', '死んだ子は、どの本に載るか選べない。', 'Un niño muerto no elige en qué libro entra.', 'Un enfant mort ne choisit pas dans quel livre il entre.', '死去的孩子选不了被写进哪本书。'],
+  31: ['A Runa da Vida foi a que o Orin escreveu pela irmã. Só pede paciência.', '命のルーンはオリンが姉のために書いたもの。求めるのは忍耐だけ。', 'La Runa de la Vida la escribió Orin por su hermana. Solo pide paciencia.', "La Rune de Vie est celle qu'Orin a écrite pour sa sœur. Elle ne demande que de la patience.", '生命符文是奥林为姐姐写的，它只要求耐心。'],
 };
 const QN = {   // nomes com título (pt-PT, en, ja, es, fr, zh-CN)
   'Mara, jardineira': ['Mara, jardineira', 'Mara, the gardener', '庭師マラ', 'Mara, jardinera', 'Mara, jardinière', '园丁玛拉'],
@@ -169,6 +190,9 @@ const QN = {   // nomes com título (pt-PT, en, ja, es, fr, zh-CN)
   'Ray, a arraia': ['Ray, a raia', 'Ray, the manta', 'エイのレイ', 'Ray, la raya', 'Ray, la raie', '鳐鱼雷'],
   'Aldric, o Primeiro': ['Aldric, o Primeiro', 'Aldric the First', 'アルドリック一世', 'Aldric el Primero', 'Aldric Ier', '奥德里克一世'],
   'Eco do Silêncio': ['Eco do Silêncio', 'Echo of Silence', '沈黙のこだま', 'Eco del Silencio', 'Écho du Silence', '寂静回声'],
+  'Tessa, tecelã de pontes': ['Tessa, tecelã de pontes', 'Tessa, bridge weaver', '橋を編むテッサ', 'Tessa, tejedora de puentes', 'Tessa, tisseuse de ponts', '织桥人特莎'],
+  'Prof. Bruno': ['Prof. Bruno', 'Prof. Bruno', 'ブルーノ教授', 'Prof. Bruno', 'Prof. Bruno', '布鲁诺教授'],
+  'Oma, guardiã das memórias': ['Oma, guardiã das memórias', 'Oma, keeper of memories', '記憶の守り手オマ', 'Oma, guardiana de los recuerdos', 'Oma, gardienne des mémoires', '记忆守护者奥玛'],
 };
 Object.assign(T, QN);
 Q.forEach(([, pt, en], i) => { const x = QX[i]; T[pt] = [x[0], en, x[1], x[2], x[3], x[4]]; });
