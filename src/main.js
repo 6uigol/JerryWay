@@ -69,10 +69,12 @@ const stick = { x: 0, y: 0, on: false };
 })();
 // quais controles a tela atual mostra no toque
 function controlsFor() {
-  if (['title', 'visions', 'settings', 'legal', 'howto'].includes(mode)) return 'stick a b';
+  if (['title', 'visions', 'settings', 'legal', 'howto'].includes(mode)) return 'stick a b menu';
   if (mode === 'cleared' || mode === 'over') return 'a';
   if (mode === 'play' && P && P.micro && ['micro', 'command', 'irisIn'].includes(P.phase)) {
     const ic = P.micro.K.icon;
+    // minijogos de tocar no objeto (baú, escolher, contar, runas, o chefe): nada na tela, para não atrapalhar o toque
+    if (ic === 'pick' || ic === 'arrows') return '';
     return ic === 'move' || ic === 'move4' || ic === 'hold' ? 'stick' : ic === 'press' || ic === 'mash' ? 'a' : 'stick a';
   }
   return '';
@@ -82,7 +84,7 @@ function syncControls() {
   const want = device === 'touch' ? controlsFor() : '';
   if (want === ctlShown) return; ctlShown = want;
   document.body.classList.toggle('touch', device === 'touch');
-  for (const k of ['stick', 'a', 'b']) document.body.classList.toggle('ctl-' + k, want.split(' ').includes(k));
+  for (const k of ['stick', 'a', 'b', 'menu']) document.body.classList.toggle('ctl-' + k, want.split(' ').includes(k));
 }
 let padPrev = {}, padAxis = { x: 0, y: 0 }, stickPrev = '', stickRep = 0;
 function pollPad(dt) {
