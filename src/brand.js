@@ -58,7 +58,7 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
     setTimeout(end, 6500);   // garantia
     const stars = Array.from({ length: 60 }, (_, i) => ({ x: (i * 37.7 % 100) / 100, y: ((i * 61.3 + 7) % 100) / 100, p: i * 0.9, s: i % 6 === 0 ? 2 : 1 }));
     const trail = [];
-    let mask = null;
+    let mask = null, dim = null;
     const begin = () => { if (over) return; start = performance.now(); snd = sounds(); raf = requestAnimationFrame(frame); };
     img.onload = begin; img.onerror = end;
 
@@ -71,7 +71,13 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
       // logotipo: até 64% da largura, no centro
       const lw = Math.min(W * 0.64, 620 * dpr), k = lw / img.width, lh = img.height * k, lx = (W - lw) / 2, ly = (H - lh) / 2;
       const P = (x, y) => [lx + x * k, ly + y * k];
-      if (!mask) { mask = document.createElement('canvas'); mask.width = Math.ceil(lw); mask.height = Math.ceil(lh); mask.getContext('2d').drawImage(img, 0, 0, lw, lh); }
+      if (!mask) {
+        mask = document.createElement('canvas'); mask.width = Math.ceil(lw); mask.height = Math.ceil(lh); mask.getContext('2d').drawImage(img, 0, 0, lw, lh);
+        // logo já escurecido (14%) numa tela própria: sem "filter" na hora de desenhar com brilho, que em alguns
+        // celulares fazia o brilho virar um retângulo claro em volta do logo inteiro
+        dim = document.createElement('canvas'); dim.width = mask.width; dim.height = mask.height; const dc = dim.getContext('2d');
+        dc.drawImage(mask, 0, 0); dc.globalCompositeOperation = 'source-atop'; dc.fillStyle = 'rgba(0,0,0,0.14)'; dc.fillRect(0, 0, dim.width, dim.height);
+      }
       // fundo: escuro → luar → escuro
       c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
       const bg = t < T.bg ? t / T.bg : t > T.out[0] ? 1 - clamp((t - T.out[0]) / (T.out[1] - T.out[0])) : 1;
@@ -104,7 +110,7 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
       if (r2 > 0) { const [x0, y0] = P(0, L2.y0), [x1, y1] = P(Math.min(r2, 900), L2.y1); c.rect(x0, y0, x1 - x0, y1 - y0); }
       c.clip();
       c.shadowColor = 'rgba(170,190,255,0.6)'; c.shadowBlur = 18 * dpr;
-      c.filter = 'brightness(0.86)'; c.drawImage(img, lx, ly, lw, lh); c.filter = 'none';
+      c.drawImage(dim, lx, ly, lw, lh);
       c.restore();
       // a lua crescente acende quando a luazinha chega
       if (t >= T.flash) {
