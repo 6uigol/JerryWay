@@ -1,0 +1,8 @@
+{
+  "appId": "com.songofmoonlight.richard",
+  "appName": "Richard Entediado",
+  "webDir": "android-web",
+  "server": {
+    "androidScheme": "https"
+  }
+}

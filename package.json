@@ -1,0 +1,90 @@
+{
+  "name": "richard-entediado",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Richard Entediado — visões e minijogos na torre (universo Song of Moonlight)",
+  "author": {
+    "name": "Song of Moonlight",
+    "email": "146967020+6uigol@users.noreply.github.com"
+  },
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis --linux AppImage --publish never",
+    "build:android": "node scripts/build-android.mjs",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "devDependencies": {
+    "electron": "^44.9.1",
+    "electron-builder": "^26.15.3",
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "playwright": "1.57.0"
+  },
+  "build": {
+    "appId": "com.songofmoonlight.richard",
+    "buildVersion": "1.0.0.0",
+    "productName": "Richard Entediado",
+    "copyright": "Todos os direitos reservados",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "index.html",
+      "style.css",
+      "src/**",
+      "icons/**",
+      "fonts/**",
+      "package.json",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/app.ico"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/icon-512.png",
+      "category": "Game",
+      "executableName": "richard-entediado",
+      "artifactName": "Richard-Entediado-1.0.0.0.${ext}",
+      "maintainer": "6uigol <146967020+6uigol@users.noreply.github.com>"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Richard Entediado",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "language": "1046",
+      "artifactName": "Richard-Entediado-Setup-1.0.0.0.${ext}"
+    },
+    "electronLanguages": [
+      "pt-BR",
+      "en-US"
+    ],
+    "compression": "maximum",
+    "afterPack": "scripts/after-pack.cjs"
+  }
+}
