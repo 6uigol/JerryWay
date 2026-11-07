@@ -5,7 +5,7 @@
 import { brandIntro } from './brand.js';
 import { tr, font, cjk, LANGS, getLang, setLang, VISION_TEXT } from './i18n.js';
 import { initAudio, setVolumes, playSong, setTempo, pumpMusic, sfx } from './audio.js';
-import { drawActor, room, ROOM_OPEN, fillTextAccents, bossActor } from './art.js';
+import { drawActor, room, ROOM_OPEN, fillTextAccents, bossActor, fitScale } from './art.js';
 import { MICROS, MICRO_KINDS, BOSS, bindMicro, W, H } from './micro.js';
 
 const SITE = 'https://songofmoonlight.online';
@@ -21,27 +21,64 @@ try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); }
 const commit = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (_) { /* ok */ } };
 setVolumes(save.music, save.sfx);
 
-// ---------------------------------------------------------------- entrada: teclado, controle e toque
+// ---------------------------------------------------------------- entrada: teclado, controle de videogame e toque
+// `device` guarda o último jeito que você usou (teclado, controle ou toque): os avisos de controle mudam junto.
+// No toque, os minijogos de andar ganham joystick na tela (metade esquerda) e botão de ação (metade direita).
 const keys = new Set(), hits = new Set();
+let device = 'keyboard';
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'a', Enter: 'a', KeyZ: 'a', KeyJ: 'a', Escape: 'back', Backspace: 'back' };
 const wake = () => { initAudio(); };
-addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k) return; e.preventDefault(); wake(); if (!keys.has(k)) hits.add(k); keys.add(k); });
+addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k) return; e.preventDefault(); wake(); device = 'keyboard'; if (!keys.has(k)) hits.add(k); keys.add(k); });
 addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys.delete(k); });
 const ptr = { down: false, x: W / 2, y: H / 2, tap: false };
+const stick = { on: false, id: null, x0: 0, y0: 0, x: 0, y: 0, btn: null, btnDown: false };
 const toLogic = (e) => { const r = cv.getBoundingClientRect(), s = Math.min(r.width / W, r.height / H), ox = (r.width - W * s) / 2, oy = (r.height - H * s) / 2; return [(e.clientX - r.left - ox) / s, (e.clientY - r.top - oy) / s]; };
-cv.addEventListener('pointerdown', (e) => { wake(); [ptr.x, ptr.y] = toLogic(e); ptr.down = true; ptr.tap = true; });
-cv.addEventListener('pointermove', (e) => { [ptr.x, ptr.y] = toLogic(e); });
-addEventListener('pointerup', () => { ptr.down = false; }); addEventListener('pointercancel', () => { ptr.down = false; });
-let padPrev = {};
+const JOY_ICONS = new Set(['move', 'move4', 'movepress', 'hold', 'platform']);
+const joyMode = () => device === 'touch' && mode === 'play' && P && P.micro && (P.phase === 'micro' || P.phase === 'irisIn' || P.phase === 'command') && JOY_ICONS.has(P.micro.K.icon);
+const needsButton = () => joyMode() && (P.micro.K.icon === 'movepress' || P.micro.K.icon === 'platform');
+cv.addEventListener('pointerdown', (e) => {
+  wake(); if (e.pointerType === 'touch' || e.pointerType === 'pen') device = 'touch'; else if (device === 'touch') device = 'keyboard';
+  const [x, y] = toLogic(e); cv.setPointerCapture?.(e.pointerId);
+  if (joyMode()) {
+    if (x > W * 0.55 && needsButton()) { stick.btn = e.pointerId; stick.btnDown = true; hits.add('a'); keys.add('a'); return; }
+    if (!stick.on) { Object.assign(stick, { on: true, id: e.pointerId, x0: x, y0: y, x, y }); return; }
+  }
+  ptr.x = x; ptr.y = y; ptr.down = true; ptr.tap = true;
+});
+cv.addEventListener('pointermove', (e) => { const [x, y] = toLogic(e); if (stick.on && e.pointerId === stick.id) { stick.x = x; stick.y = y; return; } if (e.pointerId !== stick.btn) { ptr.x = x; ptr.y = y; } });
+const lift = (e) => { if (e.pointerId === stick.id) { stick.on = false; stick.id = null; } else if (e.pointerId === stick.btn) { stick.btn = null; stick.btnDown = false; keys.delete('a'); } else ptr.down = false; };
+addEventListener('pointerup', lift); addEventListener('pointercancel', lift);
+let padPrev = {}, padAxis = { x: 0, y: 0 };
 function pollPad() {
-  const p = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null; if (!p) return;
-  const now = { left: p.buttons[14]?.pressed || p.axes[0] < -0.5, right: p.buttons[15]?.pressed || p.axes[0] > 0.5, up: p.buttons[12]?.pressed || p.axes[1] < -0.5, down: p.buttons[13]?.pressed || p.axes[1] > 0.5, a: p.buttons[0]?.pressed || p.buttons[2]?.pressed, back: p.buttons[1]?.pressed };
-  for (const [k, v] of Object.entries(now)) { if (v && !padPrev[k]) { hits.add(k); wake(); } if (v) keys.add(k); else if (padPrev[k]) keys.delete(k); }
+  const p = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null; if (!p) { padAxis = { x: 0, y: 0 }; return; }
+  const dz = (v) => (Math.abs(v) < 0.18 ? 0 : v);
+  padAxis = { x: dz(p.axes[0] || 0) || (p.buttons[15]?.pressed ? 1 : p.buttons[14]?.pressed ? -1 : 0), y: dz(p.axes[1] || 0) || (p.buttons[13]?.pressed ? 1 : p.buttons[12]?.pressed ? -1 : 0) };
+  const now = { left: padAxis.x < -0.5, right: padAxis.x > 0.5, up: padAxis.y < -0.5, down: padAxis.y > 0.5, a: p.buttons[0]?.pressed || p.buttons[2]?.pressed, back: p.buttons[1]?.pressed || p.buttons[8]?.pressed };
+  let any = Math.abs(padAxis.x) > 0.3 || Math.abs(padAxis.y) > 0.3;
+  for (const [k, v] of Object.entries(now)) { if (v) any = true; if (v && !padPrev[k]) { hits.add(k); wake(); } if (v) keys.add(k); else if (padPrev[k]) keys.delete(k); }
+  if (any) device = 'pad';
   padPrev = now;
 }
-const inp = { held: (k) => keys.has(k), hit: (k) => hits.has(k), ptr };
+// direção analógica (-1..1): teclado, controle e joystick na tela, somados
+function axis() {
+  let x = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0), y = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
+  if (Math.abs(padAxis.x) > Math.abs(x)) x = padAxis.x; if (Math.abs(padAxis.y) > Math.abs(y)) y = padAxis.y;
+  if (stick.on) { const dx = stick.x - stick.x0, dy = stick.y - stick.y0, d = Math.hypot(dx, dy), k = Math.min(1, d / 22); if (d > 3) { x = dx / d * k; y = dy / d * k; } }
+  return { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) };
+}
+const inp = { held: (k) => keys.has(k) || (stick.on && ((k === 'left' && axis().x < -0.4) || (k === 'right' && axis().x > 0.4) || (k === 'up' && axis().y < -0.4) || (k === 'down' && axis().y > 0.4))), hit: (k) => hits.has(k), ptr, axis, joy: () => joyMode() };
 bindMicro(mg, inp);
 const tapIn = (x, y, w, h) => ptr.tap && ptr.x >= x && ptr.x <= x + w && ptr.y >= y && ptr.y <= y + h;
+// joystick e botão desenhados na tela (só no toque, nos minijogos de andar)
+function drawTouchPad() {
+  if (!joyMode()) return;
+  const bx = stick.on ? stick.x0 : 46, by = stick.on ? stick.y0 : H - 46, a = axis();
+  g.save(); g.globalAlpha = stick.on ? 0.7 : 0.4;
+  g.fillStyle = '#120c1e'; g.beginPath(); g.arc(bx, by, 24, 0, 7); g.fill(); g.strokeStyle = '#c8bce8'; g.lineWidth = 2; g.beginPath(); g.arc(bx, by, 24, 0, 7); g.stroke();
+  g.fillStyle = '#ffe07a'; g.beginPath(); g.arc(bx + a.x * 16, by + a.y * 16, 11, 0, 7); g.fill();
+  if (needsButton()) { const x = W - 40, y = H - 44; g.globalAlpha = stick.btnDown ? 0.85 : 0.5; g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y, 22, 0, 7); g.fill(); g.fillStyle = stick.btnDown ? '#c83a5a' : '#ff5a7a'; g.beginPath(); g.arc(x, y, 19, 0, 7); g.fill(); g.restore(); g.save(); text(tr(P.micro.K.icon === 'platform' ? 'pula' : 'atira'), x, y - 3, 6, '#ffffff', 'center', '#7a1a3a'); }
+  g.restore();
+}
 
 // ---------------------------------------------------------------- texto em pixel (contorno + acentos certos)
 function text(s, x, y, size = 8, col = '#fff', align = 'center', edge = '#120c1e', ctx = g) {
@@ -61,32 +98,18 @@ const R = (x, y, w, h, col, ctx = g) => { ctx.fillStyle = col; ctx.fillRect(Math
 function panel(x, y, w, h, alpha = 0.88) { g.save(); g.globalAlpha = alpha; R(x, y, w, h, '#120c1e'); g.restore(); R(x, y, w, 1, '#8a6ac8'); R(x, y + h - 1, w, 1, '#8a6ac8'); R(x, y, 1, h, '#8a6ac8'); R(x + w - 1, y, 1, h, '#8a6ac8'); for (const [a, b] of [[x, y], [x + w - 3, y], [x, y + h - 3], [x + w - 3, y + h - 3]]) R(a, b, 3, 3, '#e0c060'); }
 
 // ---------------------------------------------------------------- as 23 visões (personagens do universo Song of Moonlight)
+const SKY = { lacforest: ['#0e1a2a', '#2a4a3a', '#0a141e'], castle: ['#0c0c22', '#2a2a5a', '#0a0a1a'], lactower: ['#140c2a', '#3a2a6a', '#1a1236'], dmine: ['#1a120a', '#4a3420', '#140e08'],
+  coast: ['#0a1426', '#2a4a7a', '#0a1222'], lacroots: ['#140e06', '#4a3a1a', '#0e0a04'], plains: ['#0c1430', '#3a4a8a', '#0a1022'], lacash: ['#1a0c0c', '#5a2a1a', '#120808'],
+  laccrystal: ['#0a1a2e', '#2a5a8a', '#0e2238'], dcrypt: ['#0e0e14', '#3a3a4a', '#0a0a10'], moon: ['#06061a', '#24244a', '#12122a'], lacmarsh: ['#08162a', '#2a6aa8', '#0a1830'], moondg: ['#04040e', '#1a1a3a', '#06060e'] };
+// [desenho, tema do chão, monstro dos minijogos, chefe (opcional)]
 const V_DEF = [
-  ['mara', 'lacforest', 'bat', ['#0e1a2a', '#2a4a3a', '#0a141e']],
-  ['icaro', 'moon', 'slimeP', ['#06061a', '#24244a', '#12122a']],
-  ['aldo', 'lactower', 'ghost', ['#140c2a', '#3a2a6a', '#1a1236']],
-  ['selene', 'laccrystal', 'bat', ['#0a1a2e', '#2a5a8a', '#0e2238']],
-  ['gus', 'dforest', 'frog', ['#0c1a12', '#2a4a2a', '#0a140e']],
-  ['doran', 'dmine', 'skeleton', ['#1a120a', '#4a3420', '#140e08']],
-  ['coralina', 'dtide', 'crab', ['#061a2a', '#1a5a7a', '#08202e']],
-  ['pipo', 'lacmarsh', 'ghost', ['#0a1420', '#2a3a5a', '#0a1018']],
-  ['monice', 'castle', 'bat', ['#1a0a1a', '#4a1a4a', '#140814']],
-  ['nico', 'lighthouse', 'crab', ['#0a1426', '#2a4a7a', '#0a1222']],
-  ['marcos', 'dtide', 'frog', ['#041824', '#145a6a', '#06202a']],
-  ['ray', 'lacmarsh', 'slimeP', ['#08162a', '#2a6aa8', '#0a1830']],
-  ['jerry', 'dforest', 'wolf', ['#101a0c', '#3a5a2a', '#0c140a']],
-  ['lyon', 'castle', 'skeleton', ['#0c0c22', '#2a2a5a', '#0a0a1a']],
-  ['hermes', 'dsun', 'scorpion', ['#2a140a', '#8a5a2a', '#1e0e06']],
-  ['sentinela', 'dcrypt', 'skeleton', ['#0e0e14', '#3a3a4a', '#0a0a10']],
-  ['prisma', 'laccrystal', 'slimeP', ['#1a0a2a', '#6a3aa8', '#140820']],
-  ['paciente', 'lactower', 'ghost', ['#0e0a14', '#3a2a3a', '#0a080e']],
-  ['general', 'lacash', 'mummy', ['#1a0c0c', '#5a2a1a', '#120808']],
-  ['conselheiro', 'lacroots', 'plant', ['#140e06', '#4a3a1a', '#0e0a04']],
-  ['eco', 'moondg', 'ghost', ['#04040e', '#1a1a3a', '#06060e'], bossActor('phantom')],
-  ['leviata', 'lacmarsh', 'slimeP', ['#02101a', '#0a4a5a', '#020a10'], bossActor('leviathan')],
-  ['sombra', 'lactower', 'ghost', ['#05030a', '#2a0a2a', '#020104']],
+  ['mara', 'lacforest', 'bat'], ['hilda', 'castle', 'ghost'], ['salvia', 'lactower', 'ghost'], ['pedro', 'castle', 'skeleton'], ['doran', 'dmine', 'skeleton'],
+  ['mirela', 'castle', 'slime'], ['elo', 'lactower', 'ghost'], ['bento', 'coast', 'crab'], ['iria', 'lacforest', 'frog'], ['brenda', 'dmine', 'bat'],
+  ['ruk', 'lacroots', 'plant'], ['tobias', 'plains', 'slime'], ['brusk', 'lacash', 'scorpion'], ['odete', 'castle', 'ghost'], ['nara', 'laccrystal', 'slimeP'],
+  ['hermes', 'plains', 'wolf'], ['maelis', 'lacforest', 'bat'], ['aldo', 'dcrypt', 'skeleton'], ['icaro', 'moon', 'slimeP'], ['ray', 'lacmarsh', 'frog'],
+  ['aldric', 'dcrypt', 'skeleton', bossActor('skelking')], ['valerio', 'castle', 'bat'], ['ecoSilencio', 'moondg', 'ghost'],
 ];
-const VISIONS = V_DEF.map(([actor, theme, mob, sky, boss], i) => ({ i, actor, theme, mob, sky, boss, name: VISION_TEXT[i].name, quote: VISION_TEXT[i].quote, pool: 7 + i }));
+const VISIONS = V_DEF.map(([actor, theme, mob, boss], i) => ({ i, actor, theme, mob, sky: SKY[theme], boss, name: VISION_TEXT[i].name, quote: VISION_TEXT[i].quote, pool: 7 + i }));
 // a lista de minijogos da visão: 7 + i variações (tipo x nível), embaralhadas sem repetir o mesmo tipo em seguida
 function makePool(V) {
   const kinds = MICRO_KINDS.map((_, k) => MICRO_KINDS[(k + V.i * 5) % MICRO_KINDS.length]), out = [];
@@ -126,7 +149,17 @@ function wobble(amp, t, speed = 3) {
 }
 const STAGE_FLOOR = ['####################', '####################'];
 // ícones de controle (o que fazer no minijogo)
-const ICON_TEXT = { move: 'Setas ou arraste', move4: 'Ande para todo lado', press: 'A ou toque', mash: 'Aperte sem parar!', pick: 'Toque nele (ou setas + A)', arrows: 'Setas (ou toque no lado)', hold: 'Segure para o lado certo', movepress: 'Ande e atire com A' };
+const ICON_TEXT = { move: 1, move4: 1, press: 1, mash: 1, pick: 1, arrows: 1, hold: 1, movepress: 1, platform: 1 };
+function ctrlText(icon, dev = device) {
+  const mv = dev === 'pad' ? 'Analógico ou direcional' : dev === 'touch' ? 'Joystick na tela' : icon === 'move4' || icon === 'arrows' ? 'Setas ou WASD' : 'Setas ou A/D';
+  const btn = dev === 'pad' ? 'Botão A' : dev === 'touch' ? (icon === 'press' || icon === 'mash' ? 'Toque na tela' : 'Botão na tela') : 'Espaço';
+  if (icon === 'move' || icon === 'move4' || icon === 'hold') return tr(mv);
+  if (icon === 'press') return tr(btn);
+  if (icon === 'mash') return tr(btn) + ' ' + tr('sem parar!');
+  if (icon === 'pick') return tr(dev === 'touch' ? 'Toque no certo' : dev === 'pad' ? 'Escolha + A' : 'Escolha + Espaço');
+  if (icon === 'arrows') return tr(dev === 'touch' ? 'Toque no lado da seta' : mv);
+  return tr(mv) + ' · ' + tr(btn) + ' ' + tr(icon === 'platform' ? 'pula' : 'atira');
+}
 function arrowTri(x, y, dir, s, col) {
   g.fillStyle = col; g.beginPath();
   if (dir === 'left') { g.moveTo(x - s, y); g.lineTo(x + s, y - s); g.lineTo(x + s, y + s); }
@@ -135,7 +168,9 @@ function arrowTri(x, y, dir, s, col) {
   if (dir === 'down') { g.moveTo(x, y + s); g.lineTo(x - s, y - s); g.lineTo(x + s, y - s); }
   g.closePath(); g.fill();
 }
-function btnA(x, y, t, pressed = false) { g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y + 1, 9, 0, 7); g.fill(); g.fillStyle = pressed ? '#c83a5a' : '#ff5a7a'; g.beginPath(); g.arc(x, y + (pressed ? 1 : 0), 8, 0, 7); g.fill(); text('A', x + 1, y - 3 + (pressed ? 1 : 0), 8, '#ffffff', 'center', '#7a1a3a'); }
+function btnA(x, y, t, pressed = false) {
+  if (device === 'keyboard') { R(x - 14, y - 6 + (pressed ? 1 : 0), 28, 13, '#120c1e'); R(x - 13, y - 5 + (pressed ? 1 : 0), 26, 10, pressed ? '#8a80a8' : '#e8e0f0'); R(x - 9, y + 1 + (pressed ? 1 : 0), 18, 2, '#3a2a4a'); return; }
+  if (device === 'touch') { const b = pressed ? 2 : 0; R(x - 2, y - 9 + b, 4, 12, '#f0c8a0'); R(x - 6, y - 1 + b, 12, 9, '#f0c8a0'); R(x - 2, y - 9 + b, 4, 1, '#ffffff'); if (pressed) { g.strokeStyle = '#ffe07a'; g.lineWidth = 1; g.beginPath(); g.arc(x, y - 10, 5, 0, 7); g.stroke(); } return; } g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y + 1, 9, 0, 7); g.fill(); g.fillStyle = pressed ? '#c83a5a' : '#ff5a7a'; g.beginPath(); g.arc(x, y + (pressed ? 1 : 0), 8, 0, 7); g.fill(); text('A', x + 1, y - 3 + (pressed ? 1 : 0), 8, '#ffffff', 'center', '#7a1a3a'); }
 function drawIcon(kind, x, y, t) {
   const blink = Math.floor(t * 6) % 2 === 0, Y = '#ffe07a', D = '#5a4a7a';
   R(x - 22, y - 14, 44, 28, '#120c1e'); R(x - 21, y - 13, 42, 26, '#2a1e44');
@@ -146,6 +181,7 @@ function drawIcon(kind, x, y, t) {
   if (kind === 'pick') { const b = Math.round(Math.sin(t * 8) * 2); R(x - 2, y - 9 + b, 4, 12, '#f0c8a0'); R(x - 6, y - 1 + b, 12, 9, '#f0c8a0'); R(x - 6, y - 1 + b, 12, 1, '#c8a080'); R(x - 2, y - 9 + b, 4, 1, '#ffffff'); }
   if (kind === 'arrows') { const d = ['up', 'right', 'down', 'left'][Math.floor(t * 3) % 4]; for (const [dd, dx, dy] of [['up', 0, -7], ['right', 9, 0], ['down', 0, 7], ['left', -9, 0]]) arrowTri(x + dx, y + dy, dd, 4, dd === d ? Y : D); }
   if (kind === 'hold') { arrowTri(x - 11, y, 'left', 6, Y); arrowTri(x + 11, y, 'right', 6, Y); R(x - 3, y - 8, 6, 16, blink ? Y : D); }
+  if (kind === 'platform') { arrowTri(x - 13, y + 4, 'left', 5, Y); arrowTri(x + 1, y + 4, 'right', 5, Y); const j = Math.round(Math.abs(Math.sin(t * 6)) * 6); R(x + 10, y + 2 - j, 6, 6, '#7af0ff'); R(x + 9, y + 9, 8, 2, D); }
   if (kind === 'movepress') { arrowTri(x - 13, y, 'left', 5, Y); arrowTri(x + 1, y, 'right', 5, Y); R(x + 10, y - 3, 6, 6, blink ? '#ff5a7a' : '#7a2a3a'); }
 }
 
@@ -214,8 +250,8 @@ function drawStage(fx = {}) {
   // Richard à esquerda (dança quando acerta, treme quando erra), a visão à direita
   const rj = won ? -Math.abs(Math.sin(P.pt * 14)) * 10 : 0, rs = lost ? Math.round(Math.sin(P.pt * 60) * 2) : 0;
   drawActor(g, rich, 82 + rs, 170 + rj - Math.round(beat * 2), t * (won ? 3 : 1), 3, { rot: won ? Math.sin(P.pt * 12) * 0.12 : 0 });
-  const vs = fx.boss && P.V.boss ? 1 : P.V.actor === 'hermes' || P.V.actor === 'ray' ? 2 : 3;
-  drawActor(g, fx.boss && P.V.boss ? P.V.boss : P.V.actor, 240, 170 - Math.round(beat * 3), t, vs, { flip: true, filter: lost ? 'hue-rotate(60deg) brightness(1.3)' : undefined });
+  const va = fx.boss && P.V.boss ? P.V.boss : P.V.actor, vs = fitScale(va, 76, 3);
+  drawActor(g, va, 240, 170 - Math.round(beat * 3), t, vs, { flip: true, filter: lost ? 'hue-rotate(60deg) brightness(1.3)' : undefined });
   // velas = vidas
   for (let i = 0; i < 3; i++) candle(22 + i * 22, 22, i < P.lives, t, 2, P.smoke[i]);
   // contador de minijogos vencidos (pula no ritmo)
@@ -233,7 +269,7 @@ function drawCommand(k) {
   g.save(); g.translate(W / 2, 84); g.scale(s, s); g.rotate(Math.sin(t * 9) * 0.03);
   text(word, 0, -size / 2, size, `hsl(${(t * 200) % 360},100%,72%)`, 'center', '#120c1e'); g.restore();
   drawIcon(o.K.icon, W / 2, 118, t);
-  text(tr(ICON_TEXT[o.K.icon]), W / 2, 134, 6, '#ffffff');
+  text(ctrlText(o.K.icon), W / 2, 134, 6, '#ffffff');
 }
 // pavio queimando (o tempo do minijogo)
 function drawFuse(o) {
@@ -248,7 +284,7 @@ function drawPlay() {
   if (ph === 'micro' || ph === 'freeze') {
     if (ph === 'micro') { mg.save(); P.micro.K.draw(P.micro, t); mg.restore(); }
     g.drawImage(mcv, 0, 0);
-    if (ph === 'micro') { drawFuse(P.micro); for (let i = 0; i < 3; i++) candle(W - 50 + i * 14, 16, i < P.lives, t, 1); }
+    if (ph === 'micro') { drawFuse(P.micro); for (let i = 0; i < 3; i++) candle(W - 50 + i * 14, 16, i < P.lives, t, 1); drawTouchPad(); }
     if (ph === 'freeze') { const s = Math.max(1, 2.4 - P.pt * 8); g.save(); g.translate(W / 2, H / 2); g.scale(s, s); text(P.last ? '✓' : '✗', 0, -16, 32, P.last ? '#7aff9a' : '#ff5a5a'); g.restore(); }
     if (P.micro.mad > 0.5 && ph === 'micro') wobble((P.micro.mad - 0.5) * 2.4, t, 2);
     return;
@@ -299,10 +335,11 @@ function updateTitle() {
 const STORY = [
   ['Lacrímora. Torre das Treze Vozes.', 'lactower', ['richard']],
   ['Richard deu palavras às criaturas. A primeira foi Mara, uma mariposa ferida. Ela escolheu o próprio nome.', 'lacforest', ['richardCalm', 'mara']],
-  ['Depois veio a guerra entre Antigos e Despertos. Treze feridos, doze frascos de remédio.', 'lactower', ['paciente', 'general', 'conselheiro']],
+  ['Depois veio a guerra entre Antigos e Despertos. Treze feridos, doze frascos de remédio.', 'lactower', ['elo', 'ruk', 'brusk']],
   ['Richard se trancou na torre para não ferir mais ninguém. E parou de dormir.', 'lactower', ['richard']],
   ['Sozinho, entediado, ele começa a ouvir vozes... e a ver coisas.', null, ['richard']],
-  ['Cada visão é alguém que ele conheceu, ou algo bem mais estranho. Vença as visões antes que a última vela apague.', null, ['richard', 'icaro', 'gus', 'jerry']],
+  ['Pelo portal de Aldo chegam também os ecos de Brumavale: o rei que parou de dormir e a Noite do Silêncio.', 'castle', ['aldo', 'hilda', 'valerio']],
+  ['Cada visão é alguém que ele conheceu, ou algo bem mais estranho. Vença as visões antes que a última vela apague.', null, ['richard', 'mara', 'aldo', 'ecoSilencio']],
 ];
 function drawStory() {
   const [s, theme, who] = STORY[storyPage];
@@ -312,7 +349,7 @@ function drawStory() {
   else who.forEach((w, i) => drawActor(g, w, W / 2 + (i - (who.length - 1) / 2) * 70, 120, t + i, who.length > 2 ? 2 : 3, { flip: i > 0, alpha: storyPage >= 4 && i > 0 ? 0.6 + 0.3 * Math.sin(t * 3 + i) : 1 }));
   panel(10, 128, W - 20, 56); para(tr(s), W / 2, 136, W - 40, 7, '#ffffff', 11);
   text((storyPage + 1) + '/' + STORY.length + '  ▶', W - 18, 174, 5, '#c8bce8', 'right');
-  if (storyPage >= 4) wobble(2, t);
+  if (storyPage === 4 || storyPage === 6) wobble(2, t);
 }
 function updateStory() {
   if (hits.has('a') || ptr.tap) { sfx.blip(); storyPage++; if (storyPage >= STORY.length) go(storyNext); }
@@ -328,7 +365,7 @@ function drawHow() {
     drawIcon('press', 60, 164, t);
   } else {
     text(tr('Os ícones dizem como jogar:'), W / 2, 28, 6, '#c8bce8');
-    Object.keys(ICON_TEXT).forEach((k, i) => { const x = 44 + (i % 2) * 144, y = 52 + Math.floor(i / 2) * 32; drawIcon(k, x, y, t); para(tr(ICON_TEXT[k]), x + 28, y - 4, 90, 5, '#ffffff', 8, 'left'); });
+    Object.keys(ICON_TEXT).forEach((k, i) => { const x = 58 + (i % 3) * 102, y = 54 + Math.floor(i / 3) * 44; drawIcon(k, x, y, t); para(ctrlText(k), x, y + 16, 96, 5, '#ffffff', 8); });
   }
   text((howPage + 1) + '/2  ▶', W - 18, H - 20, 5, '#c8bce8', 'right');
 }
@@ -338,7 +375,7 @@ function drawVisions() {
   bgRoom(V.theme); g.save(); g.globalAlpha = 0.45; R(0, 0, W, H, '#0a0616'); g.restore();
   text(tr('Escolha uma visão'), W / 2, 6, 8, '#ffe07a');
   for (const d of [-1, 1]) { const j = sel + d; if (j < 0 || j >= VISIONS.length) continue; const X = VISIONS[j]; drawActor(g, X.actor, W / 2 + d * 110, 108, t + j, 2, { alpha: 0.5, filter: X.i < save.unlocked ? undefined : 'brightness(0)' }); }
-  drawActor(g, V.actor, W / 2, 114, t, V.actor === 'hermes' || V.actor === 'ray' ? 2 : 3, { filter: open ? undefined : 'brightness(0)' });
+  drawActor(g, V.actor, W / 2, 114, t, fitScale(V.actor, 76, 3), { filter: open ? undefined : 'brightness(0)' });
   if (sel > 0) arrowTri(20, 80, 'left', 8, '#ffe07a'); if (sel < VISIONS.length - 1) arrowTri(W - 20, 80, 'right', 8, '#ffe07a');
   panel(14, 122, W - 28, 62);
   text(`${tr('Visão')} ${V.i + 1}/23 · ${open ? tr(V.name) : '???'}`, W / 2, 128, 7, open ? '#ffffff' : '#8a80a8');
@@ -387,7 +424,7 @@ function drawEnd() {
   const won = mode === 'cleared';
   trippy(t, won ? 0.6 : 0.2, won ? 120 : 330); g.save(); g.globalAlpha = won ? 0.3 : 0.65; R(0, 0, W, H, '#0a0616'); g.restore();
   drawActor(g, won ? 'richardCalm' : 'richard', 90, 150, t, 4, { rot: won ? 0 : Math.min(1.4, P.pt * 2), filter: won ? undefined : 'grayscale(0.6)' });
-  drawActor(g, P.V.actor, 236, 150, t, P.V.actor === 'hermes' || P.V.actor === 'ray' ? 2 : 3, { flip: true, alpha: won ? Math.max(0.15, 1 - P.pt * 0.25) : 1 });
+  drawActor(g, P.V.actor, 236, 150, t, fitScale(P.V.actor, 76, 3), { flip: true, alpha: won ? Math.max(0.15, 1 - P.pt * 0.25) : 1 });
   for (let i = 0; i < 3; i++) candle(130 + i * 30, 160, won && i < P.lives, t, 2, won ? 0 : 0.6);
   text(tr(won ? 'VISÃO VENCIDA!' : 'A ÚLTIMA VELA APAGOU'), W / 2, 14, won ? 12 : 10, won ? '#7aff9a' : '#ff7a9a');
   text(tr('Pontos') + ': ' + P.score + '   ' + tr('Recorde') + ': ' + (save.best[P.V.i] || 0), W / 2, 34, 6, '#ffe07a');
@@ -432,4 +469,4 @@ document.fonts?.load(font(8)).finally(() => { requestAnimationFrame(frame); bran
 // ganchos para testes automáticos
 window.__re = { get mode() { return mode; }, get P() { return P; }, VISIONS, makePool, go, startVision: (i) => startVision(VISIONS[i]),
   test(kind, i = 0) { startVision(VISIONS[i]); if (kind === 'boss') { P.boss = true; } else P.pool = [{ kind, lvl: 1 }]; prepareMicro(); setPhase('micro'); },
-  phase(ph) { P.phase = ph; P.pt = 0; } };
+  phase(ph) { P.phase = ph; P.pt = 0; }, setDevice(d) { device = d; } };

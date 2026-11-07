@@ -1,7 +1,7 @@
 // Os minijogos (microjogos de poucos segundos). Cada um tem uma ordem clara (a palavra grande), um ícone de controle
 // e um jeito só de ganhar. Usam a arte do Song of Moonlight: pisos, paredes, personagens e monstros de verdade.
 // Controles: setas/WASD ou arrastar o dedo = mover; A/Espaço/Enter ou tocar = ação; tocar no objeto = escolher.
-import { drawActor, room, ROOM_OPEN, G } from './art.js';
+import { drawActor, room, ROOM_OPEN, G, fitScale } from './art.js';
 import { sfx } from './audio.js';
 
 export const W = 320, H = 192;
@@ -61,16 +61,16 @@ function choiceBox(x, y, w, h, on, label) {
 }
 // mover na horizontal (setas ou dedo segurando)
 function moveX(o, sp = 150, lo = 16, hi = W - 16) {
-  let d = (inp.held('right') ? 1 : 0) - (inp.held('left') ? 1 : 0);
-  if (inp.ptr.down) d = Math.abs(inp.ptr.x - o.px) < 3 ? 0 : Math.sign(inp.ptr.x - o.px);
+  let d = inp.axis().x;   // analógico: teclado, controle ou joystick na tela
+  if (inp.ptr.down && !inp.joy()) d = Math.abs(inp.ptr.x - o.px) < 3 ? 0 : Math.sign(inp.ptr.x - o.px);   // mouse: segue o ponteiro
   o.px = Math.max(lo, Math.min(hi, o.px + d * sp * o.sp * o.dt));
   if (d) o.face = d < 0;
 }
 // mover em 4 direções (setas ou ir até o dedo)
 function move4(o, sp = 110) {
-  let dx = (inp.held('right') ? 1 : 0) - (inp.held('left') ? 1 : 0), dy = (inp.held('down') ? 1 : 0) - (inp.held('up') ? 1 : 0);
-  if (inp.ptr.down) { const ex = inp.ptr.x - o.px, ey = inp.ptr.y - o.py, d = Math.hypot(ex, ey); if (d > 4) { dx = ex / d; dy = ey / d; } else { dx = dy = 0; } }
-  const n = Math.hypot(dx, dy) || 1; o.px = Math.max(26, Math.min(W - 26, o.px + dx / n * sp * o.sp * o.dt)); o.py = Math.max(34, Math.min(H - 20, o.py + dy / n * sp * o.sp * o.dt));
+  let { x: dx, y: dy } = inp.axis();
+  if (inp.ptr.down && !inp.joy()) { const ex = inp.ptr.x - o.px, ey = inp.ptr.y - o.py, d = Math.hypot(ex, ey); if (d > 4) { dx = ex / d; dy = ey / d; } else { dx = dy = 0; } }
+  const n = Math.max(1, Math.hypot(dx, dy)); o.px = Math.max(26, Math.min(W - 26, o.px + dx / n * sp * o.sp * o.dt)); o.py = Math.max(34, Math.min(H - 20, o.py + dy / n * sp * o.sp * o.dt));
   if (dx) o.face = dx < 0;
 }
 // escolher entre N alvos: setas + A, ou tocar direto no alvo
@@ -99,7 +99,7 @@ export const MICROS = {
       if (!o.drop) { o.hx += o.dir * (110 + o.lvl * 25) * o.sp * o.dt; if (o.hx > W - 26) { o.hx = W - 26; o.dir = -1; } if (o.hx < 26) { o.hx = 26; o.dir = 1; } if (press()) { o.drop = { x: o.hx, y: 46 }; sfx.blip(); } }
       else { o.drop.y += 260 * o.dt; if (o.drop.y >= 126) { const i = Math.round((o.drop.x - 32) / 64); if (i === o.target && Math.abs(o.drop.x - (32 + i * 64)) < 20) o.win = true; else o.lose = true; } }
     },
-    draw(o, t) { topBg(o); for (let i = 0; i < 5; i++) { const x = 32 + i * 64; drawActor(g, i === o.target ? o.V.actor : 'paciente', x, 120, t + i, 1, { alpha: i === o.target ? 1 : 0.8 }); bed(x, 134, i === o.target, t); } arrowDown(32 + o.target * 64, 82, t, '#7aff9a'); R(0, 30, W, 2, '#5a4a7a'); const hx = o.drop ? o.drop.x : o.hx; R(hx - 6, 26, 12, 8, '#f0c8a0'); R(hx - 6, 26, 12, 2, '#d8a880'); vial(o.drop ? o.drop.x : o.hx, o.drop ? o.drop.y : 46, t); } },
+    draw(o, t) { topBg(o); for (let i = 0; i < 5; i++) { const x = 32 + i * 64; drawActor(g, i === o.target ? o.V.actor : ['elo', 'ruk', 'brusk', 'salvia'][i % 4], x, 120, t + i, 1, { alpha: i === o.target ? 1 : 0.8 }); bed(x, 134, i === o.target, t); } arrowDown(32 + o.target * 64, 82, t, '#7aff9a'); R(0, 30, W, 2, '#5a4a7a'); const hx = o.drop ? o.drop.x : o.hx; R(hx - 6, 26, 12, 8, '#f0c8a0'); R(hx - 6, 26, 12, 2, '#d8a880'); vial(o.drop ? o.drop.x : o.hx, o.drop ? o.drop.y : 46, t); } },
   bau: { word: 'ONDE ESTÁ?', icon: 'pick', timeout: 'lose', dur: (o) => 0.9 + (3 + o.lvl) * (0.5 - Math.min(0.25, o.lvl * 0.04)) / o.sp + 2.4,
     init(o) { o.slots = [0, 1, 2]; o.hid = 1; o.swaps = 3 + o.lvl; o.swT = (0.5 - Math.min(0.25, o.lvl * 0.04)) / o.sp; o.sel = 1; o.done = 0; o.from = null; },
     update(o) {
@@ -114,9 +114,9 @@ export const MICROS = {
       for (let id = 0; id < 3; id++) {
         let p = o.slots.indexOf(id), x = 60 + p * 100, y = 130;
         if (o.from && (id === o.from.a || id === o.from.b) && o.age - o.from.t0 < o.swT) { const k = (o.age - o.from.t0) / o.swT, other = id === o.from.a ? o.from.b : o.from.a, p0 = o.slots.indexOf(other); const x0 = 60 + p0 * 100; x = x0 + (x - x0) * k; y -= Math.sin(k * Math.PI) * 26 * (id === o.from.a ? 1 : -1); }
-        if (id === o.hid && o.age < showEnd) drawActor(g, o.V.actor, x, 110 - Math.max(0, (o.age / showEnd - 0.5)) * 40, t, 2, { alpha: Math.min(1, 2 - o.age / showEnd * 2 + 0.6) });
+        if (id === o.hid && o.age < showEnd) drawActor(g, o.V.actor, x, 110 - Math.max(0, (o.age / showEnd - 0.5)) * 40, t, fitScale(o.V.actor, 44, 2), { alpha: Math.min(1, 2 - o.age / showEnd * 2 + 0.6) });
         g.save(); g.translate(Math.round(x - 16), Math.round(y - 30)); g.scale(2, 2); G.drawChest(g, 0, 0, !!o.reveal && id === o.hid, false); g.restore();
-        if (o.reveal && id === o.hid) drawActor(g, o.V.actor, x, y - 26, t, 2);
+        if (o.reveal && id === o.hid) drawActor(g, o.V.actor, x, y - 26, t, fitScale(o.V.actor, 44, 2));
         if (picking && !o.reveal && p === o.sel) arrowDown(x, y - 52, t);
       }
     } },
@@ -137,23 +137,38 @@ export const MICROS = {
     draw(o, t) { topBg(o); g.save(); g.globalAlpha = 0.5; R(0, 0, W, H, '#05030c'); g.restore(); g.save(); g.translate(160, 150); g.scale(2.4, 2.4); bed(0, 0, false, t); g.restore(); drawActor(g, 'richard', 160, 146, t * (0.3 + o.awake), 3, { filter: `brightness(${0.45 + o.awake * 0.65})`, rot: (1 - o.awake) * 0.5 });
       g.font = '12px "Press Start 2P", monospace'; g.fillStyle = '#c8bce8'; for (const z of o.z) { g.globalAlpha = 1 - z.t / 1.5; g.fillText('Z', z.x, z.y); } g.globalAlpha = 1;
       R(40, 176, 240, 10, '#120c1e'); R(42, 178, 236 * o.awake, 6, o.awake < 0.3 ? '#ff5a5a' : '#7af0ff'); } },
-  livro: { word: 'PEGUE O LIVRO!', icon: 'move4', timeout: 'lose', dur: () => 5,
-    init(o) { const left = Math.random() < 0.5; o.px = left ? 40 : W - 40; o.py = ri(60, 150); o.bx = left ? W - 50 : 50; o.by = ri(50, 150);
-      o.spikes = []; const n = 7 + o.lvl * 3; for (let k = 0; k < 200 && o.spikes.length < n; k++) { const tx = ri(2, 17), ty = ri(2, 10), cx = tx * 16 + 8, cy = ty * 16 + 8; if (dist(cx, cy, o.px, o.py - 8) < 30 || dist(cx, cy, o.bx, o.by) < 26) continue; if (!o.spikes.some(([a, b]) => a === tx && b === ty)) o.spikes.push([tx, ty]); } },
-    update(o) { move4(o, 115); const tx = Math.floor(o.px / 16), ty = Math.floor((o.py - 4) / 16); if (o.spikes.some(([a, b]) => a === tx && b === ty)) { o.lose = true; o.why = 'spike'; } if (dist(o.px, o.py - 8, o.bx, o.by) < 16) o.win = true; },
-    draw(o, t) { topBg(o); for (const [tx, ty] of o.spikes) G.drawTile(g, '^', tx, ty, o.V.theme, ROOM_OPEN); G.drawLacrBook(g, o.bx - 8, o.by - 10, t); arrowDown(o.bx, o.by - 30, t); drawActor(g, rich(o), o.px, o.py, t, 2, { flip: o.face }); } },
+  // plataforma (de lado): o chão tem espinhos; pule de beirada em beirada até o livro
+  livro: { word: 'PEGUE O LIVRO!', icon: 'platform', timeout: 'lose', dur: () => 6.5,
+    init(o) { o.px = 24; o.py = 160; o.vy = 0; o.ground = true; o.face = false;
+      const n = 3 + Math.min(2, Math.floor(o.lvl / 2)); o.ledges = [];
+      let x = 52, y = 132; for (let i = 0; i < n; i++) { const w = Math.max(30, 50 - o.lvl * 3); o.ledges.push({ x, y, w }); x += w + rnd(16, 30 + o.lvl * 2); y = Math.max(52, y - rnd(14, 26)); if (x + w > W - 10) { x = W - w - 10; } }
+      const L = o.ledges[o.ledges.length - 1]; o.bx = L.x + L.w / 2; o.by = L.y; o.spike0 = 3; },
+    update(o) {
+      const ax = inp.axis().x; o.px = Math.max(10, Math.min(W - 10, o.px + ax * 115 * o.sp * o.dt)); if (ax) o.face = ax < 0;
+      if ((inp.hit('a') || inp.hit('up') || (inp.ptr.tap && !inp.joy())) && o.ground) { o.vy = -285; o.ground = false; sfx.jump(); }
+      const prev = o.py; o.vy += 820 * o.dt; o.py += o.vy * o.dt; o.ground = false;
+      for (const L of o.ledges) if (o.vy >= 0 && prev <= L.y && o.py >= L.y && o.px > L.x - 6 && o.px < L.x + L.w + 6) { o.py = L.y; o.vy = 0; o.ground = true; }
+      if (o.py >= 160) { o.py = 160; o.vy = 0; o.ground = true; if (o.px > o.spike0 * 16 + 4) { o.lose = true; o.why = 'spike'; } }
+      if (Math.abs(o.px - o.bx) < 14 && Math.abs(o.py - o.by) < 10) o.win = true;
+    },
+    draw(o, t) { sideBg(o);
+      for (let tx = o.spike0; tx < 20; tx++) G.drawTile(g, '^', tx, 10, o.V.theme, ROOM_OPEN);
+      const tiles = room(o.V.theme, FLOOR);
+      for (const L of o.ledges) { R(L.x - 1, L.y - 1, L.w + 2, 12, '#120c1e'); g.drawImage(tiles, (L.x * 3) % 200, 0, L.w, 10, L.x, L.y, L.w, 10); R(L.x, L.y, L.w, 1, 'rgba(255,255,255,0.35)'); }
+      G.drawLacrBook(g, o.bx - 8, o.by - 16, t); arrowDown(o.bx, o.by - 34, t);
+      drawActor(g, rich(o), o.px, o.py, t * (o.ground ? 3 : 0), 2, { flip: o.face }); } },
   conte: { word: 'QUANTOS?', icon: 'pick', timeout: 'lose', dur: (o) => 1.8 / o.sp + 2.6,
     init(o) { o.k = ri(3, 5 + Math.min(3, o.lvl)); o.flock = Array.from({ length: o.k }, (_, i) => ({ x: -30 - rnd(0, 120), y: rnd(30, 140), v: rnd(170, 230) })); const opts = new Set([o.k]); while (opts.size < 3) opts.add(Math.max(1, o.k + ri(-2, 2))); o.opts = [...opts].sort((a, b) => a - b); o.sel = 1; },
     update(o) { for (const b of o.flock) b.x += b.v * o.sp * o.dt; if (o.age < 1.8 / o.sp) return; const i = pick(o, o.opts.map((_, k) => [40 + k * 90, 80, 60, 50])); if (i >= 0) { if (o.opts[i] === o.k) o.win = true; else o.lose = true; } },
     draw(o, t) { sideBg(o); if (o.age < 1.8 / o.sp) { for (const b of o.flock) drawActor(g, o.V.mob, b.x, b.y, t + b.y, 2); return; } g.save(); g.globalAlpha = 0.6; R(0, 0, W, H, '#120c1e'); g.restore(); o.opts.forEach((n, k) => choiceBox(40 + k * 90, 80, 60, 50, k === o.sel, String(n))); } },
   equilibre: { word: 'EQUILIBRE!', icon: 'hold', timeout: 'win', dur: () => 4.2,
     init(o) { o.a = rnd(-0.1, 0.1); o.w = 0; o.n = 4 + Math.min(3, o.lvl); },
-    update(o) { o.w += rnd(-1, 1) * 2.5 * o.dt * (1 + o.lvl * 0.3); o.w *= 0.98; let d = (inp.held('right') ? 1 : 0) - (inp.held('left') ? 1 : 0); if (inp.ptr.down) d = inp.ptr.x < W / 2 ? -1 : 1; o.a += (o.a * 1.6 + o.w * 0.6 + d * 1.6) * o.sp * o.dt; if (Math.abs(o.a) > 0.75) o.lose = true; },
+    update(o) { o.w += rnd(-1, 1) * 2.5 * o.dt * (1 + o.lvl * 0.3); o.w *= 0.98; let d = inp.axis().x; if (inp.ptr.down && !inp.joy()) d = inp.ptr.x < W / 2 ? -1 : 1; o.a += (o.a * 1.6 + o.w * 0.6 + d * 1.6) * o.sp * o.dt; if (Math.abs(o.a) > 0.75) o.lose = true; },
     draw(o, t) { sideBg(o); drawActor(g, rich(o), 160 + o.a * 12, 160, t, 3, { rot: o.a * 0.15 }); books(160 + o.a * 30, 88, o.n, o.a); if (inp.ptr.down || inp.held('left') || inp.held('right')) { /* força mostrada nas setas */ } runeArrow('left', 24, 96, 10, o.a > 0.3 ? '#ff7a7a' : '#5a4a7a'); runeArrow('right', W - 24, 96, 10, o.a < -0.3 ? '#ff7a7a' : '#5a4a7a'); } },
   real: { word: 'QUAL É O DE VERDADE?', icon: 'pick', timeout: 'lose', dur: () => 3.6,
     init(o) { o.right = ri(0, 2); o.sel = 1; const fakes = ['hue-rotate(150deg)', 'invert(1) hue-rotate(180deg)', 'grayscale(1)', 'hue-rotate(260deg) saturate(2)']; o.fx = [0, 1, 2].map((i) => (i === o.right ? '' : fakes[(i + ri(0, 3)) % 4])); o.flip = [0, 1, 2].map((i) => i !== o.right && Math.random() < 0.3 + o.lvl * 0.1); },
     update(o) { const i = pick(o, [0, 1, 2].map((k) => [60 + k * 100 - 30, 70, 60, 90])); if (i >= 0) { if (i === o.right) o.win = true; else o.lose = true; } },
-    draw(o, t) { topBg(o); R(8, 8, 52, 60, '#120c1e'); R(10, 10, 48, 56, '#ffe07a'); R(12, 12, 44, 52, '#2a1e44'); drawActor(g, o.V.actor, 34, 58, t, 2); for (let k = 0; k < 3; k++) { const x = 60 + k * 100; if (k === o.sel) arrowDown(x, 66, t); drawActor(g, o.V.actor, x, 156, t + k * 0.3, 3, { filter: o.fx[k] || undefined, flip: o.flip[k] }); } } },
+    draw(o, t) { topBg(o); R(8, 8, 52, 60, '#120c1e'); R(10, 10, 48, 56, '#ffe07a'); R(12, 12, 44, 52, '#2a1e44'); drawActor(g, o.V.actor, 34, 62, t, fitScale(o.V.actor, 44, 2)); for (let k = 0; k < 3; k++) { const x = 60 + k * 100; if (k === o.sel) arrowDown(x, 66, t); drawActor(g, o.V.actor, x, 156, t + k * 0.3, fitScale(o.V.actor, 66, 3), { filter: o.fx[k] || undefined, flip: o.flip[k] }); } } },
   runas: { word: 'REPITA AS RUNAS!', icon: 'arrows', timeout: 'lose', dur: (o) => (2 + Math.min(4, o.lvl)) * 0.5 / o.sp + 3,
     init(o) { const D = ['up', 'right', 'down', 'left']; o.seq = Array.from({ length: 2 + Math.min(4, o.lvl) }, () => D[ri(0, 3)]); o.got = 0; o.flash = 0; },
     update(o) { const show = o.seq.length * 0.5 / o.sp; o.flash -= o.dt; if (o.age < show) return;
@@ -178,7 +193,7 @@ export const BOSS = { word: 'VENÇA A VISÃO!', icon: 'movepress', timeout: 'los
     o.shots = o.shots.filter((s) => s.y > -20); o.foes = o.foes.filter((f) => f.y < 200);
     if (o.hp <= 0) o.win = true; },
   draw(o, t) { sideBg(o); g.save(); g.globalAlpha = 0.16 + 0.08 * Math.sin(o.age * 8); R(0, 0, W, 160, '#ff2a4a'); g.restore();
-    drawActor(g, o.V.boss || o.V.actor, o.bx, o.by + 30, t, o.V.boss ? 1 : 3, { filter: o.flash > 0 ? 'brightness(3)' : undefined });
+    drawActor(g, o.V.boss || o.V.actor, o.bx, o.by + 30, t, fitScale(o.V.boss || o.V.actor, 60, 3), { filter: o.flash > 0 ? 'brightness(3)' : undefined });
     for (const f of o.foes) drawActor(g, o.V.mob, f.x, f.y + 10, t + f.x, 1);
     for (const s of o.shots) spark(s.x, s.y);
     drawActor(g, 'richard', o.px, 160, t, 2, { flip: o.face });

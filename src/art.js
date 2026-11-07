@@ -23,6 +23,13 @@ export const ACTORS = {
   leviata: { size: 96, draw: (c, x, y, t) => { c.save(); c.translate(x, y - 8); c.scale(0.4, 0.4); G.drawBoss(c, 'leviathan', 0, -40, t, 0, 'idle'); c.restore(); } },
   // a Sombra de Richard: o próprio Richard, escuro e roxo
   sombra: { size: 64, draw: (c, x, y, t) => { c.save(); c.filter = 'brightness(0.35) saturate(3) hue-rotate(40deg)'; G.drawNPC(c, x - 8, y - 18, 'richard', t * 1.7); c.restore(); } },
+  // passado de Brumavale (quem conta a história do Rei Aldric, da rainha Elara, do mago Orin e da Noite do Silêncio)
+  hilda: npc('baker2'), pedro: npc('guard'), mirela: npc('baker'), bento: npc('fisher'), brenda: npc('smith'), tobias: npc('merchant'), odete: npc('granny3'),
+  aldric: { size: 128, draw: (c, x, y, t) => { c.save(); c.translate(x, y); c.scale(0.7, 0.7); G.drawBoss(c, 'skelking', 0, -40, t, 0, 'idle'); c.restore(); } },
+  valerio: { size: 64, draw: (c, x, y, t) => G.drawKnight(c, x - 12, y - 26, Math.floor(t * 4) % 2, 'idle', t, 0, false) },
+  ecoSilencio: { size: 64, draw: (c, x, y, t) => G.drawKnight(c, x - 12, y - 26, Math.floor(t * 4) % 2, 'idle', t, 0, true) },
+  // presente de Lacrímora
+  nara: npc('lacCrystal'), maelis: npc('lacMoth:1'), salvia: npc('lacMushroom:2'), elo: npc('lacBeast:1'), iria: npc('lacFae:4'), ruk: npc('lacBeast:2'), brusk: npc('lacCrystal:4'), orvo: npc('lacMoth'),
   // monstros e chefes usados nos minijogos
   slime: mob('drawSlime', (t) => [t, 'green']), slimeP: mob('drawSlime', (t) => [t, 'purple']), bat: mob('drawBat', (t) => [t]),
   ghost: mob('drawGhost', (t) => [t, 0.85]), skeleton: mob('drawSkeleton', (t) => ['down', Math.floor(t * 4) % 2]), frog: mob('drawFrog', (t) => [t, false]),
@@ -54,6 +61,8 @@ export function drawActor(g, who, x, y, t, scale = 1, o = {}) {
   return { w: b.w * scale, h: b.h * scale };
 }
 export const bossActor = (type) => ({ key: 'boss:' + type, A: ACTORS.boss(type) });
+// escala inteira para o ator ficar com mais ou menos `h` pixels de altura
+export const fitScale = (who, h, max = 4) => Math.max(1, Math.min(max, Math.round(h / actorSize(who).h)));
 export const actorSize = (who) => { const key = typeof who === 'string' ? who : who.key, A = typeof who === 'string' ? ACTORS[who] : who.A; return boxOf(key, A); };
 
 // pisos e paredes de verdade do Song of Moonlight (uma sala de 20x12 tiles), guardados prontos por tema
