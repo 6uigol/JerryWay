@@ -2,7 +2,7 @@
 :root { --bg: #1a1226; --panel: rgba(20, 14, 38, 0.94); --gold: #ffcc3a; --text: #f4ecff; --muted: #b8a8d8; --line: #4a3a7a; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-body { font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.6; }
+body { font-family: 'Press Start 2P', 'Noto Sans CJK JP', 'Hiragino Sans', 'Microsoft YaHei', monospace; font-size: 10px; line-height: 1.6; }
 #cv { position: fixed; inset: 0; touch-action: none; image-rendering: pixelated; }
 #ui { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); background: rgba(10, 6, 24, 0.35); overflow-y: auto; }
 #ui[hidden] { display: none; }
@@ -136,3 +136,9 @@ button.shop-btn { background: #8a5a10; border-color: #ffcc3a; color: #fff2c8; fo
 .revive [hidden] { display: none !important; }
 .revive #rv-buy { display: grid; gap: 8px; margin: 6px 0 10px; }
 .revive .rv-short { margin: 0; color: #ffd27a; }
+/* Configurações: volume e idioma */
+.config .cfg-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10px; text-align: left; }
+.config .cfg-ctl { display: flex; align-items: center; gap: 8px; }
+.config .cfg-ctl b { min-width: 74px; text-align: center; font-size: 10px; color: #ffe070; }
+.config button.step { flex: 0 0 auto; width: 40px; padding: 8px 0; font-size: 14px; }
+.config select { font: inherit; font-size: 9px; color: var(--text); background: #3a2a62; border: 2px solid #6a5aa8; padding: 8px; max-width: 60%; }

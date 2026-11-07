@@ -1,14 +1,22 @@
 // Sons sintetizados na hora (nada de arquivo de áudio): pulo, moeda, splash, batida, portal, trem, sorte e uma musiquinha.
 let ac = null, master = null, musicGain = null, muted = false;
+// volumes (0 a 1) escolhidos em Configurações; ficam no aparelho
+const VOL_KEY = 'jw_audio';
+const vol = { music: 1, sfx: 1 };
+try { Object.assign(vol, JSON.parse(localStorage.getItem(VOL_KEY) || '{}')); } catch (_) { /* padrão */ }
+function applyVol() { if (master) master.gain.value = muted ? 0 : 0.5 * vol.sfx; if (musicGain) musicGain.gain.value = muted ? 0 : 0.5 * 0.22 * vol.music; }
+export const getVolume = (k) => vol[k];
+export function setVolume(k, v) { vol[k] = Math.max(0, Math.min(1, Math.round(v * 10) / 10)); applyVol(); try { localStorage.setItem(VOL_KEY, JSON.stringify(vol)); } catch (_) { /* ok */ } }
 export function initAudio() {
   if (ac) { if (ac.state === 'suspended' && !hiddenNow) ac.resume(); return; }
   try {
     ac = new (window.AudioContext || window.webkitAudioContext)();
-    master = ac.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(ac.destination);
-    musicGain = ac.createGain(); musicGain.gain.value = 0.22; musicGain.connect(master);
+    master = ac.createGain(); master.connect(ac.destination);
+    musicGain = ac.createGain(); musicGain.connect(ac.destination);   // a música tem volume próprio, separado dos efeitos
+    applyVol();
   } catch (_) { ac = null; }
 }
-export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.5; }
+export function setMuted(m) { muted = m; applyVol(); }
 export const isMuted = () => muted;
 
 function tone(freq, dur, type = 'square', vol = 0.3, slide = 0, delay = 0, dest = null) {

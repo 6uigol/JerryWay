@@ -8,6 +8,7 @@ import { save, commit, initCloud, currentAccount, submitScore, top10, friendly, 
 import { REVIVE_COST } from './ui.js';
 import { initUI, show, hide, showing } from './ui.js';
 import { brandIntro } from './brand.js';
+import { tr, fontFor } from './i18n.js';
 import { initAudio, setBackground, onResume } from './audio.js';
 import { startMusic, resyncMusic, setHardMusic } from './music.js';
 
@@ -222,7 +223,7 @@ function frame(now) {
   if (game.state === 'play' || game.state === 'dying') hud();
   const showPause = game.state === 'play' && !showing(); if (pauseBtn.hidden === showPause) pauseBtn.hidden = !showPause;
   const showPower = showPause && game.pw && game.pw.active; if (powerBtn.hidden === showPower) powerBtn.hidden = !showPower;
-  if (showPower) { const k = game.pw.cd ? Math.min(1, game.powerCd / game.pw.cd) : 0; powerBtn.style.setProperty('--cd', k); powerBtn.classList.toggle('ready', k <= 0); powerBtn.firstChild.textContent = k > 0 ? Math.ceil(game.powerCd) : game.preview ? 'IR' : '★'; powerBtn.classList.toggle('confirm', !!game.preview); }
+  if (showPower) { const k = game.pw.cd ? Math.min(1, game.powerCd / game.pw.cd) : 0; powerBtn.style.setProperty('--cd', k); powerBtn.classList.toggle('ready', k <= 0); if (powerBtn.lastChild.textContent !== tr('PODER')) powerBtn.lastChild.textContent = tr('PODER'); powerBtn.firstChild.textContent = k > 0 ? Math.ceil(game.powerCd) : game.preview ? 'IR' : '★'; powerBtn.classList.toggle('confirm', !!game.preview); }
   ctx.imageSmoothingEnabled = false;
   if (frameCv) ctx.drawImage(frameCv, 0, 0);
   // depois da fileira 1000 a tela treme de leve o tempo todo
@@ -250,10 +251,10 @@ function coin(c, x, y) { c.fillStyle = '#c8901a'; c.fillRect(x, y + 1, 8, 7); c.
 // ---------------------------------------------------------------- painéis do computador (informações da partida)
 const ZONE_NAMES = { campo: 'Campo de Brumavale', floresta: 'Floresta Sombria', deserto: 'Dunas', neve: 'Picos Gelados', lacrimora: 'Lacrímora', lua: 'A Lua' };
 function ptext(text, x, y, size, col, align = 'left') {
-  const u = panels.u; ctx.font = `${Math.round(size * u)}px "Press Start 2P", monospace`; ctx.textAlign = align; ctx.textBaseline = 'top';
+  text = tr(text); const u = panels.u; ctx.font = fontFor(Math.round(size * u)); ctx.textAlign = align; ctx.textBaseline = 'top';
   ctx.fillStyle = '#05081e'; ctx.fillText(text, x + u * 2, y + u * 2); ctx.fillStyle = col; ctx.fillText(text, x, y);
 }
-function fit(text, max) { return text.length > max ? text.slice(0, max - 1) + '…' : text; }
+function fit(text, max) { text = tr(text); return text.length > max ? text.slice(0, max - 1) + '…' : text; }
 function drawPanels() {
   const u = panels.u, L = panels.l, Rp = panels.r, playing = game.state === 'play' || game.state === 'dying' || game.state === 'pause';
   const cols = Math.max(8, Math.floor(L.w / (11 * u)));

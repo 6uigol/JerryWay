@@ -3,7 +3,8 @@ import { onChange, save, commit, setName, cloudReady, currentAccount, signIn, si
 import { SKINS, SKIN_BY_ID, RARITIES, PULL_COST, rollSkin } from './skins.js';
 import { jerryFrame } from './jerry.js';
 import { makeAcorn } from './acorn.js';
-import { sfx, isMuted, setMuted, initAudio } from './audio.js';
+import { sfx, initAudio, getVolume, setVolume } from './audio.js';
+import { LANGS, getLang, setLang, translateDom } from './i18n.js';
 import { musicEnabled, setMusic, startMusic } from './music.js';
 import { SITE_URL } from './config.js';
 
@@ -19,6 +20,8 @@ function connecting(el) {
 
 export function initUI(h) {
   hooks = h; root = $('#ui');
+  // textos que chegam depois (mensagens, ranking, conferindo compra...) também são traduzidos
+  new MutationObserver(() => translateDom(root)).observe(root, { childList: true, subtree: true, characterData: true });
   root.addEventListener('click', (e) => {
     const b = e.target.closest('[data-go]'); if (!b) return;
     initAudio(); startMusic(); sfx.click();
@@ -27,8 +30,8 @@ export function initUI(h) {
     else if (go === 'resume') hooks.resume();
     else if (go === 'quit') hooks.quit();
     else if (go === 'quitapp') quitApp();
-    else if (go === 'sound') { setMuted(!isMuted()); show(current); }
-    else if (go === 'music') { setMusic(!musicEnabled()); show(current); }
+    else if (go === 'config') { configBack = current === 'pause' ? 'pause' : 'title'; show('config'); }
+    else if (go === 'configback') show(configBack);
     else show(go);
   });
 }
@@ -62,13 +65,30 @@ function quitApp() {
 // habilidade passiva da skin (nome e o que faz)
 const abilityTag = (s) => { const a = s.power; return a ? `<span class="ability">${a.active ? 'Poder (botão)' : 'Poder'}: <b>${esc(a.name)}</b><br>${esc(a.desc)}</span>` : ''; };
 const coinsTag = () => `<span class="coins"><i class="coin"></i>${save.coins}</span>`;
-const soundBtns = () => `<div class="row small"><button class="ghost" data-go="sound">${isMuted() ? 'Som: desligado' : 'Som: ligado'}</button><button class="ghost" data-go="music">${musicEnabled() ? 'Música: ligada' : 'Música: desligada'}</button></div>`;
+const soundBtns = () => '<button class="ghost" data-go="config">Configurações</button>';
+// Configurações: volume da música e dos efeitos (0 a 100%) e idioma
+let configBack = 'title';
+function config() {
+  const pct = (k) => (getVolume(k) ? Math.round(getVolume(k) * 100) + '%' : 'Desligado');
+  root.innerHTML = `<div class="panel config"><h2>Configurações</h2>
+    ${[['music', 'Música'], ['sfx', 'Efeitos']].map(([k, n]) => `<div class="cfg-row"><span>${n}</span><div class="cfg-ctl"><button class="step" data-vol="${k}" data-d="-1" aria-label="-">−</button><b id="v-${k}">${pct(k)}</b><button class="step" data-vol="${k}" data-d="1" aria-label="+">+</button></div></div>`).join('')}
+    <div class="cfg-row"><span>Idioma</span><select id="cfg-lang">${LANGS.map((l) => `<option value="${l.code}" ${l.code === getLang() ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
+    <button class="big" data-go="configback">Voltar</button></div>`;
+  root.querySelectorAll('[data-vol]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.vol; setVolume(k, getVolume(k) + Number(b.dataset.d) * 0.1);
+    if (k === 'music') { if (!getVolume('music')) setMusic(false); else if (!musicEnabled()) setMusic(true); }
+    initAudio(); sfx.click(); $('#v-' + k).textContent = pct(k); translateDom($('#v-' + k));
+  }));
+  $('#cfg-lang').addEventListener('change', (e) => { setLang(e.target.value); sfx.click(); show('config'); });
+}
+if (!getVolume('music')) setMusic(false);
 
 export function show(name, data) {
   current = name; root.hidden = false;
-  const screens = { title, result, sorte, colecao, ranking, conta, pause, revive, loja };
+  const screens = { title, result, sorte, colecao, ranking, conta, pause, revive, loja, config };
   root.innerHTML = '';
   screens[name](data);
+  translateDom(root);
 }
 
 function title() {

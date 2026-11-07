@@ -1,5 +1,6 @@
 // A partida: o Jerry pula de faixa em faixa (toque = pra frente; arrastar = para os lados ou para trás).
 // A tela sobe sozinha, devagar e cada vez mais rápido. Se ela passar do Jerry, ele abre um portal para Lacrímora e vai embora.
+import { tr, fontFor } from './i18n.js';
 import { World, TILE, COLS, HARD_ROW, zoneAt, BONUS, BONUS_TIME, BONUS_MAX, ARENA_ROWS, BONUS_START, BONUS_FINISH } from './world.js';
 import { drawGround, drawFloaters, drawUpright, drawCoin, drawPortal, drawWeather } from './draw.js';
 import { jerryFrame } from './jerry.js';
@@ -666,9 +667,9 @@ export class Game {
 }
 // texto pequeno com contorno (nomes dos fantasmas)
 export function label(c, text, x, y, col = '#ffffff', size = 8, max = 40) {
-  const s = String(text).slice(0, max);
+  const s = String(tr(text)).slice(0, max);
   // diminui a letra se o texto não couber na largura da tela
-  for (;;) { c.font = `${size}px "Press Start 2P", monospace`; if (size <= 5 || c.measureText(s).width <= c.canvas.width - 8) break; size--; }
+  for (;;) { c.font = fontFor(size); if (size <= 5 || c.measureText(s).width <= c.canvas.width - 8) break; size--; }
   c.textAlign = 'center'; c.textBaseline = 'alphabetic';
   c.fillStyle = '#1a1226';
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) c.fillText(s, Math.round(x) + dx, Math.round(y) + dy);
