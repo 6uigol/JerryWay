@@ -373,7 +373,8 @@ export function drawUpright(c, L, x0, x1, ox, y, t) {
     for (const o of L.objs) vehicle(c, L, o, Math.round(ox + o.x), y, t);
   } else if (L.type === 'rail') {
     // semáforo do trem: pisca vermelho quando ele está para passar
-    const px = ox - T + 2, warn = L.train || L.timer < 1.3, on = Math.floor(t * 4) % 2;
+    // fica uma casa à esquerda da pista; em celular estreito (ou com cantos arredondados) entra na tela para sempre aparecer
+    const px = Math.max(ox - T + 2, 8), warn = L.train || L.timer < 1.3, on = Math.floor(t * 4) % 2;
     c.drawImage(signalArt(), px - 2, y - 14);
     if (warn) { R(c, px + 1, y - 3, 3, 3, on ? '#ff3a3a' : '#5a2020'); R(c, px + 10, y - 3, 3, 3, on ? '#5a2020' : '#ff3a3a'); c.globalAlpha = 0.3; R(c, on ? px - 2 : px + 7, y - 6, 10, 10, '#ff3a3a'); c.globalAlpha = 1; }
     if (L.train) train(c, L, Math.round(ox + L.train.x), y, L.train.w, t);
