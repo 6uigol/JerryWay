@@ -344,8 +344,10 @@ function revive(d) {
 // ---------------------------------------------------------------- Loja (a compra é feita no site, com a mesma conta)
 const SHOP = [
   { id: 'pacote-lua', name: 'Pacote Lua Cheia', price: 'R$ 47,90', badge: 'Melhor oferta', desc: 'Song of Moonlight: O Mistério do Castelo Silencioso + 500 moedas + Multiplicador de moedas.', big: true, part: () => coinMult() > 1 },
-  { id: 'jerry-way-x2', name: 'Multiplicador de moedas', price: 'R$ 7,90', badge: 'x2', desc: 'Todas as moedas das suas partidas valem o dobro, para sempre.', own: () => coinMult() > 1 },
-  { id: 'jerry-way-coins150', name: '150 moedas', price: 'R$ 12,00', badge: '+150', desc: 'Entram sozinhas no jogo. Pode comprar quantas vezes quiser.' },
+  { id: 'jerry-way-x2', name: 'Multiplicador de moedas', price: 'R$ 11,90', badge: 'x2', desc: 'Todas as moedas das suas partidas valem o dobro, para sempre.', own: () => coinMult() > 1 },
+  { id: 'jerry-way-coins150', name: '150 moedas', price: 'R$ 9,90', badge: '+150', desc: 'Entram sozinhas no jogo. Pode comprar quantas vezes quiser.' },
+  { id: 'jerry-way-coins350', name: '350 moedas', price: 'R$ 19,90', badge: '+350', desc: 'Rende 14% a mais que o pacote de 150. Entram sozinhas no jogo.' },
+  { id: 'jerry-way-coins600', name: '600 moedas', price: 'R$ 29,90', badge: '+600', desc: 'O melhor preço por moeda: rende 33% a mais que o pacote de 150.' },
   { id: 'jerry-way-allskins', name: 'Todas as skins', price: 'R$ 239,90', badge: 'Tudo', desc: 'Todas as 450 skins do Jerry, inclusive as míticas e as que saírem depois.', own: () => SKINS.every((k) => save.owned.includes(k.id)) },
 ];
 function openSite(path) { const a = document.createElement('a'); a.href = SITE_URL + path; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }

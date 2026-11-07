@@ -29,7 +29,7 @@ Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.j
 ## Reviver e chaves
 
 - **Sem anúncios:** o jogo não tem anúncio nenhum (nem AdMob nem anúncio próprio).
-- **Reviver:** 1 vez por partida, por 70 moedas (40 com a habilidade Pechincheiro). Sem moedas suficientes, vai direto para o fim. Depois da fileira 1000 não dá para reviver.
+- **Reviver:** 1 vez por partida, por 70 moedas (40 com a habilidade Pechincheiro). Sem moedas suficientes, a tela sugere comprar moedas. Depois da fileira 1000 não dá para reviver.
 
 ## Dimensões bônus e habilidades
 
@@ -44,8 +44,8 @@ Código: `src/world.js` (faixas infinitas), `src/game.js` (partida), `src/draw.j
 
 ## Loja (no site)
 
-- **Multiplicador de moedas (R$ 7,90):** as moedas de cada partida valem o dobro (`coinMult` em `src/store.js`).
-- **150 moedas (R$ 12,00):** pode comprar várias vezes; o servidor guarda e o jogo busca em `/api/jerry` (`claimCoins`), uma vez só.
+- **Multiplicador de moedas (R$ 11,90):** as moedas de cada partida valem o dobro (`coinMult` em `src/store.js`).
+- **Moedas (pode comprar várias vezes):** 150 por R$ 9,90; 350 por R$ 19,90 (14% a mais por real); 600 por R$ 29,90 (33% a mais por real). O servidor guarda e o jogo busca em `/api/jerry` (`claimCoins`), uma vez só.
 - **Pacote Lua Cheia (R$ 47,90):** Song of Moonlight + 500 moedas + Multiplicador.
 - **Todas as skins (R$ 239,90):** também por chave.
 - No jogo: botão **Loja** no menu, aviso no fim da partida ("com o Multiplicador você levaria +X") e no Sortear skin quando faltam moedas; a compra abre o site em `#/comprar/<item>`.
