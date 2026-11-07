@@ -1,20 +1,17 @@
 name: Build Android (APK)
 
 # Gera o APK do Android nos servidores do GitHub (que já têm o SDK do Android) a cada atualização do jogo no main.
-# O APK fica:
-#   - na página de Releases, na versão "android-latest" (para baixar direto no celular);
-#   - no branch "apk-latest" (só o arquivo do APK, sempre substituído pelo mais novo).
+# O APK fica no branch "richard-apk-latest" (só o arquivo do APK, sempre substituído pelo mais novo).
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    paths: ['src/**', 'android/**', 'package.json', 'index.html', 'style.css', 'fonts/**', 'icons/**', 'capacitor.config.*', 'scripts/**', '.github/workflows/build-android.yml']
+    branches: [main, richard-is-bored]
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-android
+  group: build-android-richard
   cancel-in-progress: true
 
 jobs:
@@ -32,30 +29,22 @@ jobs:
       - name: Nome do APK
         id: apk
         run: |
-          APK=$(ls dist/Richard-Entediado-*.apk | head -1)
+          APK=$(ls dist/Richard-Is-Bored-*.apk | head -1)
           BUILD=$(grep -o 'versionCode [0-9]*' android/app/build.gradle | grep -o '[0-9]*')
           echo "path=$APK" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
           ls -la dist/*.apk
-      # cópia extra do APK; se a cota de artefatos do GitHub encher, não impede a Release nem o branch apk-latest
+      # cópia extra do APK; se a cota de artefatos do GitHub encher, não impede o branch richard-apk-latest
       - uses: actions/upload-artifact@v4
         continue-on-error: true
-        with: { name: Richard-Entediado-Android-APK, path: dist/Richard-Entediado-*.apk, retention-days: 30 }
-      - name: Publicar na página de Releases (android-latest)
-        env:
-          GH_TOKEN: ${{ github.token }}
+        with: { name: Richard-Is-Bored-Android-APK, path: dist/Richard-Is-Bored-*.apk, retention-days: 30 }
+      - name: Guardar no branch richard-apk-latest
         run: |
-          gh release delete android-latest --cleanup-tag --yes || true
-          gh release create android-latest "${{ steps.apk.outputs.path }}" --target "$GITHUB_SHA" \
-            --title "Richard Entediado — Android (versão ${{ steps.apk.outputs.build }})" \
-            --notes "APK do Android gerado do commit ${GITHUB_SHA::7} (versão ${{ steps.apk.outputs.build }}). Baixe no celular e instale (permita instalar de fontes desconhecidas)."
-      - name: Guardar no branch apk-latest
-        run: |
-          mkdir /tmp/apk && cp "${{ steps.apk.outputs.path }}" /tmp/apk/Richard-Entediado.apk
+          mkdir /tmp/apk && cp "${{ steps.apk.outputs.path }}" /tmp/apk/Richard-Is-Bored.apk
           cd /tmp/apk
           echo "Versão ${{ steps.apk.outputs.build }} — commit ${GITHUB_SHA}" > VERSAO.txt
-          git init -q -b apk-latest
+          git init -q -b richard-apk-latest
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A && git commit -qm "APK da versão ${{ steps.apk.outputs.build }} (${GITHUB_SHA::7})"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" apk-latest
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" richard-apk-latest

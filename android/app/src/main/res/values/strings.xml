@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Richard Entediado</string>
-    <string name="title_activity_main">Richard Entediado</string>
+    <string name="app_name">Richard Is Bored</string>
+    <string name="title_activity_main">Richard Is Bored</string>
     <string name="package_name">com.songofmoonlight.richard</string>
     <string name="custom_url_scheme">com.songofmoonlight.richard</string>
 </resources>

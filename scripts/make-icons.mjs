@@ -1,4 +1,4 @@
-// Gera os ícones do Richard Entediado (PNG, ICO e, se existir a pasta android, os do Android) com o Richard do próprio jogo.
+// Gera os ícones do Richard Is Bored (PNG, ICO e, se existir a pasta android, os do Android) com o Richard do próprio jogo.
 // Uso: node scripts/make-icons.mjs   (usa o Chromium do Playwright)
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';

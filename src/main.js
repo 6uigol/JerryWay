@@ -1,4 +1,4 @@
-// Richard Entediado — sozinho na Torre das Treze Vozes, Richard enlouquece de tédio e enxerga "visões".
+// Richard Is Bored — sozinho na Torre das Treze Vozes, Richard enlouquece de tédio e enxerga "visões".
 // Cada visão é um personagem com seus minijogos de poucos segundos (estilo microjogos): 3 erros e acabou.
 // A 1ª visão tem 7 minijogos, a 2ª tem 8, a 3ª tem 9... e cada uma termina num minijogo chefe mais difícil.
 import { brandIntro } from './brand.js';
@@ -340,7 +340,7 @@ function lives(n, x, y) { for (let i = 0; i < 3; i++) { const on = i < n; R(x + 
 function draw() {
   if (mode === 'title') {
     towerBg();
-    text(tr('RICHARD ENTEDIADO'), W / 2, 92 - 70, 16, '#ffe07a');
+    text(tr('RICHARD IS BORED'), W / 2, 92 - 70, 16, '#ffe07a');
     wrapText(tr('Sozinho na torre, Richard começa a ver coisas.'), W / 2, 44, 300, 6, '#c8bce8', 9);
     g.globalAlpha = 0.85; R(80, 100, 160, MENU.length * 16 + 6, '#120c1e'); g.globalAlpha = 1;
     MENU.forEach(([s], i) => text((i === sel ? '▶ ' : '') + tr(s), W / 2, 104 + i * 16, 8, i === sel ? '#ffe07a' : '#ffffff'));

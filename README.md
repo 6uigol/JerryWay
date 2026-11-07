@@ -1,4 +1,4 @@
-# Richard Entediado
+# Richard Is Bored
 
 Sozinho na Torre das Treze Vozes, o Richard enlouquece de tédio e começa a ter **visões**: cada visão é um personagem
 do universo Song of Moonlight (ou algo bem mais estranho) com seus minijogos de poucos segundos. Errou 3 vezes, acabou.

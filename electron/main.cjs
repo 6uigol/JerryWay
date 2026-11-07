@@ -1,5 +1,5 @@
 'use strict';
-// Richard Entediado — casca Electron (Windows e Linux). O jogo é o mesmo HTML/CSS/JS, servido por app://jogo/
+// Richard Is Bored — casca Electron (Windows e Linux). O jogo é o mesmo HTML/CSS/JS, servido por app://jogo/
 // (módulos ES não funcionam em file://).
 const { app, BrowserWindow, Menu, protocol, net, shell, session, ipcMain } = require('electron');
 const path = require('node:path');
@@ -20,7 +20,7 @@ function serveGame(req) {
 let win = null;
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 480, minHeight: 480, backgroundColor: '#1a1226', show: false, title: 'Richard Entediado',
+    width: 1280, height: 800, minWidth: 480, minHeight: 480, backgroundColor: '#1a1226', show: false, title: 'Richard Is Bored',
     fullscreen: true, frame: false,   // sempre em tela cheia, sem a barra com X, maximizar e minimizar (para sair: botão Sair do jogo)
     icon: path.join(ROOT, 'icons', process.platform === 'win32' ? 'app.ico' : 'icon-512.png'), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: DEV, spellcheck: false, backgroundThrottling: false },

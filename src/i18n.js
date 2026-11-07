@@ -5,7 +5,7 @@ export const LANGS = [
 ];
 // ordem das colunas: pt-PT, en, ja, es, fr, zh-CN
 const T = {
-  'RICHARD ENTEDIADO': ['RICHARD ENTEDIADO', 'RICHARD IS BORED', 'リチャードは退屈', 'RICHARD ABURRIDO', 'RICHARD S\'ENNUIE', '无聊的理查德'],
+  'RICHARD IS BORED': ['RICHARD IS BORED', 'RICHARD IS BORED', 'RICHARD IS BORED', 'RICHARD IS BORED', 'RICHARD IS BORED', 'RICHARD IS BORED'],   // o nome do jogo é sempre em inglês
   'Sozinho na torre, Richard começa a ver coisas.': ['Sozinho na torre, o Richard começa a ver coisas.', 'Alone in the tower, Richard starts seeing things.', '塔にひとり、リチャードは幻を見はじめる。', 'Solo en la torre, Richard empieza a ver cosas.', 'Seul dans la tour, Richard commence à voir des choses.', '独自在塔里，理查德开始看见幻象。'],
   'Jogar': ['Jogar', 'Play', 'あそぶ', 'Jugar', 'Jouer', '开始'],
   'Configurações': ['Definições', 'Settings', 'せってい', 'Ajustes', 'Réglages', '设置'],

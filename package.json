@@ -1,9 +1,9 @@
 {
-  "name": "richard-entediado",
+  "name": "richard-is-bored",
   "private": true,
   "type": "module",
   "version": "1.0.0",
-  "description": "Richard Entediado — visões e minijogos na torre (universo Song of Moonlight)",
+  "description": "Richard Is Bored — visões e minijogos na torre (universo Song of Moonlight)",
   "author": {
     "name": "Song of Moonlight",
     "email": "146967020+6uigol@users.noreply.github.com"
@@ -26,7 +26,7 @@
   "build": {
     "appId": "com.songofmoonlight.richard",
     "buildVersion": "1.0.0.0",
-    "productName": "Richard Entediado",
+    "productName": "Richard Is Bored",
     "copyright": "Todos os direitos reservados",
     "directories": {
       "output": "dist"
@@ -64,8 +64,8 @@
       ],
       "icon": "icons/icon-512.png",
       "category": "Game",
-      "executableName": "richard-entediado",
-      "artifactName": "Richard-Entediado-1.0.0.0.${ext}",
+      "executableName": "richard-is-bored",
+      "artifactName": "Richard-Is-Bored-1.0.0.0.${ext}",
       "maintainer": "6uigol <146967020+6uigol@users.noreply.github.com>"
     },
     "nsis": {
@@ -74,11 +74,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Richard Entediado",
+      "shortcutName": "Richard Is Bored",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "language": "1046",
-      "artifactName": "Richard-Entediado-Setup-1.0.0.0.${ext}"
+      "artifactName": "Richard-Is-Bored-Setup-1.0.0.0.${ext}"
     },
     "electronLanguages": [
       "pt-BR",
