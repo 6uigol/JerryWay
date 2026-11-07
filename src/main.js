@@ -5,7 +5,7 @@
 import { brandIntro } from './brand.js';
 import { tr, font, cjk, LANGS, getLang, setLang, VISION_TEXT } from './i18n.js';
 import { initAudio, setVolumes, playSong, setTempo, pumpMusic, sfx } from './audio.js';
-import { drawActor, room, ROOM_OPEN, fillTextAccents, bossActor, fitScale } from './art.js';
+import { drawActor, room, ROOM_OPEN, fillTextAccents, bossActor, fitScale, G, lighting, vignette, motes, fog } from './art.js';
 import { MICROS, MICRO_KINDS, BOSS, bindMicro, W, H } from './micro.js';
 
 const SITE = 'https://songofmoonlight.online';
@@ -25,7 +25,7 @@ setVolumes(save.music, save.sfx);
 // `device` guarda o último jeito que você usou (teclado, controle ou toque): os avisos de controle mudam junto.
 // No toque, os minijogos de andar ganham joystick na tela (metade esquerda) e botão de ação (metade direita).
 const keys = new Set(), hits = new Set();
-let device = 'keyboard';
+let device = matchMedia?.('(pointer: coarse)').matches ? 'touch' : 'keyboard';
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'a', Enter: 'a', KeyZ: 'a', KeyJ: 'a', Escape: 'back', Backspace: 'back' };
 const wake = () => { initAudio(); };
 addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k) return; e.preventDefault(); wake(); device = 'keyboard'; if (!keys.has(k)) hits.add(k); keys.add(k); });
@@ -35,10 +35,30 @@ const stick = { on: false, id: null, x0: 0, y0: 0, x: 0, y: 0, btn: null, btnDow
 const toLogic = (e) => { const r = cv.getBoundingClientRect(), s = Math.min(r.width / W, r.height / H), ox = (r.width - W * s) / 2, oy = (r.height - H * s) / 2; return [(e.clientX - r.left - ox) / s, (e.clientY - r.top - oy) / s]; };
 const JOY_ICONS = new Set(['move', 'move4', 'movepress', 'hold', 'platform']);
 const joyMode = () => device === 'touch' && mode === 'play' && P && P.micro && (P.phase === 'micro' || P.phase === 'irisIn' || P.phase === 'command') && JOY_ICONS.has(P.micro.K.icon);
+// controle na tela também nos menus (direcional + A + B), quando você joga pelo toque
+const menuPadOn = () => device === 'touch' && ['title', 'visions', 'settings', 'legal', 'howto'].includes(mode);
+const PAD = { dx: 36, dy: H - 38, ax: W - 26, ay: H - 46, bx: W - 58, by: H - 22 };
+let padFlash = null;
+function padZone(x, y) {
+  if (Math.hypot(x - PAD.ax, y - PAD.ay) < 17) return 'a';
+  if (Math.hypot(x - PAD.bx, y - PAD.by) < 14) return 'back';
+  const dx = x - PAD.dx, dy = y - PAD.dy; if (Math.hypot(dx, dy) < 32 && Math.hypot(dx, dy) > 4) return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+  return null;
+}
+function drawMenuPad() {
+  if (!menuPadOn()) return;
+  const on = (z) => padFlash && padFlash.z === z;
+  g.save(); g.globalAlpha = 0.72;
+  const { dx, dy } = PAD; R(dx - 9, dy - 27, 18, 54, '#120c1e'); R(dx - 27, dy - 9, 54, 18, '#120c1e'); R(dx - 7, dy - 25, 14, 50, '#4a3a72'); R(dx - 25, dy - 7, 50, 14, '#4a3a72');
+  for (const [z, ax, ay, d] of [['up', dx, dy - 17, 'up'], ['down', dx, dy + 17, 'down'], ['left', dx - 17, dy, 'left'], ['right', dx + 17, dy, 'right']]) arrowTri(ax, ay, d, 5, on(z) ? '#ffffff' : '#ffe07a');
+  for (const [z, x, y, r, c1, lab] of [['a', PAD.ax, PAD.ay, 15, '#3ac86a', 'A'], ['back', PAD.bx, PAD.by, 12, '#c83a5a', 'B']]) { g.fillStyle = '#120c1e'; g.beginPath(); g.arc(x, y + 1, r + 1, 0, 7); g.fill(); g.fillStyle = on(z) ? '#ffffff' : c1; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); text(lab, x + 1, y - 3, 7, '#ffffff', 'center', '#120c1e'); }
+  g.restore();
+}
 const needsButton = () => joyMode() && (P.micro.K.icon === 'movepress' || P.micro.K.icon === 'platform');
 cv.addEventListener('pointerdown', (e) => {
   wake(); if (e.pointerType === 'touch' || e.pointerType === 'pen') device = 'touch'; else if (device === 'touch') device = 'keyboard';
   const [x, y] = toLogic(e); cv.setPointerCapture?.(e.pointerId);
+  if (menuPadOn()) { const z = padZone(x, y); if (z) { hits.add(z); padFlash = { z, t: 0.15 }; return; } }
   if (joyMode()) {
     if (x > W * 0.55 && needsButton()) { stick.btn = e.pointerId; stick.btnDown = true; hits.add('a'); keys.add('a'); return; }
     if (!stick.on) { Object.assign(stick, { on: true, id: e.pointerId, x0: x, y0: y, x, y }); return; }
@@ -186,10 +206,10 @@ function drawIcon(kind, x, y, t) {
 }
 
 // ---------------------------------------------------------------- estado geral
-let mode = 'title', t = 0, sel = 0, P = null, storyPage = 0, storyNext = 'title', howPage = 0, rotateHint = false;
-const MENU = [['Jogar', () => { if (!save.seenStory) { save.seenStory = true; commit(); go('story', 'howto'); } else go('visions'); }], ['História', () => go('story', 'title')], ['Como jogar', () => go('howto')], ['Configurações', () => go('settings')], ['Termos e privacidade', () => go('legal')]];
+let mode = 'boot', t = 0, sel = 0, P = null, storyPage = 0, storyNext = 'title', howPage = 0, rotateHint = false;
+const MENU = [['Jogar', () => { if (!save.seenHow) { save.seenHow = true; commit(); go('howto'); } else go('visions'); }], ['Como jogar', () => go('howto')], ['Configurações', () => go('settings')], ['Termos e privacidade', () => go('legal')]];
 if (window.desktop?.quit) MENU.push(['Sair do jogo', () => window.desktop.quit()]);
-function go(m, next) { mode = m; sel = 0; if (m === 'story') { storyPage = 0; storyNext = next || 'title'; } if (m === 'howto') howPage = 0; if (m === 'visions') sel = Math.min(save.unlocked - 1, VISIONS.length - 1); if (['title', 'visions', 'story', 'howto', 'settings', 'legal'].includes(m)) playSong('title'); }
+function go(m, next) { mode = m; sel = 0; if (m === 'story') { storyPage = 0; storyT = 0; storyNext = next || 'title'; } if (m === 'howto') howPage = 0; if (m === 'visions') sel = Math.min(save.unlocked - 1, VISIONS.length - 1); if (['title', 'visions', 'story', 'howto', 'settings', 'legal'].includes(m)) playSong('title'); }
 
 // ---------------------------------------------------------------- partida (palco + minijogos)
 const PH = { start: 2.4, command: 1.15, irisIn: 0.4, freeze: 0.6, irisOut: 0.4, result: 1.35, speed: 1.7, bossIntro: 2.2 };
@@ -204,9 +224,10 @@ function prepareMicro() {
   const o = { K, V: P.V, lvl, sp: P.sp, age: 0, dt: 0, sel: 0, trip: P.wins >= 5, mad: mad() };
   K.init(o); o.dur = K.dur(o) / (K === MICROS.bau || K === MICROS.conte || K === MICROS.runas ? 1 : P.sp);
   // primeiro quadro já desenhado (aparece durante o zoom)
-  mg.save(); K.draw(o, t); mg.restore();
+  mg.save(); K.draw(o, t); mg.restore(); microPost();
   P.micro = o; setPhase('command'); sfx.slam();
 }
+function microPost() { motes(mg, t, 18, '230,220,255', 3); vignette(mg, 0.5); }
 function finishMicro(won) {
   P.last = won; setPhase('freeze');
   if (won) { sfx.win(); P.score += P.boss ? 10 : 1; } else { sfx.lose(); }
@@ -282,7 +303,7 @@ function drawFuse(o) {
 function drawPlay() {
   const ph = P.phase;
   if (ph === 'micro' || ph === 'freeze') {
-    if (ph === 'micro') { mg.save(); P.micro.K.draw(P.micro, t); mg.restore(); }
+    if (ph === 'micro') { mg.save(); P.micro.K.draw(P.micro, t); mg.restore(); microPost(); }
     g.drawImage(mcv, 0, 0);
     if (ph === 'micro') { drawFuse(P.micro); for (let i = 0; i < 3; i++) candle(W - 50 + i * 14, 16, i < P.lives, t, 1); drawTouchPad(); }
     if (ph === 'freeze') { const s = Math.max(1, 2.4 - P.pt * 8); g.save(); g.translate(W / 2, H / 2); g.scale(s, s); text(P.last ? '✓' : '✗', 0, -16, 32, P.last ? '#7aff9a' : '#ff5a5a'); g.restore(); }
@@ -307,53 +328,148 @@ function drawPlay() {
     g.save(); g.beginPath(); g.arc(W / 2, H / 2, r, 0, 7); g.clip(); g.drawImage(mcv, 0, 0); g.restore();
     g.strokeStyle = '#ffe07a'; g.lineWidth = 3; g.beginPath(); g.arc(W / 2, H / 2, r, 0, 7); g.stroke();
   }
+  vignette(g, 0.6); motes(g, t, 20);
   wobble(1.2 + mad() * 2.2 + (ph === 'speed' ? 3 : 0), t, 3 + P.sp);
 }
 
 // ---------------------------------------------------------------- telas
 function bgRoom(theme) { g.drawImage(room(theme, ROOM_OPEN), 0, 0); }
+// o observatório do Richard: piso da torre, mesa com papéis, janela com a lua, velas acesas e a escuridão em volta
+const OBS = ['####################', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '####################'];
+function desk(x, y, t) {
+  R(x - 30, y - 2, 60, 14, '#120c1e'); R(x - 29, y - 1, 58, 10, '#6a4428'); R(x - 29, y - 1, 58, 2, '#8a5a34'); R(x - 26, y + 9, 4, 12, '#4a2e1a'); R(x + 22, y + 9, 4, 12, '#4a2e1a');
+  for (let i = 0; i < 4; i++) { const px = x - 22 + i * 12, py = y - 4 - (i % 2); R(px, py, 9, 6, '#120c1e'); R(px + 1, py + 1, 7, 4, '#e8dcbc'); R(px + 2, py + 2, 4, 1, '#8a7a9a'); }
+  G.drawLacrBook(g, x + 6, y - 18, t);
+}
+function moonWindow(x, y, t) {
+  R(x - 22, y - 26, 44, 52, '#120c1e'); g.fillStyle = '#0e1a3a'; g.beginPath(); g.arc(x, y - 4, 19, Math.PI, 0); g.fill(); R(x - 19, y - 4, 38, 28, '#0e1a3a');
+  for (let i = 0; i < 6; i++) R(x - 16 + ((i * 13) % 32), y - 18 + ((i * 7) % 36), 1, 1, '#e8eeff');
+  g.fillStyle = '#fff4c0'; g.beginPath(); g.arc(x + 4, y - 8, 8, 0, 7); g.fill(); g.fillStyle = '#0e1a3a'; g.beginPath(); g.arc(x + 8, y - 11, 7, 0, 7); g.fill();
+  R(x - 1, y - 23, 2, 47, '#120c1e'); R(x - 19, y + 4, 38, 2, '#120c1e'); R(x - 22, y + 24, 44, 4, '#3a2e4c');
+}
 function drawTitle() {
-  trippy(t * 0.4, 0.5, 260); g.save(); g.globalAlpha = 0.55; R(0, 0, W, H, '#0a0616'); g.restore();
-  // torre e o Richard na janela
-  const tx = 200; R(tx - 34, 70, 68, 122, '#120c1e'); R(tx - 32, 72, 64, 120, '#3a2e4c'); for (let y = 76; y < H; y += 8) R(tx - 32, y, 64, 1, '#2e2440');
-  g.fillStyle = '#2a2040'; g.beginPath(); g.moveTo(tx - 40, 74); g.lineTo(tx, 40); g.lineTo(tx + 40, 74); g.closePath(); g.fill();
-  R(tx - 14, 92, 28, 30, '#120c1e'); R(tx - 12, 94, 24, 26, '#ffd27a'); drawActor(g, 'richard', tx, 122, t, 1);
+  g.drawImage(room('lactower', OBS), 0, 0);
+  moonWindow(254, 70, t); desk(160, 140, t);
+  drawActor(g, 'richard', 160, 136, t, 2);
+  for (let i = 0; i < 9; i++) { const a = t * 0.5 + i * 0.7, x = 160 + Math.cos(a) * (40 + i * 6), y = 92 + Math.sin(a * 1.4) * 22; R(x - 3, y - 4, 7, 8, '#120c1e'); R(x - 2, y - 3, 5, 6, '#e8dcbc'); R(x - 1, y - 1, 3, 1, '#8a7a9a'); }
+  candle(118, 132, true, t, 1); candle(204, 132, true, t, 1); candle(40, 166, true, t, 2); candle(286, 166, true, t, 2);
+  lighting(g, [[118, 124, 70], [204, 124, 70], [40, 150, 60], [286, 150, 60], [254, 64, 70, 0.8], [160, 110, 50, 0.5]], 0.72);
+  motes(g, t, 30); vignette(g, 0.5);
   const title = 'RICHARD IS BORED';
   g.font = font(16); let x = W / 2 - g.measureText(title).width / 2;
-  for (let i = 0; i < title.length; i++) { const ch = title[i], w = g.measureText(ch).width; text(ch, x + w / 2, 12 + Math.round(Math.sin(t * 3 + i * 0.6) * 3), 16, `hsl(${(t * 60 + i * 22) % 360},90%,70%)`); x += w; }
-  panel(10, 40, 140, MENU.length * 15 + 10);
-  MENU.forEach(([s], i) => text((i === sel ? '▶' : ' ') + tr(s), 16, 46 + i * 15, 6, i === sel ? '#ffe07a' : '#ffffff', 'left'));
-  for (let i = 0; i < 3; i++) candle(256 + i * 20, 150, true, t, 2);
-  text('Song of Moonlight', W - 6, H - 12, 5, '#8a80b0', 'right');
+  for (let i = 0; i < title.length; i++) { const ch = title[i], w = g.measureText(ch).width; text(ch, x + w / 2, 10 + Math.round(Math.sin(t * 3 + i * 0.6) * 3), 16, `hsl(${(t * 60 + i * 22) % 360},90%,72%)`); x += w; }
+  panel(8, 40, 112, MENU.length * 15 + 10);
+  MENU.forEach(([s], i) => text((i === sel ? '▶' : ' ') + tr(s), 14, 46 + i * 15, 6, i === sel ? '#ffe07a' : '#ffffff', 'left'));
+  text('Song of Moonlight', W - 6, 32, 5, '#8a80b0', 'right');
 }
 function updateTitle() {
   if (hits.has('up')) { sel = (sel + MENU.length - 1) % MENU.length; sfx.tick(); }
   if (hits.has('down')) { sel = (sel + 1) % MENU.length; sfx.tick(); }
-  for (let i = 0; i < MENU.length; i++) if (tapIn(10, 44 + i * 15, 140, 15)) { sel = i; sfx.blip(); MENU[i][1](); return; }
+  for (let i = 0; i < MENU.length; i++) if (tapIn(8, 44 + i * 15, 112, 15)) { sel = i; sfx.blip(); MENU[i][1](); return; }
   if (hits.has('a')) { sfx.blip(); MENU[sel][1](); }
 }
+// A história de abertura: cenas animadas que rodam sozinhas (toque ou A adianta; B/Esc pula tudo)
 const STORY = [
-  ['Lacrímora. Torre das Treze Vozes.', 'lactower', ['richard']],
-  ['Richard deu palavras às criaturas. A primeira foi Mara, uma mariposa ferida. Ela escolheu o próprio nome.', 'lacforest', ['richardCalm', 'mara']],
-  ['Depois veio a guerra entre Antigos e Despertos. Treze feridos, doze frascos de remédio.', 'lactower', ['elo', 'ruk', 'brusk']],
-  ['Richard se trancou na torre para não ferir mais ninguém. E parou de dormir.', 'lactower', ['richard']],
-  ['Sozinho, entediado, ele começa a ouvir vozes... e a ver coisas.', null, ['richard']],
-  ['Pelo portal de Aldo chegam também os ecos de Brumavale: o rei que parou de dormir e a Noite do Silêncio.', 'castle', ['aldo', 'hilda', 'valerio']],
-  ['Cada visão é alguém que ele conheceu, ou algo bem mais estranho. Vença as visões antes que a última vela apague.', null, ['richard', 'mara', 'aldo', 'ecoSilencio']],
+  { text: 'Lacrímora. Torre das Treze Vozes.', dur: 6 },
+  { text: 'Richard deu palavras às criaturas. A primeira foi Mara, uma mariposa ferida. Ela escolheu o próprio nome.', dur: 7.5 },
+  { text: 'Depois veio a guerra entre Antigos e Despertos. Treze feridos, doze frascos de remédio.', dur: 7.5 },
+  { text: 'Richard se trancou na torre para não ferir mais ninguém. E parou de dormir.', dur: 7 },
+  { text: 'Sozinho, entediado, ele começa a ouvir vozes... e a ver coisas.', dur: 6.5 },
+  { text: 'Pelo portal de Aldo chegam também os ecos de Brumavale: o rei que parou de dormir e a Noite do Silêncio.', dur: 8 },
+  { text: 'Cada visão é alguém que ele conheceu, ou algo bem mais estranho. Vença as visões antes que a última vela apague.', dur: 8 },
 ];
-function drawStory() {
-  const [s, theme, who] = STORY[storyPage];
-  if (theme) bgRoom(theme); else trippy(t, 0.8 + storyPage * 0.3, 270);
-  if (storyPage === 2) for (let i = 0; i < 3; i++) { drawActor(g, who[i], 80 + i * 80, 112, t + i, 2); R(56 + i * 80, 112, 48, 12, '#120c1e'); R(57 + i * 80, 113, 46, 6, '#e8e0f0'); R(57 + i * 80, 119, 46, 4, '#8a5a34'); }
-  else if (storyPage === 3) { g.save(); g.globalAlpha = 0.55; R(0, 0, W, H, '#05030c'); g.restore(); drawActor(g, 'richard', W / 2, 120, t, 3); for (let i = 0; i < 3; i++) candle(110 + i * 50, 70, true, t, 2); }
-  else who.forEach((w, i) => drawActor(g, w, W / 2 + (i - (who.length - 1) / 2) * 70, 120, t + i, who.length > 2 ? 2 : 3, { flip: i > 0, alpha: storyPage >= 4 && i > 0 ? 0.6 + 0.3 * Math.sin(t * 3 + i) : 1 }));
-  panel(10, 128, W - 20, 56); para(tr(s), W / 2, 136, W - 40, 7, '#ffffff', 11);
-  text((storyPage + 1) + '/' + STORY.length + '  ▶', W - 18, 174, 5, '#c8bce8', 'right');
-  if (storyPage === 4 || storyPage === 6) wobble(2, t);
+let storyT = 0;
+function towerOutside(k) {
+  const cam = (1 - Math.min(1, k / 4)) * 90;   // a câmera sobe pela torre
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#05030f'); gr.addColorStop(1, '#2a1a4a'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 70; i++) { const tw = Math.sin(t * (1 + (i % 5) * 0.4) + i); if (tw > -0.4) R((i * 97) % W, ((i * 53) % 140) + cam * 0.2, 1, 1, tw > 0.7 ? '#ffffff' : '#8a80c8'); }
+  g.fillStyle = '#fff4c0'; g.beginPath(); g.arc(250, 40 + cam * 0.3, 18, 0, 7); g.fill(); g.fillStyle = '#05030f'; g.beginPath(); g.arc(258, 34 + cam * 0.3, 16, 0, 7); g.fill();
+  // árvores de cristal de Lacrímora
+  for (let i = 0; i < 6; i++) { g.save(); g.translate(i * 60 + 10, 150 + cam); g.scale(2, 2); G.drawCrystalTree(g, 0, 0, t + i); g.restore(); }
+  // a torre
+  const tx = 160, top = 24 + cam;
+  R(tx - 36, top + 30, 72, 300, '#120c1e'); R(tx - 34, top + 32, 68, 300, '#3a2e4c'); R(tx - 34, top + 32, 10, 300, '#4a3e5c');
+  for (let y = top + 36; y < H + 10; y += 9) for (let x = tx - 34 + ((y / 9) % 2) * 8; x < tx + 34; x += 16) R(x, y, 15, 1, '#2e2440');
+  g.fillStyle = '#2a2040'; g.beginPath(); g.moveTo(tx - 44, top + 34); g.lineTo(tx, top - 10); g.lineTo(tx + 44, top + 34); g.closePath(); g.fill();
+  for (let f = 0; f < 4; f++) { const wy = top + 52 + f * 40; R(tx - 9, wy, 18, 20, '#120c1e'); R(tx - 7, wy + 2, 14, 16, f === 0 ? '#ffd27a' : '#5a4a7a'); }
+  drawActor(g, 'richard', tx, top + 70, t, 1, { shadow: false });
+  lighting(g, [[tx, top + 62, 50], [250, 40 + cam * 0.3, 60, 0.6]], 0.45);
+  fog(g, t, 130, 62, '170,160,230', 0.25); motes(g, t, 24, '160,255,220', 5);
 }
-function updateStory() {
-  if (hits.has('a') || ptr.tap) { sfx.blip(); storyPage++; if (storyPage >= STORY.length) go(storyNext); }
-  if (hits.has('back')) go(storyNext);
+function storyBeds(k) {
+  g.drawImage(room('lactower', ROOM_OPEN), 0, 0);
+  const who = ['elo', 'ruk', 'brusk', 'iria', 'nara', 'maelis'];
+  for (let i = 0; i < 6; i++) { const x = 30 + i * 52; drawActor(g, who[i], x, 104, t + i, 1); R(x - 18, 104, 36, 12, '#120c1e'); R(x - 17, 105, 34, 6, '#e8e0f0'); R(x - 17, 111, 34, 4, '#8a5a34'); }
+  // Richard anda de leito em leito entregando frascos
+  const rx = 20 + ((k * 40) % 290), n = Math.min(12, Math.floor(k * 1.8));
+  drawActor(g, 'richard', rx, 142, t * 3, 2);
+  for (let i = 0; i < 13; i++) { const x = 32 + i * 21, y = 128; R(x - 3, y - 6, 6, 9, '#120c1e'); R(x - 2, y - 5, 4, 7, i < n ? '#c86aff' : '#3a2e4c'); }
+  text(n + ' / 13', W - 10, 8, 8, n >= 12 ? '#ff7a9a' : '#ffffff', 'right');
+  if (k > 5) { g.save(); g.globalAlpha = 0.25 + 0.15 * Math.sin(t * 8); R(0, 0, W, H, '#ff1a3a'); g.restore(); }
+  lighting(g, [[rx, 120, 70], [160, 40, 90, 0.5]], 0.5); vignette(g, 0.6);
+}
+function storyAlone(k) {
+  g.drawImage(room('lactower', OBS), 0, 0); moonWindow(254, 70, t); desk(160, 140, t);
+  drawActor(g, 'richard', 160, 136, t, 2);
+  // a porta se fecha e a escuridão cresce
+  const door = Math.min(1, k / 2.5); R(14, 40, 30, 70, '#120c1e'); R(16, 42 + 66 * (1 - door), 26, 66 * door, '#5a3a24');
+  for (let i = 0; i < 3; i++) candle(120 + i * 40, 132, true, t, 1);
+  lighting(g, [[120, 124, 60], [160, 124, 60], [200, 124, 60], [254, 64, 60, 0.6]], 0.55 + door * 0.3);
+  // olhos sempre abertos: o relógio gira, ele não dorme
+  const cx = 70, cy = 60; g.strokeStyle = '#c8bce8'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, 12, 0, 7); g.stroke(); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(t * 6) * 10, cy + Math.sin(t * 6) * 10); g.stroke(); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(t * 0.5) * 6, cy + Math.sin(t * 0.5) * 6); g.stroke();
+  vignette(g, 0.7);
+}
+const VOICES = ['Richard...', 'Treze...', 'Doze frascos...', 'Acorde...', 'Mara...', 'Durma...'];
+function storyVoices(k) {
+  trippy(t, 0.6 + k * 0.4, 270); g.save(); g.globalAlpha = Math.max(0, 0.7 - k * 0.12); R(0, 0, W, H, '#05030c'); g.restore();
+  drawActor(g, 'richard', W / 2, 130, t * 2, 3, { rot: Math.sin(t * 2) * 0.08 });
+  VOICES.forEach((v, i) => { const a = t * 0.6 + i * 1.05, r = 70 + Math.sin(t + i) * 20; g.save(); g.globalAlpha = Math.max(0, Math.min(1, k - i * 0.5)) * (0.6 + 0.4 * Math.sin(t * 3 + i)); text(tr(v), W / 2 + Math.cos(a) * r * 1.4, 80 + Math.sin(a) * r * 0.6, 6, `hsl(${(i * 60 + t * 80) % 360},90%,75%)`); g.restore(); });
+  vignette(g, 0.5);
+}
+function portalFx(x, y, t, s = 1) {
+  for (let r = 5; r >= 0; r--) { g.fillStyle = `hsla(${270 + r * 10 + Math.sin(t * 3) * 20},80%,${30 + r * 9}%,0.9)`; g.beginPath(); g.ellipse(x, y, (16 + r * 4) * s, (26 + r * 6) * s, 0, 0, 7); g.fill(); }
+  for (let i = 0; i < 10; i++) { const a = t * 2 + i * 0.63, rr = 24 + (i % 3) * 8; R(x + Math.cos(a) * rr * s, y + Math.sin(a) * rr * 1.5 * s, 2, 2, '#f0d0ff'); }
+}
+function storyPortal(k) {
+  g.drawImage(room('castle', ROOM_OPEN), 0, 0);
+  portalFx(250, 100, t, 1.1);
+  [['aldo', 0.5], ['hilda', 2], ['valerio', 3.5]].forEach(([w, at], i) => { const p = Math.max(0, Math.min(1, (k - at) / 2)); if (p <= 0) return; drawActor(g, w, 250 - p * (120 + i * 50), 140 - i * 10, t * 2, 2, { alpha: 0.35 + p * 0.45, filter: 'saturate(0.4) brightness(1.3) hue-rotate(200deg)', flip: true }); });
+  lighting(g, [[250, 100, 110, 1]], 0.6, '8,4,24', '200,140,255'); motes(g, t, 30, '220,180,255', 9); vignette(g, 0.5);
+}
+function storyFinal(k) {
+  trippy(t, 1 + k * 0.5, 270 + k * 30);
+  const ring = ['mara', 'hilda', 'pedro', 'doran', 'mirela', 'aldo', 'icaro', 'ray', 'valerio', 'ecoSilencio'];
+  ring.forEach((w, i) => { const a = t * (0.6 + k * 0.2) + i / ring.length * Math.PI * 2; drawActor(g, w, W / 2 + Math.cos(a) * 120, 118 + Math.sin(a) * 34, t + i, fitScale(w, 30, 2), { shadow: false }); });
+  drawActor(g, 'richard', W / 2, 136, t * 2, 3);
+  vignette(g, 0.5);
+  if (k > 5.5) { const f = Math.min(1, (k - 5.5) * 3); g.save(); g.globalAlpha = 1 - Math.min(1, (k - 5.5) * 1.2); R(0, 0, W, H, '#ffffff'); g.restore(); g.save(); g.translate(W / 2, 50); g.scale(3 - f * 2, 3 - f * 2); text('RICHARD IS BORED', 0, -8, 16, '#ffe07a'); g.restore(); }
+}
+const STORY_DRAW = [towerOutside, (k) => {
+  g.drawImage(room('lacforest', ROOM_OPEN), 0, 0);
+  const rx = Math.min(130, -20 + k * 60), mx = 210, my = Math.min(118, 10 + k * 40);
+  drawActor(g, 'richardCalm', rx, 138, rx < 130 ? t * 3 : t, 2);
+  drawActor(g, 'mara', mx, my + Math.sin(t * 3) * 4, t, 2, { flip: true, shadow: my >= 118 });
+  if (k > 3) { for (let i = 0; i < 6; i++) { const a = t * 2 + i; R(mx + Math.cos(a) * 20, my - 30 + Math.sin(a) * 10, 2, 2, '#fff4a0'); } text('Mara!', mx, my - 58, 8, '#ffe07a'); }
+  lighting(g, [[rx, 120, 60], [mx, my - 20, 70, 0.9]], 0.5, '8,4,24', '180,255,200'); motes(g, t, 30, '180,255,220', 2); vignette(g, 0.5);
+}, storyBeds, storyAlone, storyVoices, storyPortal, storyFinal];
+function drawStory() {
+  const sc = STORY[storyPage], k = storyT;
+  STORY_DRAW[storyPage](k);
+  if (storyPage === 4) wobble(1 + k * 0.6, t);
+  // texto aparecendo letra por letra
+  const full = tr(sc.text), n = Math.min(full.length, Math.floor(k * 28)), shown = full.slice(0, n);
+  panel(10, 146, W - 20, 40, 0.82); para(shown, W / 2, 152, W - 40, 6, '#ffffff', 10);
+  if (n >= full.length && Math.floor(t * 3) % 2) text('▶', W - 20, 176, 6, '#ffe07a');
+  text(tr('Pular') + ' ▶▶', W - 6, 4, 5, '#c8bce8', 'right');
+  // escurece entre as cenas
+  const fade = Math.max(0, 1 - k * 2.5, (k - sc.dur + 0.4) * 2.5); if (fade > 0) { g.save(); g.globalAlpha = Math.min(1, fade); R(0, 0, W, H, '#05030c'); g.restore(); }
+}
+function nextStory() { storyPage++; storyT = 0; if (storyPage >= STORY.length) go(storyNext); }
+function updateStory(dt) {
+  storyT += dt; const sc = STORY[storyPage];
+  if (tapIn(W - 70, 0, 70, 16) || hits.has('back')) { go(storyNext); return; }
+  if (hits.has('a') || ptr.tap) { const full = tr(sc.text); if (Math.floor(storyT * 28) < full.length) storyT = full.length / 28 + 0.01; else nextStory(); return; }
+  if (storyT > sc.dur) nextStory();
 }
 const HOW = ['Cada visão é uma sequência de minijogos de poucos segundos.', 'Leia a ordem gigante e obedeça antes do pavio queimar.', 'Errou? Uma vela se apaga. Com 3 velas apagadas, acabou.', 'A cada 4 acertos tudo fica mais rápido. No fim vem o chefe.', 'A 1ª visão tem 7 minijogos, a 2ª tem 8, a 3ª tem 9...'];
 function drawHow() {
@@ -438,7 +554,7 @@ function update(dt) {
   t += dt; pollPad(); pumpMusic();
   const r = cv.getBoundingClientRect(); rotateHint = r.height > r.width * 1.05;
   if (!rotateHint) {
-    if (mode === 'title') updateTitle(); else if (mode === 'story') updateStory(); else if (mode === 'howto') updateHow();
+    if (mode === 'title') updateTitle(); else if (mode === 'story') updateStory(dt); else if (mode === 'howto') updateHow();
     else if (mode === 'visions') updateVisions(); else if (mode === 'settings') updateSettings(); else if (mode === 'legal') updateLegal();
     else if (mode === 'play') updatePlay(dt); else if (mode === 'cleared' || mode === 'over') updateEnd(dt);
   }
@@ -449,7 +565,8 @@ function draw() {
   if (mode === 'title') drawTitle(); else if (mode === 'story') drawStory(); else if (mode === 'howto') drawHow();
   else if (mode === 'visions') drawVisions(); else if (mode === 'settings') drawSettings(); else if (mode === 'legal') drawLegal();
   else if (mode === 'play') drawPlay(); else if (mode === 'cleared' || mode === 'over') drawEnd();
-  g.restore();
+  else if (mode === 'boot') R(0, 0, W, H, '#05030c');
+  g.restore(); drawMenuPad(); if (padFlash && (padFlash.t -= 1 / 60) <= 0) padFlash = null;
   // tela: escala para caber, sempre nítida; no celular em pé, pede para girar
   const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
@@ -465,8 +582,8 @@ function draw() {
 }
 let last = performance.now();
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
-document.fonts?.load(font(8)).finally(() => { requestAnimationFrame(frame); brandIntro(); playSong('title'); });
+document.fonts?.load(font(8)).finally(() => { requestAnimationFrame(frame); Promise.resolve(brandIntro()).catch(() => {}).then(() => { go('story', 'title'); }); });
 // ganchos para testes automáticos
 window.__re = { get mode() { return mode; }, get P() { return P; }, VISIONS, makePool, go, startVision: (i) => startVision(VISIONS[i]),
   test(kind, i = 0) { startVision(VISIONS[i]); if (kind === 'boss') { P.boss = true; } else P.pool = [{ kind, lvl: 1 }]; prepareMicro(); setPhase('micro'); },
-  phase(ph) { P.phase = ph; P.pt = 0; }, setDevice(d) { device = d; } };
+  phase(ph) { P.phase = ph; P.pt = 0; }, setDevice(d) { device = d; }, story(i, k) { mode = 'story'; storyPage = i; storyT = k; storyNext = 'title'; } };

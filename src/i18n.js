@@ -79,6 +79,13 @@ const T = {
   'ande': ['anda', 'move', '移動', 'muévete', 'bouge', '移动'],
   'Plataforma: ande e pule': ['Plataforma: anda e salta', 'Platform: move and jump', 'アクション：動いてジャンプ', 'Plataformas: muévete y salta', 'Plateforme : bouge et saute', '平台：移动并跳跃'],
   'Pule nas plataformas e pegue o livro!': ['Salta nas plataformas e apanha o livro!', 'Jump the ledges and get the book!', '足場をとんで本をとれ！', '¡Salta por las plataformas y coge el libro!', 'Saute sur les plateformes et prends le livre !', '跳上平台拿到书！'],
+  'Pular': ['Saltar', 'Skip', 'スキップ', 'Saltar', 'Passer', '跳过'],
+  'Richard...': ['Richard...', 'Richard...', 'リチャード……', 'Richard...', 'Richard...', '理查德……'],
+  'Treze...': ['Treze...', 'Thirteen...', '十三……', 'Trece...', 'Treize...', '十三……'],
+  'Doze frascos...': ['Doze frascos...', 'Twelve vials...', '薬は十二本……', 'Doce frascos...', 'Douze fioles...', '十二瓶药……'],
+  'Acorde...': ['Acorda...', 'Wake up...', '起きて……', 'Despierta...', 'Réveille-toi...', '醒醒……'],
+  'Mara...': ['Mara...', 'Mara...', 'マラ……', 'Mara...', 'Mara...', '玛拉……'],
+  'Durma...': ['Dorme...', 'Sleep...', '眠って……', 'Duerme...', 'Dors...', '睡吧……'],
   // como jogar
   'Cada visão é uma sequência de minijogos de poucos segundos.': ['Cada visão é uma sequência de minijogos de poucos segundos.', 'Each vision is a string of microgames that last a few seconds.', 'まぼろしは数秒のミニゲームの連続。', 'Cada visión es una serie de minijuegos de pocos segundos.', 'Chaque vision est une suite de mini-jeux de quelques secondes.', '每个幻象都是一连串几秒钟的小游戏。'],
   'Leia a ordem gigante e obedeça antes do pavio queimar.': ['Leia a ordem gigante e obedeça antes de o pavio queimar.', 'Read the giant command and obey before the fuse burns out.', '大きな命令を読んで、導火線が燃えつきる前に従おう。', 'Lee la orden gigante y obedece antes de que se queme la mecha.', "Lis l'ordre géant et obéis avant que la mèche brûle.", '看清巨大的指令，在引线烧完前完成。'],

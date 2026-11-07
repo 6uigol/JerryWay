@@ -53,6 +53,8 @@ export function drawActor(g, who, x, y, t, scale = 1, o = {}) {
   const key = typeof who === 'string' ? who : who.key, A = typeof who === 'string' ? ACTORS[who] : who.A; if (!A) return { w: 0, h: 0 };
   const b = boxOf(key, A), s = pad(A.size), c = s.getContext('2d');
   c.clearRect(0, 0, A.size, A.size); A.draw(c, A.size / 2, A.size * 0.75, t);
+  // sombra no chão (deixa os personagens "pisando" no cenário)
+  if (o.shadow !== false && !o.rot) { g.save(); g.globalAlpha = (o.alpha ?? 1) * 0.32; g.fillStyle = '#05030c'; g.beginPath(); g.ellipse(Math.round(x), Math.round(y) - scale, Math.max(4, b.w * scale * 0.42), Math.max(2, scale * 1.6), 0, 0, 7); g.fill(); g.restore(); }
   g.save(); if (o.alpha != null) g.globalAlpha *= o.alpha; if (o.filter) g.filter = o.filter;
   g.translate(Math.round(x), Math.round(y)); if (o.flip) g.scale(-1, 1); if (o.rot) g.rotate(o.rot);
   g.imageSmoothingEnabled = false;
@@ -75,3 +77,35 @@ export function room(theme, map) {
   rooms.set(key, cv); return cv;
 }
 export const ROOM_OPEN = ['####################', ...Array.from({ length: 10 }, () => '#..................#'), '####################'];
+
+// ---------------------------------------------------------------- luz e clima (deixam as cenas com cara de jogo pronto)
+const lightCv = document.createElement('canvas'), lightG = lightCv.getContext('2d');
+// escuridão com buracos de luz: lights = [[x, y, raio, intensidade(0..1)]]; depois um brilho quente por cima
+export function lighting(g, lights, dark = 0.6, tint = '8,4,24', warm = '255,190,110') {
+  const W = g.canvas.width, H = g.canvas.height;
+  if (lightCv.width !== W || lightCv.height !== H) { lightCv.width = W; lightCv.height = H; }
+  lightG.globalCompositeOperation = 'source-over'; lightG.clearRect(0, 0, W, H); lightG.fillStyle = `rgba(${tint},${dark})`; lightG.fillRect(0, 0, W, H);
+  lightG.globalCompositeOperation = 'destination-out';
+  for (const [x, y, r, k = 1] of lights) { const gr = lightG.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(0.6, `rgba(0,0,0,${k * 0.6})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lightG.fillStyle = gr; lightG.fillRect(x - r, y - r, r * 2, r * 2); }
+  g.drawImage(lightCv, 0, 0);
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (const [x, y, r, k = 1] of lights) { if (!warm) break; const gr = g.createRadialGradient(x, y, 0, x, y, r * 0.55); gr.addColorStop(0, `rgba(${warm},${0.16 * k})`); gr.addColorStop(1, `rgba(${warm},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+  g.restore();
+}
+// bordas escuras (vinheta)
+export function vignette(g, k = 0.55) {
+  const W = g.canvas.width, H = g.canvas.height, gr = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.65);
+  gr.addColorStop(0, 'rgba(5,3,12,0)'); gr.addColorStop(1, `rgba(5,3,12,${k})`); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+}
+// poeira e brilhinhos flutuando
+export function motes(g, t, n = 26, col = '255,240,200', seed = 1) {
+  const W = g.canvas.width, H = g.canvas.height;
+  for (let i = 0; i < n; i++) { const h1 = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453, r1 = h1 - Math.floor(h1), h2 = Math.sin(i * 39.3468 + seed * 11.135) * 24634.6345, r2 = h2 - Math.floor(h2);
+    const x = (r1 * W + Math.sin(t * 0.4 + i) * 12 + t * 4) % W, y = (r2 * H - t * (4 + (i % 5) * 2) + H * 10) % H, a = 0.25 + 0.35 * Math.abs(Math.sin(t * 1.3 + i));
+    g.fillStyle = `rgba(${col},${a})`; g.fillRect(Math.round(x), Math.round(y), i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1); }
+}
+// neblina rasteira
+export function fog(g, t, y0, h, col = '200,190,255', a = 0.18) {
+  const W = g.canvas.width; const gr = g.createLinearGradient(0, y0, 0, y0 + h); gr.addColorStop(0, `rgba(${col},0)`); gr.addColorStop(1, `rgba(${col},${a})`); g.fillStyle = gr; g.fillRect(0, y0, W, h);
+  g.fillStyle = `rgba(${col},${a * 0.6})`; for (let i = 0; i < 6; i++) { const x = ((i * 71 + t * (6 + i)) % (W + 80)) - 40; g.beginPath(); g.ellipse(x, y0 + h - 6 - (i % 3) * 4, 40, 6, 0, 0, 7); g.fill(); }
+}

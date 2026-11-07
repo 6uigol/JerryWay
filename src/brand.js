@@ -58,7 +58,7 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
     setTimeout(end, 6500);   // garantia
     const stars = Array.from({ length: 60 }, (_, i) => ({ x: (i * 37.7 % 100) / 100, y: ((i * 61.3 + 7) % 100) / 100, p: i * 0.9, s: i % 6 === 0 ? 2 : 1 }));
     const trail = [];
-    let mask = null, dim = null;
+    let mask = null, dim = null, glow = null, glowM = 0;
     const begin = () => { if (over) return; start = performance.now(); snd = sounds(); raf = requestAnimationFrame(frame); };
     img.onload = begin; img.onerror = end;
 
@@ -77,6 +77,15 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
         // celulares fazia o brilho virar um retângulo claro em volta do logo inteiro
         dim = document.createElement('canvas'); dim.width = mask.width; dim.height = mask.height; const dc = dim.getContext('2d');
         dc.drawImage(mask, 0, 0); dc.globalCompositeOperation = 'source-atop'; dc.fillStyle = 'rgba(0,0,0,0.14)'; dc.fillRect(0, 0, dim.width, dim.height);
+        // brilho em volta das letras: o logo em azul-claro, encolhido e ampliado de novo (fica borrado), com margem
+        // própria. Desenhado fora do recorte que revela as letras, para nunca formar um retângulo de luz.
+        const m = Math.ceil(28 * dpr), sw = Math.max(8, Math.round((mask.width + m * 2) / 6)), sh = Math.max(8, Math.round((mask.height + m * 2) / 6));
+        const tint = document.createElement('canvas'); tint.width = mask.width; tint.height = mask.height; const tc = tint.getContext('2d');
+        tc.drawImage(mask, 0, 0); tc.globalCompositeOperation = 'source-in'; tc.fillStyle = 'rgb(170,190,255)'; tc.fillRect(0, 0, tint.width, tint.height);
+        const small = document.createElement('canvas'); small.width = sw; small.height = sh; const scx = small.getContext('2d'); scx.imageSmoothingEnabled = true;
+        scx.drawImage(tint, m / 6, m / 6, mask.width / 6, mask.height / 6);
+        glow = document.createElement('canvas'); glow.width = mask.width + m * 2; glow.height = mask.height + m * 2; const gc = glow.getContext('2d'); gc.imageSmoothingEnabled = true;
+        gc.drawImage(small, 0, 0, glow.width, glow.height); glowM = m;
       }
       // fundo: escuro → luar → escuro
       c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
@@ -104,12 +113,12 @@ export function brandIntro(logo = 'icons/brand-logo.png') {
       if (t >= T.fly[0] && t < T.fly[1]) { const p = ease((t - T.fly[0]) / (T.fly[1] - T.fly[0])); ox = L2.x1 + (MOON.x - L2.x1) * p; oy = L2.base - 120 * Math.sin(p * Math.PI) + (MOON.y - L2.base) * p; orb = 1 - p * 0.4; }
       // nome revelado (prateado) até onde a luazinha passou
       const fade = t > T.out[0] ? 1 - clamp((t - T.out[0]) / (T.out[1] - T.out[0])) : 1;
+      if (glow) { const shown = clamp((t - T.l2[1] + 0.3) / 0.6); /* acende quando as letras terminam de aparecer */ c.save(); c.globalAlpha = fade * shown * 0.85; c.drawImage(glow, lx - glowM, ly - glowM); c.restore(); }
       c.save(); c.globalAlpha = fade; c.beginPath();
       if (r1 > 0) { const [x0, y0] = P(0, L1.y0), [x1, y1] = P(Math.min(r1, 900), L1.y1); c.rect(x0, y0, x1 - x0, y1 - y0); }
       if (rOf > 0) { const cx = (OF.x0 + OF.x1) / 2, hw = (OF.x1 - OF.x0) / 2 * rOf, [x0, y0] = P(cx - hw, OF.y0), [x1, y1] = P(cx + hw, OF.y1); c.rect(x0, y0, x1 - x0, y1 - y0); }
       if (r2 > 0) { const [x0, y0] = P(0, L2.y0), [x1, y1] = P(Math.min(r2, 900), L2.y1); c.rect(x0, y0, x1 - x0, y1 - y0); }
       c.clip();
-      c.shadowColor = 'rgba(170,190,255,0.6)'; c.shadowBlur = 18 * dpr;
       c.drawImage(dim, lx, ly, lw, lh);
       c.restore();
       // a lua crescente acende quando a luazinha chega

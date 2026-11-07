@@ -1,7 +1,7 @@
 // Os minijogos (microjogos de poucos segundos). Cada um tem uma ordem clara (a palavra grande), um ícone de controle
 // e um jeito só de ganhar. Usam a arte do Song of Moonlight: pisos, paredes, personagens e monstros de verdade.
 // Controles: setas/WASD ou arrastar o dedo = mover; A/Espaço/Enter ou tocar = ação; tocar no objeto = escolher.
-import { drawActor, room, ROOM_OPEN, G, fitScale } from './art.js';
+import { drawActor, room, ROOM_OPEN, G, fitScale, fog } from './art.js';
 import { sfx } from './audio.js';
 
 export const W = 320, H = 192;
@@ -25,10 +25,14 @@ function sideBg(o, floorY = 160) {
   if (hue) { g.save(); g.globalAlpha = 0.18; g.fillStyle = `hsl(${hue},90%,60%)`; g.fillRect(0, 0, W, floorY); g.restore(); }
   for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = (i * 53) % (floorY - 40); if ((i + Math.floor(o.age * 3)) % 7) R(x, y, 1, 1, '#e8e0ff'); }
   g.fillStyle = '#fff4c0'; g.beginPath(); g.arc(270, 32, 14, 0, 7); g.fill(); g.fillStyle = top; g.beginPath(); g.arc(277, 28, 12, 0, 7); g.fill();
+  // ao fundo: picos de cristal de Lacrímora (paralaxe lenta)
+  g.fillStyle = o.V.sky[1]; g.globalAlpha = 0.55; g.beginPath(); g.moveTo(0, floorY);
+  for (let x = 0; x <= W + 20; x += 20) g.lineTo(x - (o.age * 3) % 20, floorY - 60 - ((x * 37) % 50) * (x % 40 ? 0.6 : 1)); g.lineTo(W, floorY); g.closePath(); g.fill(); g.globalAlpha = 1;
   // silhuetas: torres de Lacrímora com janelas acesas
   for (let i = 0; i < 6; i++) { const x = i * 58 - 10, h = 50 + ((i * 37) % 40); R(x, floorY - h, 34, h, o.V.sky[2]); R(x + 4, floorY - h - 8, 26, 8, o.V.sky[2]); for (let k = 0; k < 3; k++) if ((i + k) % 2) R(x + 8 + k * 7, floorY - h + 10 + k * 9, 4, 6, '#ffd27a'); }
+  fog(g, o.age, floorY - 46, 46, '220,210,255', 0.16);
   g.drawImage(room(o.V.theme, FLOOR), 0, floorY);
-  R(0, floorY, W, 2, 'rgba(255,255,255,0.18)');
+  R(0, floorY, W, 2, 'rgba(255,255,255,0.18)'); g.save(); g.globalAlpha = 0.35; R(0, floorY + 2, W, 3, '#05030c'); g.restore();
 }
 // frasco de remédio (de Lacrímora): rolha, vidro e líquido brilhando
 function vial(x, y, t, s = 2) {
