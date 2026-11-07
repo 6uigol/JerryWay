@@ -142,3 +142,4 @@ button.shop-btn { background: #8a5a10; border-color: #ffcc3a; color: #fff2c8; fo
 .config .cfg-ctl b { min-width: 74px; text-align: center; font-size: 10px; color: #ffe070; }
 .config button.step { flex: 0 0 auto; width: 40px; padding: 8px 0; font-size: 14px; }
 .config select { font: inherit; font-size: 9px; color: var(--text); background: #3a2a62; border: 2px solid #6a5aa8; padding: 8px; max-width: 60%; }
+.config .cfg-h { margin: 6px 0 0; font-size: 10px; color: #ffcc3a; }

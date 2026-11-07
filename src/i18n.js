@@ -26,6 +26,8 @@ const T = {
   'Efeitos': ['Efeitos', 'Sound effects', '効果音', 'Efectos', 'Effets', '音效'],
   'Idioma': ['Idioma', 'Language', '言語', 'Idioma', 'Langue', '语言'],
   'Voltar': ['Voltar', 'Back', 'もどる', 'Volver', 'Retour', '返回'],
+  'Termos e privacidade': ['Termos e privacidade', 'Terms and privacy', '規約とプライバシー', 'Términos y privacidad', 'Conditions et confidentialité', '条款与隐私'],
+  'Versão 1.0.0.0': ['Versão 1.0.0.0', 'Version 1.0.0.0', 'バージョン 1.0.0.0', 'Versión 1.0.0.0', 'Version 1.0.0.0', '版本 1.0.0.0'],
   'Desligado': ['Desligado', 'Off', 'オフ', 'Apagado', 'Coupé', '关闭'],
   // pausa e fim
   'Pausa': ['Pausa', 'Paused', 'ポーズ', 'Pausa', 'Pause', '暂停'],

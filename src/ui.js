@@ -73,6 +73,9 @@ function config() {
   root.innerHTML = `<div class="panel config"><h2>Configurações</h2>
     ${[['music', 'Música'], ['sfx', 'Efeitos']].map(([k, n]) => `<div class="cfg-row"><span>${n}</span><div class="cfg-ctl"><button class="step" data-vol="${k}" data-d="-1" aria-label="-">−</button><b id="v-${k}">${pct(k)}</b><button class="step" data-vol="${k}" data-d="1" aria-label="+">+</button></div></div>`).join('')}
     <div class="cfg-row"><span>Idioma</span><select id="cfg-lang">${LANGS.map((l) => `<option value="${l.code}" ${l.code === getLang() ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
+    <h3 class="cfg-h">Termos e privacidade</h3>
+    <p class="legal">${['termos|Termos de Uso', 'privacidade|Privacidade', 'compras|Compras e Reembolsos'].map((x) => { const [k, n] = x.split('|'); return `<a href="${SITE_URL}/#/${k}" target="_blank" rel="noopener">${n}</a>`; }).join(' · ')}</p>
+    <p class="muted small">Versão 1.0.0.0</p>
     <button class="big" data-go="configback">Voltar</button></div>`;
   root.querySelectorAll('[data-vol]').forEach((b) => b.addEventListener('click', () => {
     const k = b.dataset.vol; setVolume(k, getVolume(k) + Number(b.dataset.d) * 0.1);
