@@ -186,20 +186,30 @@ export const MICROS = {
 export const MICRO_KINDS = Object.keys(MICROS);
 
 // ---------------------------------------------------------------- o chefe de cada visão
-export const BOSS = { word: 'VENÇA A VISÃO!', icon: 'movepress', timeout: 'lose', dur: () => 11,
-  init(o) { o.px = W / 2; o.hp = 4 + Math.min(6, o.lvl); o.max = o.hp; o.shots = []; o.foes = []; o.cd = 0; o.fire = 1; o.bx = W / 2; o.flash = 0; },
-  update(o) { moveX(o, 165); o.cd -= o.dt; o.flash -= o.dt;
-    o.bx = W / 2 + Math.sin(o.age * (0.9 + o.lvl * 0.08)) * 110; o.by = 70 + Math.sin(o.age * 2.1) * 10;
-    if (press() && o.cd <= 0) { o.shots.push({ x: o.px, y: 120 }); o.cd = 0.2; sfx.zap(); }
-    o.fire -= o.dt * o.sp; if (o.fire <= 0) { o.fire = Math.max(0.35, 0.9 - o.lvl * 0.06); const n = 1 + (o.lvl > 3 ? 1 : 0); for (let k = 0; k < n; k++) { const dx = o.px - o.bx + (k ? rnd(-60, 60) : 0), d = Math.hypot(dx, 90); o.foes.push({ x: o.bx, y: o.by, vx: dx / d * (95 + o.lvl * 8), vy: 90 / d * (95 + o.lvl * 8) }); } }
-    for (const f of o.foes) { f.x += f.vx * o.sp * o.dt; f.y += f.vy * o.sp * o.dt; if (Math.abs(f.x - o.px) < 13 && f.y > 128 && f.y < 162) o.lose = true; }
-    for (const s of o.shots) { s.y -= 320 * o.dt; if (Math.abs(s.x - o.bx) < 26 && Math.abs(s.y - o.by) < 26) { s.y = -99; o.hp--; o.flash = 0.12; sfx.hit(); } }
+// O chefe: difícil, mas justo. O Richard aguenta 3 golpes (pisca e fica invencível um instante depois de cada um),
+// o chefe avisa antes de atirar (brilha), os tiros são lentos e segurar o botão atira sozinho.
+// A velocidade do resto da partida não acelera o chefe.
+export const BOSS = { word: 'VENÇA A VISÃO!', icon: 'movepress', timeout: 'lose', dur: () => 16, fixed: true,
+  init(o) { o.px = W / 2; o.hp = 3 + Math.min(4, Math.floor(o.lvl / 2)); o.max = o.hp; o.shots = []; o.foes = []; o.cd = 0; o.fire = 1.6; o.bx = W / 2; o.flash = 0; o.life = 3; o.inv = 0; o.warn = 0; },
+  update(o) { const sp0 = o.sp; o.sp = 1; moveX(o, 170); o.sp = sp0; o.cd -= o.dt; o.flash -= o.dt; o.inv -= o.dt;
+    o.bx = W / 2 + Math.sin(o.age * (0.55 + o.lvl * 0.03)) * 95; o.by = 66 + Math.sin(o.age * 1.6) * 8;
+    if ((press() || inp.held('a')) && o.cd <= 0) { o.shots.push({ x: o.px, y: 122 }); o.cd = 0.18; sfx.zap(); }
+    o.fire -= o.dt;
+    if (o.fire < 0.45) o.warn = 1;   // brilha antes de atirar
+    if (o.fire <= 0) { o.warn = 0; o.fire = Math.max(0.75, 1.5 - o.lvl * 0.05); const n = o.lvl >= 8 ? 2 : 1, spd = 62 + Math.min(40, o.lvl * 4);
+      for (let k = 0; k < n; k++) { const dx = o.px - o.bx + (k ? rnd(-70, 70) : 0), d = Math.hypot(dx, 90); o.foes.push({ x: o.bx, y: o.by, vx: dx / d * spd, vy: 90 / d * spd }); } }
+    for (const f of o.foes) { f.x += f.vx * o.dt; f.y += f.vy * o.dt;
+      if (o.inv <= 0 && Math.abs(f.x - o.px) < 11 && f.y > 132 && f.y < 160) { f.y = 999; o.life--; o.inv = 1.2; sfx.hit(); if (o.life <= 0) o.lose = true; } }
+    for (const s of o.shots) { s.y -= 340 * o.dt; if (Math.abs(s.x - o.bx) < 32 && Math.abs(s.y - o.by) < 30) { s.y = -99; o.hp--; o.flash = 0.12; sfx.hit(); } }
     o.shots = o.shots.filter((s) => s.y > -20); o.foes = o.foes.filter((f) => f.y < 200);
     if (o.hp <= 0) o.win = true; },
-  draw(o, t) { sideBg(o); g.save(); g.globalAlpha = 0.16 + 0.08 * Math.sin(o.age * 8); R(0, 0, W, 160, '#ff2a4a'); g.restore();
-    drawActor(g, o.V.boss || o.V.actor, o.bx, o.by + 30, t, fitScale(o.V.boss || o.V.actor, 60, 3), { filter: o.flash > 0 ? 'brightness(3)' : undefined });
-    for (const f of o.foes) drawActor(g, o.V.mob, f.x, f.y + 10, t + f.x, 1);
+  draw(o, t) { sideBg(o); g.save(); g.globalAlpha = 0.12 + 0.06 * Math.sin(o.age * 8); R(0, 0, W, 160, '#ff2a4a'); g.restore();
+    const ba = o.V.boss || o.V.actor;
+    if (o.warn) { g.save(); g.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); g.fillStyle = '#ff5a7a'; g.beginPath(); g.arc(o.bx, o.by, 26, 0, 7); g.fill(); g.restore(); }
+    drawActor(g, ba, o.bx, o.by + 30, t, fitScale(ba, 60, 3), { filter: o.flash > 0 ? 'brightness(3)' : undefined, shadow: false });
+    for (const f of o.foes) { g.save(); g.globalAlpha = 0.35; g.fillStyle = '#ff5a7a'; g.beginPath(); g.arc(f.x, f.y, 9, 0, 7); g.fill(); g.restore(); drawActor(g, o.V.mob, f.x, f.y + 8, t + f.x, 1, { shadow: false }); }
     for (const s of o.shots) spark(s.x, s.y);
-    drawActor(g, 'richard', o.px, 160, t, 2, { flip: o.face });
-    R(60, 6, 200, 8, '#120c1e'); R(62, 8, 196 * Math.max(0, o.hp / o.max), 4, '#ff5a7a'); },
+    if (o.inv <= 0 || Math.floor(t * 16) % 2) drawActor(g, 'richard', o.px, 160, t, 2, { flip: o.face });
+    R(60, 6, 200, 8, '#120c1e'); R(62, 8, 196 * Math.max(0, o.hp / o.max), 4, '#ff5a7a');
+    for (let i = 0; i < 3; i++) { const on = i < o.life, x = 10 + i * 12, y = 8; R(x, y + 1, 9, 6, '#120c1e'); R(x + 1, y, 3, 2, '#120c1e'); R(x + 5, y, 3, 2, '#120c1e'); if (on) { R(x + 1, y + 1, 7, 4, '#ff5a7a'); R(x + 2, y + 5, 5, 1, '#ff5a7a'); R(x + 3, y + 6, 3, 1, '#ff5a7a'); R(x + 2, y + 1, 1, 1, '#ffffff'); } } },
 };

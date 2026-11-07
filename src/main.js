@@ -222,7 +222,7 @@ const mad = () => Math.min(1, P.wins / Math.max(6, P.pool.length));
 function prepareMicro() {
   const K = P.boss ? BOSS : MICROS[P.pool[P.idx % P.pool.length].kind], lvl = P.boss ? Math.floor(P.V.i / 2) : P.pool[P.idx % P.pool.length].lvl;
   const o = { K, V: P.V, lvl, sp: P.sp, age: 0, dt: 0, sel: 0, trip: P.wins >= 5, mad: mad() };
-  K.init(o); o.dur = K.dur(o) / (K === MICROS.bau || K === MICROS.conte || K === MICROS.runas ? 1 : P.sp);
+  K.init(o); o.dur = K.dur(o) / (K.fixed || K === MICROS.bau || K === MICROS.conte || K === MICROS.runas ? 1 : P.sp);
   // primeiro quadro já desenhado (aparece durante o zoom)
   mg.save(); K.draw(o, t); mg.restore(); microPost();
   P.micro = o; setPhase('command'); sfx.slam();
@@ -385,15 +385,13 @@ function towerOutside(k) {
   for (let i = 0; i < 70; i++) { const tw = Math.sin(t * (1 + (i % 5) * 0.4) + i); if (tw > -0.4) R((i * 97) % W, ((i * 53) % 140) + cam * 0.2, 1, 1, tw > 0.7 ? '#ffffff' : '#8a80c8'); }
   g.fillStyle = '#fff4c0'; g.beginPath(); g.arc(250, 40 + cam * 0.3, 18, 0, 7); g.fill(); g.fillStyle = '#05030f'; g.beginPath(); g.arc(258, 34 + cam * 0.3, 16, 0, 7); g.fill();
   // árvores de cristal de Lacrímora
-  for (let i = 0; i < 6; i++) { g.save(); g.translate(i * 60 + 10, 150 + cam); g.scale(2, 2); G.drawCrystalTree(g, 0, 0, t + i); g.restore(); }
-  // a torre
-  const tx = 160, top = 24 + cam;
-  R(tx - 36, top + 30, 72, 300, '#120c1e'); R(tx - 34, top + 32, 68, 300, '#3a2e4c'); R(tx - 34, top + 32, 10, 300, '#4a3e5c');
-  for (let y = top + 36; y < H + 10; y += 9) for (let x = tx - 34 + ((y / 9) % 2) * 8; x < tx + 34; x += 16) R(x, y, 15, 1, '#2e2440');
-  g.fillStyle = '#2a2040'; g.beginPath(); g.moveTo(tx - 44, top + 34); g.lineTo(tx, top - 10); g.lineTo(tx + 44, top + 34); g.closePath(); g.fill();
-  for (let f = 0; f < 4; f++) { const wy = top + 52 + f * 40; R(tx - 9, wy, 18, 20, '#120c1e'); R(tx - 7, wy + 2, 14, 16, f === 0 ? '#ffd27a' : '#5a4a7a'); }
-  drawActor(g, 'richard', tx, top + 70, t, 1, { shadow: false });
-  lighting(g, [[tx, top + 62, 50], [250, 40 + cam * 0.3, 60, 0.6]], 0.45);
+
+  // a Torre das Treze Vozes, o mesmo desenho do Song of Moonlight (96x112), em dobro, sobre o chão de Lacrímora
+  const tx = 160, top = 14 - cam * 1.1;   // a câmera sobe da porta até o telhado
+  g.drawImage(room('lacrimora', ['####################', '####################']), 0, top + 210);
+  g.save(); g.translate(tx - 96, top); g.scale(2, 2); G.drawLacrTower(g, 0, 0, t); g.restore();
+  for (const [i, x] of [[0, 16], [1, 60], [2, 252], [3, 296]]) { g.save(); g.translate(x - 16, top + 178); g.scale(2, 2); G.drawCrystalTree(g, 0, 0, t + i); g.restore(); }
+  lighting(g, [[tx, top + 90, 90], [250, 40 + cam * 0.3, 60, 0.6]], 0.4);
   fog(g, t, 130, 62, '170,160,230', 0.25); motes(g, t, 24, '160,255,220', 5);
 }
 function storyBeds(k) {
